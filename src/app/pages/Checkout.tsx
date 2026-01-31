@@ -182,7 +182,70 @@ export const Checkout = () => {
         })),
       };
 
-      // Create order in Supabase with all required fields
+      // ============================================
+      // STEP 1: Create TRANSACTION (financial record)
+      // ============================================
+      // transaction_type: 'sale', 'return', 'exchange'
+      // payment_method: 'square', 'cash', 'check', 'gift_card', 'store_credit'
+      // status: 'pending', 'completed', 'voided', 'refunded'
+
+      const transactionData = {
+        transaction_type: 'sale',
+        payment_method: 'square', // Using Square for card payments
+        payment_reference: paymentToken || `DEMO-${Date.now()}`, // Square token or demo reference
+        subtotal: subtotal,
+        tax_amount: tax,
+        discount_amount: 0,
+        total: total,
+        status: 'completed',
+        // customer_id can be linked if user is logged in
+        customer_id: user?.id || null,
+      };
+
+      console.log('Creating transaction with data:', transactionData);
+
+      const { data: transaction, error: transactionError } = await supabase
+        .from('transactions')
+        .insert(transactionData)
+        .select()
+        .single();
+
+      if (transactionError) {
+        console.error('Transaction creation error:', transactionError);
+        // Don't fail the order - continue and log to notes
+      } else {
+        console.log('Transaction created successfully:', transaction);
+      }
+
+      // ============================================
+      // STEP 2: Create TRANSACTION_ITEMS (line items)
+      // ============================================
+      if (transaction) {
+        try {
+          const transactionItems = items.map(item => ({
+            transaction_id: transaction.id,
+            variant_id: null, // We don't have product variants yet
+            product_name: `${item.title} by ${item.author}`,
+            quantity: item.quantity,
+            unit_price: item.price,
+            discount_amount: 0,
+            tax_amount: (item.price * item.quantity) * 0.0825, // Per-item tax
+            total: item.price * item.quantity,
+          }));
+
+          console.log('Creating transaction items:', transactionItems);
+          const { error: txItemsError } = await supabase.from('transaction_items').insert(transactionItems);
+          if (txItemsError) {
+            console.error('Transaction items error:', txItemsError);
+          }
+        } catch (e) {
+          console.error('Transaction items error:', e);
+        }
+      }
+
+      // ============================================
+      // STEP 3: Create ORDER (website order with shipping info)
+      // ============================================
       // order_source must be: 'website_pickup', 'website_ship', 'pos_instore', or 'bookshop'
       const orderSource = shippingInfo.deliveryOption === 'pickup' ? 'website_pickup' : 'website_ship';
 
@@ -190,6 +253,8 @@ export const Checkout = () => {
         order_number: newOrderNumber,
         order_source: orderSource,
         status: 'confirmed',
+        // Link to transaction
+        transaction_id: transaction?.id || null,
         // Required amount fields
         subtotal: subtotal,
         tax_amount: tax,
@@ -199,6 +264,7 @@ export const Checkout = () => {
         // Delivery option
         delivery_option: shippingInfo.deliveryOption === 'pickup' ? 'pickup' : 'shipping',
         // Customer/shipping info
+        customer_id: user?.id || null,
         shipping_first_name: shippingInfo.firstName,
         shipping_last_name: shippingInfo.lastName,
         shipping_email: shippingInfo.email,
@@ -209,8 +275,9 @@ export const Checkout = () => {
         shipping_state: shippingInfo.deliveryOption === 'standard' ? shippingInfo.state : null,
         shipping_postal_code: shippingInfo.deliveryOption === 'standard' ? shippingInfo.postalCode : null,
         // Payment info
-        payment_method: 'card',
+        payment_method: 'square',
         payment_status: 'paid',
+        payment_reference: paymentToken || `DEMO-${Date.now()}`,
         // Notes as JSON backup
         notes: JSON.stringify(orderDetails),
         created_at: new Date().toISOString(),
@@ -233,7 +300,9 @@ export const Checkout = () => {
         console.log('Order created successfully:', order);
       }
 
-      // Create order items (skip if order_items table doesn't exist or has different schema)
+      // ============================================
+      // STEP 4: Create ORDER_ITEMS (for order tracking)
+      // ============================================
       if (order) {
         try {
           const orderItems = items.map(item => ({
