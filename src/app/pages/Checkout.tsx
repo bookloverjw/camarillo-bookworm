@@ -183,6 +183,56 @@ export const Checkout = () => {
       };
 
       // ============================================
+      // STEP 0: Get or Create Customer Record
+      // ============================================
+      // For logged-in users: use their existing customer ID
+      // For guests: look up by email or create new customer record
+      let customerId: string | null = user?.id || null;
+
+      if (!customerId && shippingInfo.email) {
+        try {
+          // Try to find existing customer by email
+          const { data: existingCustomer } = await supabase
+            .from('customers')
+            .select('id')
+            .eq('email', shippingInfo.email)
+            .single();
+
+          if (existingCustomer) {
+            customerId = existingCustomer.id;
+            console.log('Found existing customer:', customerId);
+          } else {
+            // Create new customer record for guest
+            const { data: newCustomer, error: customerError } = await supabase
+              .from('customers')
+              .insert({
+                email: shippingInfo.email,
+                first_name: shippingInfo.firstName,
+                last_name: shippingInfo.lastName,
+                phone: shippingInfo.phone || null,
+                created_via: 'website_checkout',
+                home_store: 'CAM',
+                marketing_opt_in: false,
+                sms_opt_in: false,
+              })
+              .select()
+              .single();
+
+            if (!customerError && newCustomer) {
+              customerId = newCustomer.id;
+              console.log('Created new customer:', customerId);
+            } else {
+              console.error('Customer creation error:', customerError);
+              // Continue without customer_id - order will still be created
+            }
+          }
+        } catch (e) {
+          console.error('Customer lookup/creation error:', e);
+          // Continue without customer_id
+        }
+      }
+
+      // ============================================
       // STEP 1: Create TRANSACTION (financial record)
       // ============================================
       // transaction_type: 'sale', 'return', 'exchange'
@@ -198,8 +248,7 @@ export const Checkout = () => {
         discount_amount: 0,
         total: total,
         status: 'completed',
-        // customer_id can be linked if user is logged in
-        customer_id: user?.id || null,
+        customer_id: customerId,
       };
 
       console.log('Creating transaction with data:', transactionData);
@@ -264,7 +313,7 @@ export const Checkout = () => {
         // Delivery option
         delivery_option: shippingInfo.deliveryOption === 'pickup' ? 'pickup' : 'shipping',
         // Customer/shipping info
-        customer_id: user?.id || null,
+        customer_id: customerId,
         shipping_first_name: shippingInfo.firstName,
         shipping_last_name: shippingInfo.lastName,
         shipping_email: shippingInfo.email,
