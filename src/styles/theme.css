@@ -208,3 +208,27 @@
 .scrollbar-hide::-webkit-scrollbar {
   display: none;
 }
+
+/* Bookshop.org Widget Styling */
+.bookshop-search-widget {
+  display: flex;
+  justify-content: center;
+}
+
+.bookshop-search-widget iframe {
+  max-width: 100%;
+  border-radius: 9999px;
+}
+
+.bookshop-buy-widget {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  min-height: 50px;
+}
+
+/* Style the Bookshop widget iframes to match our design */
+.bookshop-buy-widget iframe,
+.bookshop-search-widget iframe {
+  max-width: 100%;
+}

@@ -8,6 +8,7 @@ import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { BookshopBuyButton } from '@/app/components/BookshopWidget';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -256,15 +257,10 @@ export const BookDetail = () => {
                   <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
                   <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
                 </button>
-                <a
-                  href={getBookshopAffiliateUrl(bookIsbn)}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex flex-col items-center justify-center p-4 bg-secondary text-white rounded-xl hover:bg-secondary/90 transition-all shadow-lg shadow-secondary/20"
-                >
-                  <ExternalLink size={24} className="mb-2" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Buy on Bookshop</span>
-                </a>
+                {/* Bookshop.org Buy Button Widget */}
+                <div className="flex flex-col items-center justify-center p-4 bg-white border-2 border-[#EF4056] rounded-xl">
+                  <BookshopBuyButton isbn={bookIsbn} className="bookshop-buy-widget" />
+                </div>
               </div>
 
               <div className="flex items-center justify-between pt-4 border-t border-border">

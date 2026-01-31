@@ -1,9 +1,10 @@
 import React, { useRef } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones } from 'lucide-react';
 import { Link } from 'react-router';
 import { BOOKS, EVENTS, MERCH, STAFF } from '@/app/utils/data';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 
 // Horizontal scrolling book carousel component - Elliott Bay style
 const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) => {
@@ -233,27 +234,36 @@ export const Home = () => {
 
       {/* Bookshop.org & Libro.fm Integration Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-        <div className="bg-muted/50 border border-border rounded p-8 md:p-12 text-center">
-          <h2 className="font-serif text-3xl text-foreground mb-4">Can't find what you're looking for?</h2>
-          <p className="text-muted-foreground max-w-xl mx-auto mb-6">
-            Order from our partner sites and support our store with every purchase.
-          </p>
+        <div className="bg-muted/50 border border-border rounded p-8 md:p-12">
+          <div className="text-center mb-8">
+            <h2 className="font-serif text-3xl text-foreground mb-4">Can't find what you're looking for?</h2>
+            <p className="text-muted-foreground max-w-xl mx-auto">
+              Search millions of titles on Bookshop.org or browse audiobooks on Libro.fm. Every purchase supports our store!
+            </p>
+          </div>
+
+          {/* Bookshop.org Search Widget */}
+          <div className="max-w-lg mx-auto mb-8">
+            <BookshopSearchBox includeBranding={false} className="bookshop-search-widget" />
+          </div>
+
+          {/* Direct links */}
           <div className="flex flex-wrap justify-center gap-4">
             <a
               href="https://bookshop.org/shop/camarillobookworm"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center bg-primary text-white px-6 py-3 rounded text-sm font-medium hover:bg-primary/90 transition-colors"
+              className="inline-flex items-center bg-[#EF4056] text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-[#EF4056]/90 transition-colors"
             >
-              Browse on Bookshop.org <ExternalLink size={16} className="ml-2" />
+              Browse Bookshop.org <ExternalLink size={16} className="ml-2" />
             </a>
             <a
               href="https://libro.fm/camarillobookworm"
               target="_blank"
               rel="noopener noreferrer"
-              className="inline-flex items-center border-2 border-primary text-primary px-6 py-3 rounded text-sm font-medium hover:bg-primary/5 transition-colors"
+              className="inline-flex items-center bg-primary text-white px-6 py-3 rounded-full text-sm font-medium hover:bg-primary/90 transition-colors"
             >
-              Audiobooks on Libro.fm <ExternalLink size={16} className="ml-2" />
+              <Headphones size={16} className="mr-2" /> Audiobooks on Libro.fm
             </a>
           </div>
         </div>
