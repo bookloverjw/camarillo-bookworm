@@ -146,7 +146,24 @@ export const Checkout = () => {
       // Generate order number
       const newOrderNumber = `CBW-${Date.now().toString(36).toUpperCase()}`;
 
-      // Create order in Supabase
+      // Build shipping info object to store in notes (JSON)
+      const shippingDetails = {
+        delivery_option: shippingInfo.deliveryOption,
+        first_name: shippingInfo.firstName,
+        last_name: shippingInfo.lastName,
+        email: shippingInfo.email,
+        phone: shippingInfo.phone || null,
+        ...(shippingInfo.deliveryOption === 'standard' && {
+          address_1: shippingInfo.address1,
+          address_2: shippingInfo.address2 || null,
+          city: shippingInfo.city,
+          state: shippingInfo.state,
+          postal_code: shippingInfo.postalCode,
+          country: 'US',
+        }),
+      };
+
+      // Create order in Supabase - use only columns that exist in the table
       const orderData = {
         customer_id: user?.id || null,
         order_number: newOrderNumber,
@@ -158,32 +175,17 @@ export const Checkout = () => {
         total: total,
         payment_method: 'credit_card',
         payment_id: paymentToken || `demo_${Date.now()}`,
-        notes: shippingInfo.deliveryOption === 'pickup' ? 'In-store pickup requested' : null,
+        // Store all shipping/customer info as JSON in notes field
+        notes: JSON.stringify(shippingDetails),
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
       };
 
-      // Add shipping info to order data (for guest checkout tracking)
-      const fullOrderData = {
-        ...orderData,
-        shipping_first_name: shippingInfo.firstName,
-        shipping_last_name: shippingInfo.lastName,
-        shipping_email: shippingInfo.email,
-        shipping_phone: shippingInfo.phone || null,
-        shipping_address_1: shippingInfo.deliveryOption === 'standard' ? shippingInfo.address1 : null,
-        shipping_address_2: shippingInfo.deliveryOption === 'standard' ? shippingInfo.address2 : null,
-        shipping_city: shippingInfo.deliveryOption === 'standard' ? shippingInfo.city : null,
-        shipping_state: shippingInfo.deliveryOption === 'standard' ? shippingInfo.state : null,
-        shipping_postal_code: shippingInfo.deliveryOption === 'standard' ? shippingInfo.postalCode : null,
-        shipping_country: shippingInfo.deliveryOption === 'standard' ? 'US' : null,
-        delivery_option: shippingInfo.deliveryOption,
-      };
-
-      console.log('Creating order with data:', fullOrderData);
+      console.log('Creating order with data:', orderData);
 
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert(fullOrderData)
+        .insert(orderData)
         .select()
         .single();
 
