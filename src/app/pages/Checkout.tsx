@@ -146,39 +146,47 @@ export const Checkout = () => {
       // Generate order number
       const newOrderNumber = `CBW-${Date.now().toString(36).toUpperCase()}`;
 
-      // Build shipping info object to store in notes (JSON)
-      const shippingDetails = {
-        delivery_option: shippingInfo.deliveryOption,
-        first_name: shippingInfo.firstName,
-        last_name: shippingInfo.lastName,
-        email: shippingInfo.email,
-        phone: shippingInfo.phone || null,
-        ...(shippingInfo.deliveryOption === 'standard' && {
+      // Build complete order details to store in notes (JSON)
+      // This ensures all info is captured regardless of table schema
+      const orderDetails = {
+        customer: {
+          first_name: shippingInfo.firstName,
+          last_name: shippingInfo.lastName,
+          email: shippingInfo.email,
+          phone: shippingInfo.phone || null,
+        },
+        shipping: shippingInfo.deliveryOption === 'standard' ? {
           address_1: shippingInfo.address1,
           address_2: shippingInfo.address2 || null,
           city: shippingInfo.city,
           state: shippingInfo.state,
           postal_code: shippingInfo.postalCode,
           country: 'US',
-        }),
+        } : null,
+        delivery_option: shippingInfo.deliveryOption,
+        amounts: {
+          subtotal: subtotal,
+          tax: tax,
+          shipping: shipping,
+          total: total,
+        },
+        items: items.map(item => ({
+          id: item.id,
+          title: item.title,
+          author: item.author,
+          price: item.price,
+          quantity: item.quantity,
+        })),
       };
 
-      // Create order in Supabase - use only columns that exist in the table
+      // Create order in Supabase - use ONLY the most basic columns
+      // Everything else goes in 'notes' as JSON
       const orderData = {
-        customer_id: user?.id || null,
         order_number: newOrderNumber,
         status: 'confirmed',
-        subtotal: subtotal,
-        tax: tax,
-        shipping: shipping,
-        discount: 0,
         total: total,
-        payment_method: 'credit_card',
-        payment_id: paymentToken || `demo_${Date.now()}`,
-        // Store all shipping/customer info as JSON in notes field
-        notes: JSON.stringify(shippingDetails),
+        notes: JSON.stringify(orderDetails),
         created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       };
 
       console.log('Creating order with data:', orderData);
@@ -198,32 +206,33 @@ export const Checkout = () => {
         console.log('Order created successfully:', order);
       }
 
-      // Create order items
+      // Create order items (skip if order_items table doesn't exist or has different schema)
       if (order) {
-        const orderItems = items.map(item => ({
-          order_id: order.id,
-          isbn: item.isbn || item.id,
-          title: item.title,
-          author: item.author,
-          quantity: item.quantity,
-          unit_price: item.price,
-          extended_price: item.price * item.quantity,
-          cover_url: item.cover,
-        }));
+        try {
+          const orderItems = items.map(item => ({
+            order_id: order.id,
+            title: item.title,
+            quantity: item.quantity,
+          }));
 
-        console.log('Creating order items:', orderItems);
-        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
-        if (itemsError) {
-          console.error('Order items error:', itemsError);
+          console.log('Creating order items:', orderItems);
+          const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+          if (itemsError) {
+            console.error('Order items error (non-critical):', itemsError);
+            // Items are also stored in order.notes, so this is not critical
+          }
+        } catch (e) {
+          console.log('Order items table may not exist - items stored in order notes');
         }
       }
 
-      // Save shipping address if user is logged in
+      // Save shipping address if user is logged in (skip errors)
       if (user && shippingInfo.deliveryOption === 'standard') {
-        const { error: addressError } = await supabase.from('customer_addresses').upsert({
-          customer_id: user.id,
-          type: 'shipping',
-          is_default: true,
+        try {
+          const { error: addressError } = await supabase.from('customer_addresses').upsert({
+            customer_id: user.id,
+            type: 'shipping',
+            is_default: true,
           first_name: shippingInfo.firstName,
           last_name: shippingInfo.lastName,
           address_line_1: shippingInfo.address1,
@@ -236,7 +245,10 @@ export const Checkout = () => {
           updated_at: new Date().toISOString(),
         });
         if (addressError) {
-          console.error('Address save error:', addressError);
+          console.error('Address save error (non-critical):', addressError);
+        }
+        } catch (e) {
+          console.log('Address table may not exist');
         }
       }
 
