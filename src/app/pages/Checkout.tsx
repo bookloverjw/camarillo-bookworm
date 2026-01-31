@@ -238,8 +238,12 @@ export const Checkout = () => {
         try {
           const orderItems = items.map(item => ({
             order_id: order.id,
+            isbn: item.isbn || `ITEM-${item.id}`, // isbn is required
             title: item.title,
+            author: item.author,
             quantity: item.quantity,
+            unit_price: item.price,
+            line_total: item.price * item.quantity,
           }));
 
           console.log('Creating order items:', orderItems);
