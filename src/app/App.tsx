@@ -1,6 +1,6 @@
 import React from 'react';
 import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
-import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
@@ -31,16 +31,23 @@ const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
   const [searchOpen, setSearchOpen] = React.useState(false);
   const [searchQuery, setSearchQuery] = React.useState('');
+  const [browseOpen, setBrowseOpen] = React.useState(false);
+  const [mobileBrowseOpen, setMobileBrowseOpen] = React.useState(false);
   const location = useLocation();
   const { user } = useAuth();
   const { itemCount } = useCart();
 
+  // Browse dropdown items
+  const browseItems = [
+    { name: 'All Books', path: '/shop', external: false },
+    { name: 'New & Noteworthy', path: '/shop?filter=new', external: false },
+    { name: 'Staff Picks', path: '/staff-picks', external: false },
+    { name: 'Gift Cards', path: '/gift-cards', external: false },
+    { name: 'Audiobooks', path: 'https://libro.fm/camarillobookworm', external: true, icon: Headphones },
+  ];
+
   const navLinks = [
-    { name: 'Shop', path: '/shop' },
-    { name: 'New & Noteworthy', path: '/shop?filter=new' },
     { name: 'Events', path: '/events' },
-    { name: 'Staff Picks', path: '/staff-picks' },
-    { name: 'Gift Cards', path: '/gift-cards' },
     { name: 'About', path: '/about' },
     { name: 'Contact', path: '/contact' },
   ];
@@ -130,6 +137,67 @@ const Navbar = () => {
       <div className="hidden lg:block bg-white border-b border-border">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-center space-x-1 py-0">
+            {/* Browse Dropdown */}
+            <div
+              className="relative"
+              onMouseEnter={() => setBrowseOpen(true)}
+              onMouseLeave={() => setBrowseOpen(false)}
+            >
+              <button
+                className={`px-4 py-3 text-sm font-medium transition-colors border-b-2 flex items-center gap-1 ${
+                  browseOpen
+                    ? 'text-primary border-primary bg-primary/5'
+                    : 'text-muted-foreground border-transparent hover:text-primary hover:border-primary/30'
+                }`}
+              >
+                Browse
+                <ChevronDown size={14} className={`transition-transform ${browseOpen ? 'rotate-180' : ''}`} />
+              </button>
+
+              <AnimatePresence>
+                {browseOpen && (
+                  <motion.div
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    exit={{ opacity: 0, y: -5 }}
+                    transition={{ duration: 0.15 }}
+                    className="absolute top-full left-0 w-56 bg-white rounded-lg shadow-lg border border-border py-2 z-50"
+                  >
+                    {browseItems.map((item) => {
+                      const Icon = item.icon;
+                      if (item.external) {
+                        return (
+                          <a
+                            key={item.name}
+                            href={item.path}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center justify-between px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                          >
+                            <span className="flex items-center gap-2">
+                              {Icon && <Icon size={16} />}
+                              {item.name}
+                            </span>
+                            <ExternalLink size={12} className="opacity-50" />
+                          </a>
+                        );
+                      }
+                      return (
+                        <Link
+                          key={item.name}
+                          to={item.path}
+                          className="flex items-center gap-2 px-4 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-primary/5 transition-colors"
+                        >
+                          {Icon && <Icon size={16} />}
+                          {item.name}
+                        </Link>
+                      );
+                    })}
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </div>
+
             {navLinks.map((link) => {
               const isActive = location.pathname === link.path ||
                 (link.path.includes('?') && location.pathname + location.search === link.path);
@@ -174,6 +242,62 @@ const Navbar = () => {
                   />
                 </div>
               </form>
+
+              {/* Mobile Browse Dropdown */}
+              <div className="border-b border-border pb-2 mb-2">
+                <button
+                  onClick={() => setMobileBrowseOpen(!mobileBrowseOpen)}
+                  className="flex items-center justify-between w-full px-3 py-3 text-base font-medium text-foreground hover:bg-muted rounded"
+                >
+                  <span>Browse</span>
+                  <ChevronDown size={18} className={`transition-transform ${mobileBrowseOpen ? 'rotate-180' : ''}`} />
+                </button>
+                <AnimatePresence>
+                  {mobileBrowseOpen && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="overflow-hidden"
+                    >
+                      <div className="pl-4 space-y-1">
+                        {browseItems.map((item) => {
+                          const Icon = item.icon;
+                          if (item.external) {
+                            return (
+                              <a
+                                key={item.name}
+                                href={item.path}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                onClick={() => setIsOpen(false)}
+                                className="flex items-center justify-between px-3 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
+                              >
+                                <span className="flex items-center gap-2">
+                                  {Icon && <Icon size={16} />}
+                                  {item.name}
+                                </span>
+                                <ExternalLink size={12} className="opacity-50" />
+                              </a>
+                            );
+                          }
+                          return (
+                            <Link
+                              key={item.name}
+                              to={item.path}
+                              onClick={() => setIsOpen(false)}
+                              className="flex items-center gap-2 px-3 py-2.5 text-sm text-muted-foreground hover:text-primary hover:bg-muted rounded"
+                            >
+                              {Icon && <Icon size={16} />}
+                              {item.name}
+                            </Link>
+                          );
+                        })}
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
 
               {navLinks.map((link) => (
                 <Link
