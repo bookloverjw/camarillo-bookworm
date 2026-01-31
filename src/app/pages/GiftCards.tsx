@@ -1,10 +1,18 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, CreditCard, Mail, Send, CheckCircle, Info, Loader2, AlertCircle } from 'lucide-react';
+import { Gift, CreditCard, Mail, Send, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
+import {
+  generateBarcodeNumber,
+  formatCardNumberForDisplay,
+  generateBarcodeSVG,
+  supportsAppleWallet,
+  downloadPassPlaceholder,
+  GiftCardPassData,
+} from '@/lib/appleWallet';
 
 export const GiftCards = () => {
   const { user } = useAuth();
@@ -23,6 +31,10 @@ export const GiftCards = () => {
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
   const [balanceResult, setBalanceResult] = useState<number | null>(null);
   const [balanceError, setBalanceError] = useState<string | null>(null);
+
+  // Purchased card modal
+  const [purchasedCard, setPurchasedCard] = useState<GiftCardPassData | null>(null);
+  const [showCardModal, setShowCardModal] = useState(false);
 
   const amounts = ['10', '25', '50', '100'];
 
@@ -45,10 +57,13 @@ export const GiftCards = () => {
     try {
       // Generate a unique gift card code
       const code = `GC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
+      const barcodeNumber = generateBarcodeNumber(code);
+      const purchaseDate = new Date().toISOString();
+      const expirationDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2).toISOString(); // 2 years
 
       // Create gift card record in Supabase
       const { data: giftCard, error: createError } = await supabase.from('gift_cards').insert({
-        code: code,
+        code: barcodeNumber, // Use numeric barcode as the code
         initial_balance: finalAmount,
         current_balance: finalAmount,
         currency: 'USD',
@@ -58,10 +73,10 @@ export const GiftCards = () => {
         recipient_name: recipientName || null,
         message: message || null,
         status: 'active',
-        purchased_at: new Date().toISOString(),
-        expires_at: new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2).toISOString(), // 2 years
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
+        purchased_at: purchaseDate,
+        expires_at: expirationDate,
+        created_at: purchaseDate,
+        updated_at: purchaseDate,
       }).select().single();
 
       if (createError) {
@@ -77,29 +92,44 @@ export const GiftCards = () => {
           amount: finalAmount,
           balance_after: finalAmount,
           notes: cardType === 'digital' ? 'E-Gift Card purchase' : 'Physical gift card purchase',
-          created_at: new Date().toISOString(),
+          created_at: purchaseDate,
         });
       }
 
-      // Add to cart
-      addItem({
-        id: `gc-${Date.now()}`,
-        title: `Gift Card (${cardType === 'digital' ? 'E-Gift' : 'Physical'})`,
-        author: recipientName || 'Gift Recipient',
-        price: finalAmount,
-        cover: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
-        type: 'Hardcover', // Placeholder
-      });
+      // For digital cards, show the card modal with Apple Wallet option
+      if (cardType === 'digital') {
+        const cardData: GiftCardPassData = {
+          cardNumber: barcodeNumber,
+          balance: finalAmount,
+          recipientName: recipientName || undefined,
+          purchaseDate,
+          expirationDate,
+        };
+        setPurchasedCard(cardData);
+        setShowCardModal(true);
 
-      toast.success('Gift card added to cart!', {
-        description: cardType === 'digital'
-          ? `An e-gift card will be sent to ${recipientEmail}`
-          : 'A physical card will be shipped to your address',
-        action: {
-          label: 'View Cart',
-          onClick: () => window.location.href = '#/cart',
-        },
-      });
+        toast.success('E-Gift Card created!', {
+          description: `Card for ${recipientName || recipientEmail} is ready`,
+        });
+      } else {
+        // Add physical card to cart
+        addItem({
+          id: `gc-${Date.now()}`,
+          title: `Gift Card (Physical)`,
+          author: recipientName || 'Gift Recipient',
+          price: finalAmount,
+          cover: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
+          type: 'Hardcover',
+        });
+
+        toast.success('Gift card added to cart!', {
+          description: 'A physical card will be shipped to your address',
+          action: {
+            label: 'View Cart',
+            onClick: () => window.location.href = '#/cart',
+          },
+        });
+      }
 
       // Reset form
       setRecipientName('');
@@ -412,6 +442,103 @@ export const GiftCards = () => {
           </div>
         </div>
       </div>
+
+      {/* Digital Gift Card Modal */}
+      {showCardModal && purchasedCard && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-sm">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="bg-white rounded-3xl max-w-md w-full overflow-hidden shadow-2xl"
+          >
+            {/* Card Display */}
+            <div className="bg-primary p-8 text-white">
+              <div className="flex justify-between items-start mb-6">
+                <div>
+                  <h3 className="font-serif text-xl font-bold">Camarillo Bookworm</h3>
+                  <p className="text-xs opacity-70">E-Gift Card</p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs opacity-70">Balance</p>
+                  <p className="text-2xl font-bold">${purchasedCard.balance.toFixed(2)}</p>
+                </div>
+              </div>
+
+              {purchasedCard.recipientName && (
+                <p className="text-sm opacity-80 mb-4">For: {purchasedCard.recipientName}</p>
+              )}
+
+              {/* Barcode */}
+              <div className="bg-white rounded-lg p-4">
+                <div
+                  dangerouslySetInnerHTML={{
+                    __html: generateBarcodeSVG(purchasedCard.cardNumber, 280, 50),
+                  }}
+                />
+              </div>
+
+              {/* Card Number Display */}
+              <div className="mt-4 text-center">
+                <p className="text-xs opacity-70 mb-1">Card Number</p>
+                <p className="font-mono text-lg tracking-wider">
+                  {formatCardNumberForDisplay(purchasedCard.cardNumber)}
+                </p>
+              </div>
+            </div>
+
+            {/* Actions */}
+            <div className="p-6 space-y-3">
+              <p className="text-sm text-muted-foreground text-center mb-4">
+                Save your gift card for easy access
+              </p>
+
+              {/* Copy Card Number */}
+              <button
+                onClick={() => {
+                  navigator.clipboard.writeText(purchasedCard.cardNumber);
+                  toast.success('Card number copied!');
+                }}
+                className="w-full flex items-center justify-center space-x-2 py-3 border-2 border-primary text-primary rounded-xl font-medium hover:bg-primary/5 transition-colors"
+              >
+                <Copy size={18} />
+                <span>Copy Card Number</span>
+              </button>
+
+              {/* Download Card */}
+              <button
+                onClick={() => downloadPassPlaceholder(purchasedCard)}
+                className="w-full flex items-center justify-center space-x-2 py-3 border-2 border-primary text-primary rounded-xl font-medium hover:bg-primary/5 transition-colors"
+              >
+                <Download size={18} />
+                <span>Download Card</span>
+              </button>
+
+              {/* Apple Wallet (if supported) */}
+              {supportsAppleWallet() && (
+                <button
+                  onClick={() => {
+                    toast.info('Apple Wallet integration coming soon!', {
+                      description: 'For now, download the card to save it.',
+                    });
+                  }}
+                  className="w-full flex items-center justify-center space-x-2 py-3 bg-black text-white rounded-xl font-medium hover:bg-black/90 transition-colors"
+                >
+                  <Smartphone size={18} />
+                  <span>Add to Apple Wallet</span>
+                </button>
+              )}
+
+              {/* Close */}
+              <button
+                onClick={() => setShowCardModal(false)}
+                className="w-full py-3 text-muted-foreground hover:text-primary transition-colors"
+              >
+                Done
+              </button>
+            </div>
+          </motion.div>
+        </div>
+      )}
     </div>
   );
 };

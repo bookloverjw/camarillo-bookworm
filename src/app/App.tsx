@@ -3,6 +3,7 @@ import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
 import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
+import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
 
 // Context & Auth
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
@@ -264,7 +265,8 @@ const Footer = () => {
               <li><Link to="/events" className="text-sm text-white/70 hover:text-white transition-colors">Events</Link></li>
               <li><Link to="/staff-picks" className="text-sm text-white/70 hover:text-white transition-colors">Staff Picks</Link></li>
               <li><Link to="/gift-cards" className="text-sm text-white/70 hover:text-white transition-colors">Gift Cards</Link></li>
-              <li><a href="https://bookshop.org/shop/106226" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Bookshop.org</a></li>
+              <li><a href="https://bookshop.org/shop/camarillobookworm" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Bookshop.org</a></li>
+              <li><a href="https://libro.fm/camarillobookworm" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Libro.fm Audiobooks</a></li>
             </ul>
           </div>
 
@@ -283,8 +285,9 @@ const Footer = () => {
               <li className="flex items-start space-x-2">
                 <Clock size={16} className="shrink-0 mt-0.5" />
                 <div>
-                  <p>Mon-Sat: 10am - 8pm</p>
-                  <p>Sun: 11am - 6pm</p>
+                  <p>Mon-Fri: 10am - 6pm</p>
+                  <p>Sat: 10am - 5pm</p>
+                  <p>Sun: 12pm - 5pm</p>
                 </div>
               </li>
             </ul>
@@ -330,16 +333,31 @@ const Footer = () => {
   );
 };
 
+// Announcement bar with dynamic hours
+const AnnouncementBar = () => {
+  const todayHours = getTodayHours();
+
+  return (
+    <div className="bg-muted text-muted-foreground py-2 px-4 text-center text-xs">
+      Free local delivery in Camarillo on orders over $50 &nbsp;|&nbsp;{' '}
+      <span className={`font-medium ${todayHours.isOpen ? 'text-primary' : 'text-secondary'}`}>
+        {todayHours.holidayName
+          ? `Closed Today (${todayHours.holidayName})`
+          : todayHours.isOpen
+          ? `Open Today: ${todayHours.hours}`
+          : `Closed Now (Hours: ${todayHours.hours})`}
+      </span>
+    </div>
+  );
+};
+
 export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <HashRouter>
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
-            {/* Announcement Bar - Subtle, minimal like Elliott Bay */}
-            <div className="bg-muted text-muted-foreground py-2 px-4 text-center text-xs">
-              Free local delivery in Camarillo on orders over $50 &nbsp;|&nbsp; <span className="text-primary font-medium">Open Today: 10am - 8pm</span>
-            </div>
+            <AnnouncementBar />
 
             <Navbar />
 

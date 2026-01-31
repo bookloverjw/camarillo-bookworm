@@ -1,6 +1,8 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
+import { reserveInventory, releaseInventory, confirmPurchase } from '@/lib/inventory';
+import { toast } from 'sonner';
 
 export interface CartItem {
   id: string;
@@ -12,6 +14,7 @@ export interface CartItem {
   cover: string;
   type: 'Hardcover' | 'Paperback' | 'Audiobook';
   bookshopUrl?: string; // For Bookshop.org integration
+  reservationId?: string; // For inventory reservation tracking
 }
 
 interface CartContextType {
@@ -24,16 +27,17 @@ interface CartContextType {
   isLoading: boolean;
 
   // Cart operations
-  addItem: (item: Omit<CartItem, 'quantity'>, quantity?: number) => void;
+  addItem: (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity?: number) => Promise<boolean>;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  confirmCartPurchase: () => Promise<void>;
 
   // Bookshop.org integration
   getBookshopCartUrl: () => string;
 }
 
-const AFFILIATE_ID = '106226';
+const AFFILIATE_ID = 'camarillobookworm';
 const TAX_RATE = 0.0825; // California sales tax
 const SHIPPING_THRESHOLD = 50; // Free shipping over $50
 const STANDARD_SHIPPING = 5.00;
@@ -92,29 +96,60 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncCartWithServer();
   }, [user, items]);
 
-  // Add item to cart
-  const addItem = useCallback((item: Omit<CartItem, 'quantity'>, quantity: number = 1) => {
-    setItems(currentItems => {
-      const existingIndex = currentItems.findIndex(i => i.id === item.id);
+  // Add item to cart with inventory reservation
+  const addItem = useCallback(async (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity: number = 1): Promise<boolean> => {
+    // Skip inventory check for gift cards and non-book items
+    const isGiftCard = item.id.startsWith('gc-');
 
-      if (existingIndex >= 0) {
-        // Update quantity of existing item
-        const updated = [...currentItems];
-        updated[existingIndex] = {
-          ...updated[existingIndex],
-          quantity: updated[existingIndex].quantity + quantity,
-        };
-        return updated;
-      } else {
-        // Add new item
-        return [...currentItems, { ...item, quantity }];
+    if (!isGiftCard) {
+      // Reserve inventory
+      const reservation = await reserveInventory(item.id, quantity, user?.id);
+
+      if (!reservation.success) {
+        toast.error('Unable to add to cart', {
+          description: reservation.error || 'This item may be reserved by another shopper.',
+        });
+        return false;
       }
-    });
-  }, []);
 
-  // Remove item from cart
+      setItems(currentItems => {
+        const existingIndex = currentItems.findIndex(i => i.id === item.id);
+
+        if (existingIndex >= 0) {
+          // Update quantity of existing item
+          const updated = [...currentItems];
+          updated[existingIndex] = {
+            ...updated[existingIndex],
+            quantity: updated[existingIndex].quantity + quantity,
+          };
+          return updated;
+        } else {
+          // Add new item with reservation ID
+          return [...currentItems, {
+            ...item,
+            quantity,
+            reservationId: reservation.reservation?.id,
+          }];
+        }
+      });
+    } else {
+      // Gift cards don't need inventory reservation
+      setItems(currentItems => [...currentItems, { ...item, quantity }]);
+    }
+
+    return true;
+  }, [user?.id]);
+
+  // Remove item from cart and release inventory
   const removeItem = useCallback((id: string) => {
-    setItems(currentItems => currentItems.filter(item => item.id !== id));
+    setItems(currentItems => {
+      const item = currentItems.find(i => i.id === id);
+      if (item && !item.id.startsWith('gc-')) {
+        // Release the inventory reservation
+        releaseInventory(item.id, item.quantity, item.reservationId);
+      }
+      return currentItems.filter(i => i.id !== id);
+    });
   }, []);
 
   // Update item quantity
@@ -131,11 +166,29 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     );
   }, [removeItem]);
 
-  // Clear entire cart
+  // Clear entire cart and release all reservations
   const clearCart = useCallback(() => {
+    // Release all inventory reservations
+    items.forEach(item => {
+      if (!item.id.startsWith('gc-') && item.reservationId) {
+        releaseInventory(item.id, item.quantity, item.reservationId);
+      }
+    });
     setItems([]);
     localStorage.removeItem(CART_STORAGE_KEY);
-  }, []);
+  }, [items]);
+
+  // Confirm purchase - convert all reservations to actual sales
+  const confirmCartPurchase = useCallback(async () => {
+    for (const item of items) {
+      if (!item.id.startsWith('gc-')) {
+        await confirmPurchase(item.id, item.quantity, item.reservationId);
+      }
+    }
+    // Clear cart after successful purchase
+    setItems([]);
+    localStorage.removeItem(CART_STORAGE_KEY);
+  }, [items]);
 
   // Generate Bookshop.org affiliate cart URL
   // Bookshop allows adding multiple books via ISBN
@@ -168,6 +221,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         removeItem,
         updateQuantity,
         clearCart,
+        confirmCartPurchase,
         getBookshopCartUrl,
       }}
     >
