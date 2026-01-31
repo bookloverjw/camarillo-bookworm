@@ -64,7 +64,7 @@ export const BookDetail = () => {
       cover: book.cover,
       type: book.type,
       bookshopUrl: getBookshopAffiliateUrl(bookIsbn),
-    });
+    }, 1, deliveryOption);
 
     toast.success(
       deliveryOption === 'pickup'
@@ -189,33 +189,25 @@ export const BookDetail = () => {
       </div>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
           {/* Left: Image */}
-          <div className="lg:col-span-5 space-y-6">
+          <div className="lg:col-span-4 space-y-4">
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="aspect-[2/3] rounded-2xl overflow-hidden shadow-2xl border border-border sticky top-28"
+              className="aspect-[2/3] max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28"
             >
               <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
               {book.isStaffPick && (
-                <div className="absolute top-6 left-6 bg-accent text-white font-bold px-4 py-2 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
-                  <Quote size={14} className="mr-2 fill-white" /> Staff Pick
+                <div className="absolute top-4 left-4 bg-accent text-white font-bold px-3 py-1.5 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
+                  <Quote size={12} className="mr-1.5 fill-white" /> Staff Pick
                 </div>
               )}
             </motion.div>
-
-            <div className="grid grid-cols-4 gap-4">
-              {[1, 2, 3, 4].map(i => (
-                <div key={i} className="aspect-square rounded-lg bg-muted border border-border overflow-hidden cursor-pointer hover:border-accent transition-colors">
-                  <ImageWithFallback src={book.cover} alt={`${book.title} view ${i}`} className="w-full h-full object-cover opacity-60" />
-                </div>
-              ))}
-            </div>
           </div>
 
           {/* Right: Info */}
-          <div className="lg:col-span-7 space-y-8">
+          <div className="lg:col-span-8 space-y-8">
             <div>
               <div className="flex items-center space-x-2 mb-4">
                 {Array.from({ length: 5 }).map((_, i) => (

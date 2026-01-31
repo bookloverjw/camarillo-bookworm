@@ -123,7 +123,7 @@ export const About = () => {
                   <Phone className="text-accent mt-1" size={20} />
                   <div>
                     <p className="font-bold text-primary">Call Us</p>
-                    <p className="text-muted-foreground">(805) 555-0123</p>
+                    <p className="text-muted-foreground">(805) 482-1384</p>
                   </div>
                 </div>
               </div>

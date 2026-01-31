@@ -25,7 +25,7 @@ const SQUARE_SETTINGS: SquareSettings = {
 };
 
 export const Checkout = () => {
-  const { items, subtotal, tax, shipping, total, clearCart } = useCart();
+  const { items, subtotal, tax, shipping, total, clearCart, preferredDelivery } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -38,6 +38,9 @@ export const Checkout = () => {
   const [isCardReady, setIsCardReady] = useState(false);
   const cardContainerRef = useRef<HTMLDivElement>(null);
 
+  // Map preferredDelivery to form option
+  const initialDeliveryOption = preferredDelivery === 'pickup' ? 'pickup' : 'standard';
+
   // Form state
   const [shippingInfo, setShippingInfo] = useState({
     firstName: user?.firstName || '',
@@ -49,7 +52,7 @@ export const Checkout = () => {
     city: '',
     state: 'CA',
     postalCode: '',
-    deliveryOption: 'standard' as 'standard' | 'pickup',
+    deliveryOption: initialDeliveryOption as 'standard' | 'pickup',
   });
 
   const [orderComplete, setOrderComplete] = useState(false);
@@ -183,6 +186,7 @@ export const Checkout = () => {
       // Everything else goes in 'notes' as JSON
       const orderData = {
         order_number: newOrderNumber,
+        order_source: 'website',
         status: 'confirmed',
         total: total,
         notes: JSON.stringify(orderDetails),
@@ -577,8 +581,8 @@ export const Checkout = () => {
                       {shippingInfo.deliveryOption === 'pickup' && (
                         <div className="p-4 bg-accent/5 rounded-xl border border-accent/20">
                           <p className="font-bold text-primary mb-1">Camarillo Bookworm</p>
-                          <p className="text-sm text-muted-foreground">123 Mission Oaks Blvd, Camarillo, CA 93012</p>
-                          <p className="text-sm text-muted-foreground mt-2">Mon-Sat: 10am-8pm | Sun: 11am-6pm</p>
+                          <p className="text-sm text-muted-foreground">93 E Daily Dr, Camarillo, CA 93010</p>
+                          <p className="text-sm text-muted-foreground mt-2">Mon-Fri: 10am-6pm | Sat: 10am-5pm | Sun: 12pm-5pm</p>
                         </div>
                       )}
 

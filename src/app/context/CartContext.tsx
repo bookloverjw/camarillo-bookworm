@@ -15,6 +15,7 @@ export interface CartItem {
   type: 'Hardcover' | 'Paperback' | 'Audiobook';
   bookshopUrl?: string; // For Bookshop.org integration
   reservationId?: string; // For inventory reservation tracking
+  deliveryOption?: 'pickup' | 'ship'; // Track delivery preference
 }
 
 interface CartContextType {
@@ -25,13 +26,15 @@ interface CartContextType {
   shipping: number;
   total: number;
   isLoading: boolean;
+  preferredDelivery: 'pickup' | 'ship' | null;
 
   // Cart operations
-  addItem: (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity?: number) => Promise<boolean>;
+  addItem: (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity?: number, deliveryOption?: 'pickup' | 'ship') => Promise<boolean>;
   removeItem: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
   confirmCartPurchase: () => Promise<void>;
+  setPreferredDelivery: (option: 'pickup' | 'ship') => void;
 
   // Bookshop.org integration
   getBookshopCartUrl: () => string;
@@ -45,20 +48,23 @@ const STANDARD_SHIPPING = 5.00;
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
 const CART_STORAGE_KEY = 'bookworm_cart';
+const DELIVERY_STORAGE_KEY = 'bookworm_delivery';
 
 export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [preferredDelivery, setPreferredDeliveryState] = useState<'pickup' | 'ship' | null>(null);
   const { user } = useAuth();
 
-  // Calculate totals
+  // Calculate totals - shipping is FREE for pickup
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
-  const shipping = subtotal >= SHIPPING_THRESHOLD ? 0 : items.length > 0 ? STANDARD_SHIPPING : 0;
+  const isPickup = preferredDelivery === 'pickup';
+  const shipping = isPickup ? 0 : (subtotal >= SHIPPING_THRESHOLD ? 0 : items.length > 0 ? STANDARD_SHIPPING : 0);
   const tax = subtotal * TAX_RATE;
   const total = subtotal + shipping + tax;
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
-  // Load cart from localStorage on mount
+  // Load cart and delivery preference from localStorage on mount
   useEffect(() => {
     const loadCart = () => {
       try {
@@ -66,6 +72,10 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         if (savedCart) {
           const parsed = JSON.parse(savedCart);
           setItems(parsed);
+        }
+        const savedDelivery = localStorage.getItem(DELIVERY_STORAGE_KEY);
+        if (savedDelivery) {
+          setPreferredDeliveryState(savedDelivery as 'pickup' | 'ship');
         }
       } catch (error) {
         console.error('Error loading cart from localStorage:', error);
@@ -96,8 +106,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     syncCartWithServer();
   }, [user, items]);
 
+  // Set preferred delivery option
+  const setPreferredDelivery = useCallback((option: 'pickup' | 'ship') => {
+    setPreferredDeliveryState(option);
+    localStorage.setItem(DELIVERY_STORAGE_KEY, option);
+  }, []);
+
   // Add item to cart with inventory reservation
-  const addItem = useCallback(async (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity: number = 1): Promise<boolean> => {
+  const addItem = useCallback(async (item: Omit<CartItem, 'quantity' | 'reservationId'>, quantity: number = 1, deliveryOption?: 'pickup' | 'ship'): Promise<boolean> => {
+    // Set delivery preference if provided
+    if (deliveryOption) {
+      setPreferredDelivery(deliveryOption);
+    }
+
     // Skip inventory check for gift cards and non-book items
     const isGiftCard = item.id.startsWith('gc-');
 
@@ -129,6 +150,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
             ...item,
             quantity,
             reservationId: reservation.reservation?.id,
+            deliveryOption,
           }];
         }
       });
@@ -138,7 +160,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return true;
-  }, [user?.id]);
+  }, [user?.id, setPreferredDelivery]);
 
   // Remove item from cart and release inventory
   const removeItem = useCallback((id: string) => {
@@ -175,7 +197,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     });
     setItems([]);
+    setPreferredDeliveryState(null);
     localStorage.removeItem(CART_STORAGE_KEY);
+    localStorage.removeItem(DELIVERY_STORAGE_KEY);
   }, [items]);
 
   // Confirm purchase - convert all reservations to actual sales
@@ -217,11 +241,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
         shipping,
         total,
         isLoading,
+        preferredDelivery,
         addItem,
         removeItem,
         updateQuantity,
         clearCart,
         confirmCartPurchase,
+        setPreferredDelivery,
         getBookshopCartUrl,
       }}
     >

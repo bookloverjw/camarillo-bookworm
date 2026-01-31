@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
 import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
@@ -400,11 +400,11 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-white/70">
               <li className="flex items-start space-x-2">
                 <MapPin size={16} className="shrink-0 mt-0.5" />
-                <span>123 Mission Oaks Blvd<br/>Camarillo, CA 93012</span>
+                <span>93 E Daily Dr<br/>Camarillo, CA 93010</span>
               </li>
               <li className="flex items-center space-x-2">
                 <Phone size={16} className="shrink-0" />
-                <span>(805) 555-0123</span>
+                <span>(805) 482-1384</span>
               </li>
               <li className="flex items-start space-x-2">
                 <Clock size={16} className="shrink-0 mt-0.5" />
@@ -475,11 +475,23 @@ const AnnouncementBar = () => {
   );
 };
 
+// Scroll to top on route change
+const ScrollToTop = () => {
+  const location = useLocation();
+
+  useEffect(() => {
+    window.scrollTo(0, 0);
+  }, [location.pathname]);
+
+  return null;
+};
+
 export default function App() {
   return (
     <AuthProvider>
       <CartProvider>
         <HashRouter>
+          <ScrollToTop />
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
             <AnnouncementBar />
 

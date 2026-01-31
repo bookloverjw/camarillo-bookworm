@@ -183,7 +183,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ event, onClose })
                 value={formData.phone}
                 onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                 className="w-full pl-10 pr-4 py-2.5 border border-border rounded-lg focus:ring-1 focus:ring-accent outline-none text-sm"
-                placeholder="(805) 555-0123"
+                placeholder="(805) 482-1384"
               />
             </div>
           </div>
@@ -255,7 +255,7 @@ DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
 DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
 SUMMARY:${event.title}
 DESCRIPTION:${event.description}
-LOCATION:Camarillo Bookworm - 123 Mission Oaks Blvd, Camarillo, CA 93012
+LOCATION:Camarillo Bookworm - 93 E Daily Dr, Camarillo, CA 93010
 END:VEVENT
 END:VCALENDAR`;
 

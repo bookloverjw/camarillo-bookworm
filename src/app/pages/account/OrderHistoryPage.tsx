@@ -112,7 +112,7 @@ export const OrderHistoryPage = () => {
       status: 'Ready for Pickup',
       total: 28.50,
       items: [{ title: 'The Heaven & Earth Grocery Store', qty: 1 }],
-      address: { name: 'Jane Bookworm', line1: '123 Mission Oaks Blvd', city: 'Camarillo', state: 'CA', zip: '93012' }
+      address: { name: 'Jane Bookworm', line1: '93 E Daily Dr', city: 'Camarillo', state: 'CA', zip: '93010' }
     },
     {
       number: '#88102',
@@ -124,7 +124,7 @@ export const OrderHistoryPage = () => {
         { title: 'Fourth Wing', qty: 1 }
       ],
       tracking: '940011189956223400',
-      address: { name: 'Jane Bookworm', line1: '123 Mission Oaks Blvd', city: 'Camarillo', state: 'CA', zip: '93012' }
+      address: { name: 'Jane Bookworm', line1: '93 E Daily Dr', city: 'Camarillo', state: 'CA', zip: '93010' }
     }
   ];
 

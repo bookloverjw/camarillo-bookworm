@@ -75,7 +75,7 @@ export const Contact = () => {
                   <div className="p-4 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-all"><Phone size={24} /></div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Call Us</p>
-                    <p className="text-xl font-bold text-primary">(805) 555-0123</p>
+                    <p className="text-xl font-bold text-primary">(805) 482-1384</p>
                   </div>
                 </a>
                 <a
@@ -89,7 +89,7 @@ export const Contact = () => {
                   </div>
                 </a>
                 <a
-                  href="https://maps.google.com/?q=123+Mission+Oaks+Blvd+Camarillo+CA+93012"
+                  href="https://maps.google.com/?q=123+Mission+Oaks+Blvd+Camarillo+CA+93010"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="flex items-start space-x-6 p-6 bg-white rounded-2xl border border-border hover:border-accent transition-colors group"
@@ -97,7 +97,7 @@ export const Contact = () => {
                   <div className="p-4 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-all"><MapPin size={24} /></div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Visit Us</p>
-                    <p className="text-xl font-bold text-primary">123 Mission Oaks Blvd<br />Camarillo, CA 93012</p>
+                    <p className="text-xl font-bold text-primary">93 E Daily Dr<br />Camarillo, CA 93010</p>
                     <p className="text-sm text-accent mt-2 flex items-center">
                       Get directions <ExternalLink size={12} className="ml-1" />
                     </p>
@@ -173,7 +173,7 @@ export const Contact = () => {
                       value={formData.phone}
                       onChange={(e) => setFormData({ ...formData, phone: e.target.value })}
                       className="w-full px-5 py-4 bg-muted/30 border border-border rounded-xl outline-none focus:ring-2 focus:ring-accent/50 focus:border-accent transition-all"
-                      placeholder="(805) 555-0123"
+                      placeholder="(805) 482-1384"
                     />
                   </div>
                   <div className="space-y-2">
@@ -245,7 +245,7 @@ export const Contact = () => {
             />
             <div className="absolute bottom-6 left-6 bg-white p-4 rounded-xl shadow-lg">
               <p className="font-bold text-primary">Camarillo Bookworm</p>
-              <p className="text-sm text-muted-foreground">123 Mission Oaks Blvd</p>
+              <p className="text-sm text-muted-foreground">93 E Daily Dr</p>
             </div>
           </div>
         </div>

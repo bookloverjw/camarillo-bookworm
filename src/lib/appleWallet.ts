@@ -135,7 +135,7 @@ export function generatePassManifest(passData: GiftCardPassData): object {
         {
           key: 'support',
           label: 'Questions?',
-          value: 'Contact us at (805) 555-0123 or visit camarillobookworm.com',
+          value: 'Contact us at (805) 482-1384 or visit camarillobookworm.com',
         },
       ],
     },

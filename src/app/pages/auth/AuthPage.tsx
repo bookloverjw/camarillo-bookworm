@@ -362,7 +362,7 @@ export const AuthPage = () => {
                         onChange={method === 'email' ? (e) => setEmail(e.target.value) : handlePhoneChange}
                         required
                         className="w-full pl-12 pr-4 py-3 bg-muted/30 border border-border rounded-xl focus:ring-1 focus:ring-accent outline-none text-sm"
-                        placeholder={method === 'email' ? 'jane@example.com' : '(805) 555-0123'}
+                        placeholder={method === 'email' ? 'jane@example.com' : '(805) 482-1384'}
                       />
                     </div>
                   </div>
