@@ -10,6 +10,7 @@ import {
   generateBarcodeSVG,
   supportsAppleWallet,
   downloadPassPlaceholder,
+  requestAppleWalletPass,
   GiftCardPassData,
 } from '@/lib/appleWallet';
 import { storePendingGiftCard } from '@/lib/giftCardService';
@@ -481,10 +482,18 @@ export const GiftCards = () => {
               {/* Apple Wallet (if supported) */}
               {supportsAppleWallet() && (
                 <button
-                  onClick={() => {
-                    toast.info('Apple Wallet integration coming soon!', {
-                      description: 'For now, download the card to save it.',
-                    });
+                  onClick={async () => {
+                    toast.loading('Generating Apple Wallet pass...');
+                    const result = await requestAppleWalletPass(purchasedCard);
+                    if (result.success) {
+                      toast.success('Pass added! Check your Wallet app.');
+                    } else {
+                      // Fallback to download if server not configured
+                      toast.info('Apple Wallet requires additional setup', {
+                        description: 'Downloading card instead...',
+                      });
+                      downloadPassPlaceholder(purchasedCard);
+                    }
                   }}
                   className="w-full flex items-center justify-center space-x-2 py-3 bg-black text-white rounded-xl font-medium hover:bg-black/90 transition-colors"
                 >

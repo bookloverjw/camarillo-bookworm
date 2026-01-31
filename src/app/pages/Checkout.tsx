@@ -163,15 +163,37 @@ export const Checkout = () => {
         updated_at: new Date().toISOString(),
       };
 
+      // Add shipping info to order data (for guest checkout tracking)
+      const fullOrderData = {
+        ...orderData,
+        shipping_first_name: shippingInfo.firstName,
+        shipping_last_name: shippingInfo.lastName,
+        shipping_email: shippingInfo.email,
+        shipping_phone: shippingInfo.phone || null,
+        shipping_address_1: shippingInfo.deliveryOption === 'standard' ? shippingInfo.address1 : null,
+        shipping_address_2: shippingInfo.deliveryOption === 'standard' ? shippingInfo.address2 : null,
+        shipping_city: shippingInfo.deliveryOption === 'standard' ? shippingInfo.city : null,
+        shipping_state: shippingInfo.deliveryOption === 'standard' ? shippingInfo.state : null,
+        shipping_postal_code: shippingInfo.deliveryOption === 'standard' ? shippingInfo.postalCode : null,
+        shipping_country: shippingInfo.deliveryOption === 'standard' ? 'US' : null,
+        delivery_option: shippingInfo.deliveryOption,
+      };
+
+      console.log('Creating order with data:', fullOrderData);
+
       const { data: order, error: orderError } = await supabase
         .from('orders')
-        .insert(orderData)
+        .insert(fullOrderData)
         .select()
         .single();
 
       if (orderError) {
         console.error('Order creation error:', orderError);
-        // Continue anyway for demo purposes
+        toast.error(`Database error: ${orderError.message}`, {
+          description: 'Check browser console for details. RLS policies may need setup.',
+        });
+      } else {
+        console.log('Order created successfully:', order);
       }
 
       // Create order items
@@ -187,12 +209,16 @@ export const Checkout = () => {
           cover_url: item.cover,
         }));
 
-        await supabase.from('order_items').insert(orderItems);
+        console.log('Creating order items:', orderItems);
+        const { error: itemsError } = await supabase.from('order_items').insert(orderItems);
+        if (itemsError) {
+          console.error('Order items error:', itemsError);
+        }
       }
 
       // Save shipping address if user is logged in
       if (user && shippingInfo.deliveryOption === 'standard') {
-        await supabase.from('customer_addresses').upsert({
+        const { error: addressError } = await supabase.from('customer_addresses').upsert({
           customer_id: user.id,
           type: 'shipping',
           is_default: true,
@@ -207,6 +233,9 @@ export const Checkout = () => {
           phone: shippingInfo.phone || null,
           updated_at: new Date().toISOString(),
         });
+        if (addressError) {
+          console.error('Address save error:', addressError);
+        }
       }
 
       // Success!

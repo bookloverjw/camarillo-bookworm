@@ -164,7 +164,59 @@ export function supportsAppleWallet(): boolean {
   return isIOS || isSafari;
 }
 
-// Download pass as a file (placeholder - real implementation needs server)
+// Request Apple Wallet pass from server
+export async function requestAppleWalletPass(passData: GiftCardPassData): Promise<{
+  success: boolean;
+  passUrl?: string;
+  error?: string;
+}> {
+  try {
+    const response = await fetch('/api/apple-wallet-pass', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(passData),
+    });
+
+    if (!response.ok) {
+      const errorData = await response.json();
+      return {
+        success: false,
+        error: errorData.message || 'Failed to generate Apple Wallet pass',
+      };
+    }
+
+    // Check if response is a .pkpass file
+    const contentType = response.headers.get('content-type');
+    if (contentType === 'application/vnd.apple.pkpass') {
+      // Download the pass directly
+      const blob = await response.blob();
+      const url = URL.createObjectURL(blob);
+      window.location.href = url; // This will trigger the "Add to Wallet" prompt on iOS
+      return { success: true, passUrl: url };
+    }
+
+    // Otherwise, the server returned JSON (probably status/error)
+    const data = await response.json();
+    if (data.success) {
+      return { success: true };
+    }
+
+    return {
+      success: false,
+      error: data.message || 'Apple Wallet pass generation pending',
+    };
+  } catch (error: any) {
+    console.error('Apple Wallet pass request error:', error);
+    return {
+      success: false,
+      error: error.message || 'Network error',
+    };
+  }
+}
+
+// Download pass as a file (fallback when Apple Wallet is not configured)
 export function downloadPassPlaceholder(passData: GiftCardPassData): void {
   // Create a simple HTML card that can be saved
   const htmlContent = `

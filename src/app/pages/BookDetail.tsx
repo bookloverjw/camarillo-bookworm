@@ -257,9 +257,9 @@ export const BookDetail = () => {
                   <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
                   <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
                 </button>
-                {/* Bookshop.org Buy Button Widget */}
-                <div className="flex flex-col items-center justify-center p-4 bg-white border-2 border-[#EF4056] rounded-xl">
-                  <BookshopBuyButton isbn={bookIsbn} className="bookshop-buy-widget" />
+                {/* Bookshop.org Buy Button */}
+                <div className="flex items-center justify-center">
+                  <BookshopBuyButton isbn={bookIsbn} className="text-sm" />
                 </div>
               </div>
 
