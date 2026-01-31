@@ -182,13 +182,33 @@ export const Checkout = () => {
         })),
       };
 
-      // Create order in Supabase - use ONLY the most basic columns
-      // Everything else goes in 'notes' as JSON
+      // Create order in Supabase with all required fields
       const orderData = {
         order_number: newOrderNumber,
         order_source: 'website',
         status: 'confirmed',
+        // Required amount fields
+        subtotal: subtotal,
+        tax_amount: tax,
+        shipping_amount: shipping,
+        discount_amount: 0,
         total: total,
+        // Delivery option
+        delivery_option: shippingInfo.deliveryOption === 'pickup' ? 'pickup' : 'shipping',
+        // Customer/shipping info
+        shipping_first_name: shippingInfo.firstName,
+        shipping_last_name: shippingInfo.lastName,
+        shipping_email: shippingInfo.email,
+        shipping_phone: shippingInfo.phone || null,
+        shipping_address_1: shippingInfo.deliveryOption === 'standard' ? shippingInfo.address1 : null,
+        shipping_address_2: shippingInfo.deliveryOption === 'standard' ? (shippingInfo.address2 || null) : null,
+        shipping_city: shippingInfo.deliveryOption === 'standard' ? shippingInfo.city : null,
+        shipping_state: shippingInfo.deliveryOption === 'standard' ? shippingInfo.state : null,
+        shipping_postal_code: shippingInfo.deliveryOption === 'standard' ? shippingInfo.postalCode : null,
+        // Payment info
+        payment_method: 'card',
+        payment_status: 'paid',
+        // Notes as JSON backup
         notes: JSON.stringify(orderDetails),
         created_at: new Date().toISOString(),
       };
