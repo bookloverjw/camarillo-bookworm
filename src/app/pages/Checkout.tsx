@@ -183,9 +183,12 @@ export const Checkout = () => {
       };
 
       // Create order in Supabase with all required fields
+      // order_source must be: 'website_pickup', 'website_ship', 'pos_instore', or 'bookshop'
+      const orderSource = shippingInfo.deliveryOption === 'pickup' ? 'website_pickup' : 'website_ship';
+
       const orderData = {
         order_number: newOrderNumber,
-        order_source: 'online',
+        order_source: orderSource,
         status: 'confirmed',
         // Required amount fields
         subtotal: subtotal,
