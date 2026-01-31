@@ -185,7 +185,7 @@ export const Checkout = () => {
       // Create order in Supabase with all required fields
       const orderData = {
         order_number: newOrderNumber,
-        order_source: 'website',
+        order_source: 'online',
         status: 'confirmed',
         // Required amount fields
         subtotal: subtotal,
