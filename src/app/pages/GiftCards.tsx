@@ -1,18 +1,18 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, CreditCard, Mail, Send, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy } from 'lucide-react';
+import { Gift, CreditCard, Mail, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
 import {
-  generateBarcodeNumber,
   formatCardNumberForDisplay,
   generateBarcodeSVG,
   supportsAppleWallet,
   downloadPassPlaceholder,
   GiftCardPassData,
 } from '@/lib/appleWallet';
+import { storePendingGiftCard } from '@/lib/giftCardService';
 
 export const GiftCards = () => {
   const { user } = useAuth();
@@ -55,92 +55,54 @@ export const GiftCards = () => {
     setIsProcessing(true);
 
     try {
-      // Generate a unique gift card code
-      const code = `GC-${Date.now().toString(36).toUpperCase()}-${Math.random().toString(36).substring(2, 6).toUpperCase()}`;
-      const barcodeNumber = generateBarcodeNumber(code);
-      const purchaseDate = new Date().toISOString();
-      const expirationDate = new Date(Date.now() + 365 * 24 * 60 * 60 * 1000 * 2).toISOString(); // 2 years
+      // Generate a unique ID for this gift card purchase
+      // The actual card code will be generated AFTER payment is confirmed
+      const giftCardId = `gc-${Date.now()}`;
 
-      // Create gift card record in Supabase
-      const { data: giftCard, error: createError } = await supabase.from('gift_cards').insert({
-        code: barcodeNumber, // Use numeric barcode as the code
-        initial_balance: finalAmount,
-        current_balance: finalAmount,
-        currency: 'USD',
-        purchaser_email: user?.email || null,
-        purchaser_name: user ? `${user.firstName} ${user.lastName}` : null,
-        recipient_email: recipientEmail || null,
-        recipient_name: recipientName || null,
+      // Store pending gift card details (will be activated after payment)
+      storePendingGiftCard({
+        id: giftCardId,
+        type: cardType,
+        amount: finalAmount,
+        recipientName: recipientName || null,
+        recipientEmail: recipientEmail || null,
         message: message || null,
-        status: 'active',
-        purchased_at: purchaseDate,
-        expires_at: expirationDate,
-        created_at: purchaseDate,
-        updated_at: purchaseDate,
-      }).select().single();
+        purchaserEmail: user?.email || null,
+        purchaserName: user ? `${user.firstName} ${user.lastName}` : null,
+      });
 
-      if (createError) {
-        console.error('Gift card creation error:', createError);
-        // Continue anyway for demo
-      }
+      // Add to cart - gift card number is NOT generated yet
+      const added = await addItem({
+        id: giftCardId,
+        title: cardType === 'digital' ? 'E-Gift Card' : 'Physical Gift Card',
+        author: recipientName || recipientEmail || 'Gift Recipient',
+        price: finalAmount,
+        cover: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
+        type: 'Hardcover', // Using Hardcover as a placeholder type
+      });
 
-      // Record the purchase transaction
-      if (giftCard) {
-        await supabase.from('gift_card_transactions').insert({
-          gift_card_id: giftCard.id,
-          type: 'purchase',
-          amount: finalAmount,
-          balance_after: finalAmount,
-          notes: cardType === 'digital' ? 'E-Gift Card purchase' : 'Physical gift card purchase',
-          created_at: purchaseDate,
-        });
-      }
-
-      // For digital cards, show the card modal with Apple Wallet option
-      if (cardType === 'digital') {
-        const cardData: GiftCardPassData = {
-          cardNumber: barcodeNumber,
-          balance: finalAmount,
-          recipientName: recipientName || undefined,
-          purchaseDate,
-          expirationDate,
-        };
-        setPurchasedCard(cardData);
-        setShowCardModal(true);
-
-        toast.success('E-Gift Card created!', {
-          description: `Card for ${recipientName || recipientEmail} is ready`,
-        });
-      } else {
-        // Add physical card to cart
-        addItem({
-          id: `gc-${Date.now()}`,
-          title: `Gift Card (Physical)`,
-          author: recipientName || 'Gift Recipient',
-          price: finalAmount,
-          cover: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
-          type: 'Hardcover',
-        });
-
+      if (added) {
         toast.success('Gift card added to cart!', {
-          description: 'A physical card will be shipped to your address',
+          description: cardType === 'digital'
+            ? 'Complete checkout to generate your gift card'
+            : 'Physical card will be shipped to your address',
           action: {
-            label: 'View Cart',
-            onClick: () => window.location.href = '#/cart',
+            label: 'Checkout',
+            onClick: () => window.location.href = '#/checkout',
           },
         });
-      }
 
-      // Reset form
-      setRecipientName('');
-      setRecipientEmail('');
-      setMessage('');
-      setAmount('25');
-      setCustomAmount('');
+        // Reset form
+        setRecipientName('');
+        setRecipientEmail('');
+        setMessage('');
+        setAmount('25');
+        setCustomAmount('');
+      }
 
     } catch (err) {
       console.error('Gift card purchase error:', err);
-      toast.error('Failed to process gift card. Please try again.');
+      toast.error('Failed to add gift card to cart. Please try again.');
     } finally {
       setIsProcessing(false);
     }
@@ -329,15 +291,18 @@ export const GiftCards = () => {
                 {isProcessing ? (
                   <>
                     <Loader2 size={20} className="animate-spin" />
-                    <span>Processing...</span>
+                    <span>Adding to Cart...</span>
                   </>
                 ) : (
                   <>
-                    <Send size={20} />
-                    <span>Purchase Gift Card - ${finalAmount.toFixed(2)}</span>
+                    <Gift size={20} />
+                    <span>Add Gift Card to Cart - ${finalAmount.toFixed(2)}</span>
                   </>
                 )}
               </button>
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Gift card code will be generated after checkout is complete
+              </p>
             </div>
           </div>
 
