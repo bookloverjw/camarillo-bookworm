@@ -274,6 +274,7 @@ export const Checkout = () => {
         try {
           const transactionItems = items.map(item => ({
             transaction_id: transaction.id,
+            book_id: item.id, // Link to books table
             variant_id: null, // We don't have product variants yet
             product_name: `${item.title} by ${item.author}`,
             quantity: item.quantity,
