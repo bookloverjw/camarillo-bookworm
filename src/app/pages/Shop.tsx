@@ -343,9 +343,9 @@ export const Shop = () => {
                       <ShoppingBag size={14} />
                       <span>Add to Bag</span>
                     </button>
-                    <a 
-                      href={`https://bookshop.org/a/camarillobookworm/book/${book.id}`} 
-                      target="_blank" 
+                    <a
+                      href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
+                      target="_blank"
                       rel="noopener noreferrer"
                       className={`flex items-center justify-center space-x-2 border-2 border-border text-primary py-2 rounded-xl text-xs font-bold hover:bg-muted hover:border-primary/20 active:scale-[0.98] transition-all ${viewMode === 'list' ? 'flex-1' : 'w-full'}`}
                     >

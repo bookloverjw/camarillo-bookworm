@@ -1,5 +1,6 @@
 export interface Book {
   id: string;
+  isbn?: string; // ISBN-13 for Bookshop.org links
   title: string;
   author: string;
   price: number;
@@ -39,6 +40,7 @@ export interface StaffMember {
 export const BOOKS: Book[] = [
   {
     id: '1',
+    isbn: '9780525559474', // The Midnight Library
     title: 'The Midnight Library',
     author: 'Matt Haig',
     price: 26.00,
@@ -54,6 +56,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '2',
+    isbn: '9780735211292', // Atomic Habits
     title: 'Atomic Habits',
     author: 'James Clear',
     price: 28.00,
@@ -66,6 +69,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '3',
+    // No ISBN - fictional book
     title: 'The Lost Woods',
     author: 'S. K. Ali',
     price: 18.99,
@@ -79,6 +83,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '4',
+    isbn: '9780593467701', // Here We Are by Oliver Jeffers (similar)
     title: 'Little Wanderer',
     author: 'Oliver Jeffers',
     price: 17.99,
@@ -91,6 +96,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '5',
+    isbn: '9780525657743', // Crying in H Mart
     title: 'Crying in H Mart',
     author: 'Michelle Zauner',
     price: 16.00,
@@ -103,6 +109,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '6',
+    isbn: '9781982168438', // Cloud Cuckoo Land
     title: 'Cloud Cuckoo Land',
     author: 'Anthony Doerr',
     price: 30.00,
@@ -115,6 +122,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '7',
+    isbn: '9780593135204', // Project Hail Mary
     title: 'Project Hail Mary',
     author: 'Andy Weir',
     price: 28.99,
@@ -127,6 +135,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '8',
+    isbn: '9780593329825', // The Paper Palace
     title: 'The Paper Palace',
     author: 'Miranda Cowley Heller',
     price: 18.00,
@@ -139,6 +148,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '9',
+    isbn: '9780593422946', // The Heaven & Earth Grocery Store
     title: 'The Heaven & Earth Grocery Store',
     author: 'James McBride',
     price: 28.00,
@@ -151,6 +161,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '10',
+    isbn: '9780385547345', // Lessons in Chemistry
     title: 'Lessons in Chemistry',
     author: 'Bonnie Garmus',
     price: 29.00,
@@ -159,10 +170,11 @@ export const BOOKS: Book[] = [
     genre: 'Literary',
     type: 'Hardcover',
     status: 'In Stock',
-    description: 'Chemist Elizabeth Zott is not your average woman. But it’s the early 1960s and her all-male team at Hastings Research Institute takes a very unscientific view of equality.'
+    description: 'Chemist Elizabeth Zott is not your average woman. But it's the early 1960s and her all-male team at Hastings Research Institute takes a very unscientific view of equality.'
   },
   {
     id: '11',
+    isbn: '9780307742483', // Killers of the Flower Moon
     title: 'Killers of the Flower Moon',
     author: 'David Grann',
     price: 17.00,
@@ -175,6 +187,7 @@ export const BOOKS: Book[] = [
   },
   {
     id: '12',
+    isbn: '9780063251922', // Demon Copperhead
     title: 'Demon Copperhead',
     author: 'Barbara Kingsolver',
     price: 32.50,
