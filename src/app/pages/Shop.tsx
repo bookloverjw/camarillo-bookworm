@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Search, ChevronDown, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2 } from 'lucide-react';
+import { Filter, Search, ChevronDown, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { BOOKS, type Book } from '@/app/utils/data';
-import { getBooks } from '@/lib/bookService';
+import { type Book } from '@/app/utils/data';
+import { getBooks, getBooksCount } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 const BISAC_GENRES: Record<string, string[]> = {
@@ -155,8 +155,10 @@ const FilterContent = ({
   </div>
 );
 
+const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96];
+
 export const Shop = () => {
-  const [searchParams] = useSearchParams();
+  const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get('filter');
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -166,30 +168,61 @@ export const Shop = () => {
   const [searchQuery, setSearchQuery] = useState('');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
 
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [itemsPerPage, setItemsPerPage] = useState(24);
+  const [totalItems, setTotalItems] = useState(0);
+
   // Fetch books from database
-  const [books, setBooks] = useState<Book[]>(BOOKS); // Start with static data as fallback
+  const [books, setBooks] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
 
-  // Load books from Supabase on mount
-  useEffect(() => {
-    async function loadBooks() {
-      setIsLoading(true);
-      try {
-        const fetchedBooks = await getBooks();
-        setBooks(fetchedBooks);
-      } catch (error) {
-        console.error('Failed to fetch books:', error);
-        // Keep using static BOOKS as fallback
-      } finally {
-        setIsLoading(false);
-      }
+  // Calculate total pages
+  const totalPages = Math.ceil(totalItems / itemsPerPage);
+
+  // Load books from Supabase with pagination
+  const loadBooks = useCallback(async () => {
+    setIsLoading(true);
+    try {
+      const offset = (currentPage - 1) * itemsPerPage;
+
+      // Build filter options
+      const filterOptions: Parameters<typeof getBooks>[0] = {
+        limit: itemsPerPage,
+        offset,
+        search: searchQuery || undefined,
+        category: activeCategory !== 'All' ? activeCategory : undefined,
+      };
+
+      // Fetch books and count in parallel
+      const [fetchedBooks, count] = await Promise.all([
+        getBooks(filterOptions),
+        getBooksCount(filterOptions)
+      ]);
+
+      setBooks(fetchedBooks);
+      setTotalItems(count);
+    } catch (error) {
+      console.error('Failed to fetch books:', error);
+      setBooks([]);
+      setTotalItems(0);
+    } finally {
+      setIsLoading(false);
     }
+  }, [currentPage, itemsPerPage, searchQuery, activeCategory]);
+
+  // Load books when filters or pagination changes
+  useEffect(() => {
     loadBooks();
-  }, []);
+  }, [loadBooks]);
 
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, activeCategory, activeGenre, activeFormat]);
+
+  // Client-side filtering for genre and format (since these may not be in Supabase)
   const filteredBooks = books.filter(book => {
-    const matchesCategory = activeCategory === 'All' || book.category === activeCategory || (activeCategory === 'New' && book.status === 'In Stock');
-
     // Genre filtering
     let matchesGenre = true;
     if (activeCategory !== 'All' && activeGenre !== 'All' && !activeGenre.startsWith('All ')) {
@@ -197,10 +230,22 @@ export const Shop = () => {
     }
 
     const matchesFormat = activeFormat === 'All' || book.type === activeFormat;
-    const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          book.author.toLowerCase().includes(searchQuery.toLowerCase());
-    return matchesCategory && matchesGenre && matchesFormat && matchesSearch;
+    return matchesGenre && matchesFormat;
   });
+
+  // Handle page change
+  const goToPage = (page: number) => {
+    if (page >= 1 && page <= totalPages) {
+      setCurrentPage(page);
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  };
+
+  // Handle items per page change
+  const handleItemsPerPageChange = (newValue: number) => {
+    setItemsPerPage(newValue);
+    setCurrentPage(1); // Reset to first page
+  };
 
   const categories = ['Fiction', 'Nonfiction', 'Kids', 'YA'];
   const formats = ['All', 'Hardcover', 'Paperback', 'Audiobook'];
@@ -305,10 +350,24 @@ export const Shop = () => {
                 className="w-full pl-12 pr-6 py-4 bg-muted/30 border border-border rounded-2xl outline-none focus:ring-2 focus:ring-accent/20 focus:border-accent transition-all placeholder:text-muted-foreground/50"
               />
             </div>
-            
-            <div className="flex items-center justify-between md:justify-end space-x-6">
+
+            <div className="flex items-center justify-between md:justify-end gap-4">
+              {/* Records per page selector */}
               <div className="flex items-center text-sm">
-                <span className="text-muted-foreground mr-3 hidden sm:inline">Sort:</span>
+                <span className="text-muted-foreground mr-2 hidden sm:inline">Show:</span>
+                <select
+                  value={itemsPerPage}
+                  onChange={(e) => handleItemsPerPageChange(Number(e.target.value))}
+                  className="bg-muted/50 border border-border rounded-lg px-3 py-2 outline-none text-primary font-bold cursor-pointer text-sm"
+                >
+                  {ITEMS_PER_PAGE_OPTIONS.map(option => (
+                    <option key={option} value={option}>{option} per page</option>
+                  ))}
+                </select>
+              </div>
+
+              <div className="flex items-center text-sm">
+                <span className="text-muted-foreground mr-2 hidden sm:inline">Sort:</span>
                 <select className="bg-muted/50 border border-border rounded-lg px-3 py-2 outline-none text-primary font-bold cursor-pointer text-sm">
                   <option>Newest Arrivals</option>
                   <option>Price: Low to High</option>
@@ -327,7 +386,26 @@ export const Shop = () => {
             </div>
           </div>
 
-          <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12' : 'grid-cols-1 gap-4'}`}>
+          {/* Results count */}
+          <div className="mb-6 text-sm text-muted-foreground">
+            {isLoading ? (
+              <span>Loading...</span>
+            ) : (
+              <span>
+                Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} books
+              </span>
+            )}
+          </div>
+
+          {/* Loading state */}
+          {isLoading && (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="animate-spin text-primary mr-3" size={32} />
+              <span className="text-muted-foreground">Loading books...</span>
+            </div>
+          )}
+
+          {!isLoading && <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12' : 'grid-cols-1 gap-4'}`}>
             {filteredBooks.map(book => (
               <motion.div
                 key={book.id}
@@ -379,9 +457,9 @@ export const Shop = () => {
                 </div>
               </motion.div>
             ))}
-          </div>
+          </div>}
 
-          {filteredBooks.length === 0 && (
+          {!isLoading && filteredBooks.length === 0 && (
             <div className="text-center py-32 bg-muted/20 rounded-3xl border border-dashed border-border">
               <Search size={48} className="mx-auto text-muted-foreground mb-6 opacity-20" />
               <h3 className="text-2xl font-serif font-bold text-primary mb-3">No results found</h3>
@@ -396,21 +474,80 @@ export const Shop = () => {
           )}
 
           {/* Pagination */}
-          {filteredBooks.length > 0 && (
-            <div className="mt-24 pt-12 border-t border-border flex justify-center items-center space-x-2">
-              <button className="p-3 text-muted-foreground hover:text-primary disabled:opacity-30 transition-colors" disabled>
-                <ChevronDown size={20} className="rotate-90" />
-              </button>
-              {[1, 2, 3].map(i => (
-                <button key={i} className={`w-12 h-12 rounded-xl text-sm font-bold transition-all ${i === 1 ? 'bg-primary text-white shadow-lg shadow-primary/20' : 'text-muted-foreground hover:bg-muted hover:text-primary'}`}>
-                  {i}
+          {!isLoading && filteredBooks.length > 0 && totalPages > 1 && (
+            <div className="mt-24 pt-12 border-t border-border flex flex-col sm:flex-row justify-center items-center gap-6">
+              <div className="flex items-center space-x-2">
+                {/* Previous button */}
+                <button
+                  onClick={() => goToPage(currentPage - 1)}
+                  disabled={currentPage === 1}
+                  className="p-3 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronLeft size={20} />
                 </button>
-              ))}
-              <span className="px-4 text-muted-foreground font-bold italic">...</span>
-              <button className="w-12 h-12 rounded-xl text-sm font-bold text-muted-foreground hover:bg-muted hover:text-primary transition-all">12</button>
-              <button className="p-3 text-muted-foreground hover:text-primary transition-colors">
-                <ChevronDown size={20} className="-rotate-90" />
-              </button>
+
+                {/* Page numbers */}
+                {(() => {
+                  const pages = [];
+                  const showEllipsisStart = currentPage > 3;
+                  const showEllipsisEnd = currentPage < totalPages - 2;
+
+                  // Always show first page
+                  pages.push(1);
+
+                  if (showEllipsisStart) {
+                    pages.push('...');
+                  }
+
+                  // Show pages around current page
+                  for (let i = Math.max(2, currentPage - 1); i <= Math.min(totalPages - 1, currentPage + 1); i++) {
+                    if (!pages.includes(i)) {
+                      pages.push(i);
+                    }
+                  }
+
+                  if (showEllipsisEnd) {
+                    pages.push('...');
+                  }
+
+                  // Always show last page if more than 1 page
+                  if (totalPages > 1 && !pages.includes(totalPages)) {
+                    pages.push(totalPages);
+                  }
+
+                  return pages.map((page, index) => (
+                    page === '...' ? (
+                      <span key={`ellipsis-${index}`} className="px-2 text-muted-foreground font-bold">...</span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() => goToPage(page as number)}
+                        className={`w-10 h-10 sm:w-12 sm:h-12 rounded-xl text-sm font-bold transition-all ${
+                          currentPage === page
+                            ? 'bg-primary text-white shadow-lg shadow-primary/20'
+                            : 'text-muted-foreground hover:bg-muted hover:text-primary'
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  ));
+                })()}
+
+                {/* Next button */}
+                <button
+                  onClick={() => goToPage(currentPage + 1)}
+                  disabled={currentPage === totalPages}
+                  className="p-3 text-muted-foreground hover:text-primary disabled:opacity-30 disabled:cursor-not-allowed transition-colors"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+
+              {/* Page info */}
+              <span className="text-sm text-muted-foreground">
+                Page {currentPage} of {totalPages}
+              </span>
             </div>
           )}
         </div>

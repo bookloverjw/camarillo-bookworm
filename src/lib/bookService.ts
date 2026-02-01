@@ -1,10 +1,10 @@
 /**
  * Book Service
- * Fetches books from Supabase with fallback to static demo data
+ * Fetches books from Supabase (synced from BookMagic POS)
  */
 
 import { supabase } from './supabase';
-import { BOOKS, type Book } from '@/app/utils/data';
+import { type Book } from '@/app/utils/data';
 
 export interface SupabaseBook {
   id: string;
@@ -65,14 +65,15 @@ function mapStatus(status: string | null, inventoryCount: number): Book['status'
 }
 
 /**
- * Fetch all books from Supabase
- * Falls back to static BOOKS array if database is empty or unavailable
+ * Fetch all books from Supabase with pagination support
  */
 export async function getBooks(options?: {
   category?: string;
   inStockOnly?: boolean;
   staffPicksOnly?: boolean;
   limit?: number;
+  offset?: number;
+  search?: string;
 }): Promise<Book[]> {
   try {
     let query = supabase
@@ -89,12 +90,18 @@ export async function getBooks(options?: {
     if (options?.staffPicksOnly) {
       query = query.eq('is_staff_pick', true);
     }
+    if (options?.search) {
+      const searchTerm = `%${options.search}%`;
+      query = query.or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`);
+    }
 
     // Order by title
     query = query.order('title');
 
-    // Apply limit
-    if (options?.limit) {
+    // Apply pagination
+    if (options?.offset !== undefined && options?.limit) {
+      query = query.range(options.offset, options.offset + options.limit - 1);
+    } else if (options?.limit) {
       query = query.limit(options.limit);
     }
 
@@ -102,20 +109,62 @@ export async function getBooks(options?: {
 
     if (error) {
       console.error('Error fetching books from Supabase:', error);
-      return BOOKS; // Fallback to static data
+      return [];
     }
 
-    // If no books in database, use static data
+    // Return empty array if no books
     if (!data || data.length === 0) {
-      console.log('No books in database, using static demo data');
-      return BOOKS;
+      return [];
     }
 
     // Map Supabase books to website format
     return data.map(mapSupabaseBookToBook);
   } catch (error) {
     console.error('Error fetching books:', error);
-    return BOOKS; // Fallback to static data
+    return [];
+  }
+}
+
+/**
+ * Get total count of books with filters
+ */
+export async function getBooksCount(options?: {
+  category?: string;
+  inStockOnly?: boolean;
+  staffPicksOnly?: boolean;
+  search?: string;
+}): Promise<number> {
+  try {
+    let query = supabase
+      .from('books')
+      .select('*', { count: 'exact', head: true });
+
+    // Apply same filters as getBooks
+    if (options?.category && options.category !== 'All') {
+      query = query.eq('category', options.category);
+    }
+    if (options?.inStockOnly) {
+      query = query.gt('inventory_count', 0);
+    }
+    if (options?.staffPicksOnly) {
+      query = query.eq('is_staff_pick', true);
+    }
+    if (options?.search) {
+      const searchTerm = `%${options.search}%`;
+      query = query.or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`);
+    }
+
+    const { count, error } = await query;
+
+    if (error) {
+      console.error('Error fetching book count:', error);
+      return 0;
+    }
+
+    return count || 0;
+  } catch (error) {
+    console.error('Error fetching book count:', error);
+    return 0;
   }
 }
 
@@ -131,16 +180,13 @@ export async function getBookById(id: string): Promise<Book | null> {
       .single();
 
     if (error || !data) {
-      // Try to find in static data
-      const staticBook = BOOKS.find(b => b.id === id);
-      return staticBook || null;
+      return null;
     }
 
     return mapSupabaseBookToBook(data);
   } catch (error) {
-    // Try to find in static data
-    const staticBook = BOOKS.find(b => b.id === id);
-    return staticBook || null;
+    console.error('Error fetching book by ID:', error);
+    return null;
   }
 }
 
@@ -156,16 +202,13 @@ export async function getBookByIsbn(isbn: string): Promise<Book | null> {
       .single();
 
     if (error || !data) {
-      // Try to find in static data
-      const staticBook = BOOKS.find(b => b.isbn === isbn);
-      return staticBook || null;
+      return null;
     }
 
     return mapSupabaseBookToBook(data);
   } catch (error) {
-    // Try to find in static data
-    const staticBook = BOOKS.find(b => b.isbn === isbn);
-    return staticBook || null;
+    console.error('Error fetching book by ISBN:', error);
+    return null;
   }
 }
 
@@ -210,43 +253,10 @@ export async function checkBookAvailability(id: string): Promise<{
 /**
  * Search books by title or author
  */
-export async function searchBooks(query: string): Promise<Book[]> {
+export async function searchBooks(query: string, limit?: number): Promise<Book[]> {
   if (!query.trim()) {
-    return getBooks();
+    return getBooks({ limit });
   }
 
-  try {
-    const searchTerm = `%${query}%`;
-
-    const { data, error } = await supabase
-      .from('books')
-      .select('*')
-      .or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`)
-      .order('title');
-
-    if (error) {
-      console.error('Search error:', error);
-      // Fallback to filtering static data
-      return BOOKS.filter(b =>
-        b.title.toLowerCase().includes(query.toLowerCase()) ||
-        b.author.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    if (!data || data.length === 0) {
-      // Search static data as fallback
-      return BOOKS.filter(b =>
-        b.title.toLowerCase().includes(query.toLowerCase()) ||
-        b.author.toLowerCase().includes(query.toLowerCase())
-      );
-    }
-
-    return data.map(mapSupabaseBookToBook);
-  } catch (error) {
-    // Fallback to filtering static data
-    return BOOKS.filter(b =>
-      b.title.toLowerCase().includes(query.toLowerCase()) ||
-      b.author.toLowerCase().includes(query.toLowerCase())
-    );
-  }
+  return getBooks({ search: query, limit });
 }
