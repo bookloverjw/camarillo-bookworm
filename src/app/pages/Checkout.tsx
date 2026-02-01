@@ -6,6 +6,7 @@ import { toast } from 'sonner';
 import { useCart, BOOKSHOP_AFFILIATE_ID } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { confirmPurchase } from '@/lib/inventory';
 import {
   loadSquareSdk,
   initializeSquarePayments,
@@ -372,6 +373,20 @@ export const Checkout = () => {
           }
         } catch (e) {
           console.log('Order items table may not exist - items stored in order notes');
+        }
+      }
+
+      // ============================================
+      // STEP 5: Update Inventory (decrement stock)
+      // ============================================
+      // Confirm each purchase to decrement inventory_count and release reservations
+      for (const item of items) {
+        try {
+          await confirmPurchase(item.id, item.quantity);
+          console.log(`Inventory updated for book ${item.id}: -${item.quantity}`);
+        } catch (e) {
+          console.error(`Failed to update inventory for book ${item.id}:`, e);
+          // Non-critical - order still proceeds
         }
       }
 
