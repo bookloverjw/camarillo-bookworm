@@ -1,8 +1,9 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones } from 'lucide-react';
 import { Link } from 'react-router';
-import { BOOKS, EVENTS, MERCH, STAFF } from '@/app/utils/data';
+import { BOOKS, EVENTS, MERCH, STAFF, type Book } from '@/app/utils/data';
+import { getBooks, getStaffPicks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 
@@ -71,12 +72,29 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
 };
 
 export const Home = () => {
-  const [activeFilter, setActiveFilter] = React.useState('Fiction');
-  const filteredBooks = BOOKS.filter(b => b.category === activeFilter).slice(0, 8);
-  const newReleases = BOOKS.filter(b => b.status !== 'Preorder').slice(0, 10);
-  const preorders = BOOKS.filter(b => b.status === 'Preorder');
-  const staffPicks = BOOKS.filter(b => b.isStaffPick);
-  const staffPick = BOOKS.find(b => b.isStaffPick);
+  const [activeFilter, setActiveFilter] = useState('Fiction');
+  const [books, setBooks] = useState<Book[]>(BOOKS);
+
+  // Load books from Supabase on mount
+  useEffect(() => {
+    async function loadBooks() {
+      try {
+        const fetchedBooks = await getBooks();
+        if (fetchedBooks.length > 0) {
+          setBooks(fetchedBooks);
+        }
+      } catch (error) {
+        console.error('Failed to fetch books:', error);
+      }
+    }
+    loadBooks();
+  }, []);
+
+  const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
+  const newReleases = books.filter(b => b.status !== 'Preorder').slice(0, 10);
+  const preorders = books.filter(b => b.status === 'Preorder');
+  const staffPicks = books.filter(b => b.isStaffPick);
+  const staffPick = books.find(b => b.isStaffPick);
   const featuredStaff = STAFF.find(s => s.topPicks.includes(staffPick?.id || ''));
 
   return (

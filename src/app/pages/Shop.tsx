@@ -1,8 +1,9 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Search, ChevronDown, ShoppingBag, ExternalLink, Grid, List as ListIcon, X } from 'lucide-react';
+import { Filter, Search, ChevronDown, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2 } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
-import { BOOKS } from '@/app/utils/data';
+import { BOOKS, type Book } from '@/app/utils/data';
+import { getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 const BISAC_GENRES: Record<string, string[]> = {
@@ -157,17 +158,38 @@ const FilterContent = ({
 export const Shop = () => {
   const [searchParams] = useSearchParams();
   const filterParam = searchParams.get('filter');
-  
-  const [viewMode, setViewMode] = React.useState<'grid' | 'list'>('grid');
-  const [activeCategory, setActiveCategory] = React.useState<string>(filterParam === 'new' ? 'Fiction' : 'All');
-  const [activeGenre, setActiveGenre] = React.useState<string>(filterParam === 'new' ? 'All Fiction' : 'All');
-  const [activeFormat, setActiveFormat] = React.useState<string>('All');
-  const [searchQuery, setSearchQuery] = React.useState('');
-  const [showMobileFilters, setShowMobileFilters] = React.useState(false);
 
-  const filteredBooks = BOOKS.filter(book => {
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [activeCategory, setActiveCategory] = useState<string>(filterParam === 'new' ? 'Fiction' : 'All');
+  const [activeGenre, setActiveGenre] = useState<string>(filterParam === 'new' ? 'All Fiction' : 'All');
+  const [activeFormat, setActiveFormat] = useState<string>('All');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [showMobileFilters, setShowMobileFilters] = useState(false);
+
+  // Fetch books from database
+  const [books, setBooks] = useState<Book[]>(BOOKS); // Start with static data as fallback
+  const [isLoading, setIsLoading] = useState(true);
+
+  // Load books from Supabase on mount
+  useEffect(() => {
+    async function loadBooks() {
+      setIsLoading(true);
+      try {
+        const fetchedBooks = await getBooks();
+        setBooks(fetchedBooks);
+      } catch (error) {
+        console.error('Failed to fetch books:', error);
+        // Keep using static BOOKS as fallback
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadBooks();
+  }, []);
+
+  const filteredBooks = books.filter(book => {
     const matchesCategory = activeCategory === 'All' || book.category === activeCategory || (activeCategory === 'New' && book.status === 'In Stock');
-    
+
     // Genre filtering
     let matchesGenre = true;
     if (activeCategory !== 'All' && activeGenre !== 'All' && !activeGenre.startsWith('All ')) {
@@ -175,7 +197,7 @@ export const Shop = () => {
     }
 
     const matchesFormat = activeFormat === 'All' || book.type === activeFormat;
-    const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
+    const matchesSearch = book.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
                           book.author.toLowerCase().includes(searchQuery.toLowerCase());
     return matchesCategory && matchesGenre && matchesFormat && matchesSearch;
   });

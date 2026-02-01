@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2 } from 'lucide-react';
-import { BOOKS } from '@/app/utils/data';
+import { BOOKS, type Book } from '@/app/utils/data';
+import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -12,11 +13,52 @@ import { BookshopBuyButton } from '@/app/components/BookshopWidget';
 
 export const BookDetail = () => {
   const { id } = useParams();
-  const book = BOOKS.find(b => b.id === id);
   const { addItem } = useCart();
   const { user } = useAuth();
+  const [book, setBook] = useState<Book | null>(null);
+  const [recommendations, setRecommendations] = useState<Book[]>([]);
+  const [isLoading, setIsLoading] = useState(true);
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
+
+  // Load book from database
+  useEffect(() => {
+    async function loadBook() {
+      if (!id) return;
+      setIsLoading(true);
+      try {
+        const fetchedBook = await getBookById(id);
+        setBook(fetchedBook);
+
+        // Load recommendations (same category, different book)
+        if (fetchedBook) {
+          const allBooks = await getBooks();
+          const recs = allBooks.filter(b => b.category === fetchedBook.category && b.id !== id).slice(0, 4);
+          setRecommendations(recs);
+        }
+      } catch (error) {
+        console.error('Failed to fetch book:', error);
+        // Try static fallback
+        const staticBook = BOOKS.find(b => b.id === id);
+        setBook(staticBook || null);
+        if (staticBook) {
+          setRecommendations(BOOKS.filter(b => b.category === staticBook.category && b.id !== id).slice(0, 4));
+        }
+      } finally {
+        setIsLoading(false);
+      }
+    }
+    loadBook();
+  }, [id]);
+
+  if (isLoading) {
+    return (
+      <div className="max-w-7xl mx-auto px-4 py-24 text-center">
+        <Loader2 size={48} className="mx-auto animate-spin text-primary mb-4" />
+        <p className="text-muted-foreground">Loading book details...</p>
+      </div>
+    );
+  }
 
   if (!book) {
     return (
@@ -29,10 +71,8 @@ export const BookDetail = () => {
     );
   }
 
-  const recommendations = BOOKS.filter(b => b.category === book.category && b.id !== book.id).slice(0, 4);
-
-  // Generate a fake ISBN for Bookshop.org links
-  const bookIsbn = `978${book.id.padStart(10, '0')}`;
+  // Use real ISBN or generate one for Bookshop.org links
+  const bookIsbn = book.isbn || `978${book.id.padStart(10, '0')}`;
 
   const getStatusIcon = (status: string) => {
     switch (status) {
