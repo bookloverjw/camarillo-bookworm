@@ -170,7 +170,7 @@ export const BOOKS: Book[] = [
     genre: 'Literary',
     type: 'Hardcover',
     status: 'In Stock',
-    description: 'Chemist Elizabeth Zott is not your average woman. But it's the early 1960s and her all-male team at Hastings Research Institute takes a very unscientific view of equality.'
+    description: "Chemist Elizabeth Zott is not your average woman. But it's the early 1960s and her all-male team at Hastings Research Institute takes a very unscientific view of equality."
   },
   {
     id: '11',
