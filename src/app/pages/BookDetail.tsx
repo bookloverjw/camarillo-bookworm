@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2 } from 'lucide-react';
+import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -11,6 +11,7 @@ import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { BookmarksReviews } from '@/app/components/BookmarksReviews';
+import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -289,6 +290,17 @@ export const BookDetail = () => {
                     <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
                   </a>
                   <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
+                  {book.isbn && (
+                    <a
+                      href={getLibroFmUrl(book.isbn, book.title)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Headphones size={14} />
+                      <span>Listen on Libro.fm</span>
+                    </a>
+                  )}
                 </div>
               ) : (
                 /* In stock, low stock, or preorder — our store buttons are primary */
@@ -309,15 +321,31 @@ export const BookDetail = () => {
                       <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
                     </button>
                   </div>
-                  <a
-                    href={getBookshopAffiliateUrl(bookIsbn)}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors pt-1"
-                  >
-                    <ExternalLink size={14} />
-                    <span>Also available on Bookshop.org</span>
-                  </a>
+                  <div className="flex items-center justify-center gap-4 pt-1">
+                    <a
+                      href={getBookshopAffiliateUrl(bookIsbn)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Bookshop.org</span>
+                    </a>
+                    {book.isbn && (
+                      <>
+                        <span className="text-border">|</span>
+                        <a
+                          href={getLibroFmUrl(book.isbn, book.title)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Headphones size={14} />
+                          <span>Libro.fm</span>
+                        </a>
+                      </>
+                    )}
+                  </div>
                 </div>
               )}
 

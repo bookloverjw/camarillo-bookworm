@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, ShoppingBag, Store, Truck, ExternalLink } from 'lucide-react';
+import { X, Star, ShoppingBag, Store, Truck, ExternalLink, Headphones } from 'lucide-react';
 import { Link } from 'react-router';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -9,6 +9,7 @@ import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { stripHtmlTags } from '@/lib/stripHtml';
+import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
 
 // Static review data for the modal (adapted from the source improvements)
@@ -220,7 +221,7 @@ export const BookDetailModal: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Purchase actions — priority: pickup > ship > bookshop */}
+                    {/* Purchase actions — priority: pickup > ship > bookshop/libro */}
                     {book.status === 'Ships in X days' ? (
                       <div className="space-y-3 pt-4">
                         <a
@@ -232,13 +233,26 @@ export const BookDetailModal: React.FC = () => {
                           <ExternalLink size={16} /> Order on Bookshop.org
                         </a>
                         <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — still supports our store!</p>
-                        <Link
-                          to={`/book/${book.id}`}
-                          onClick={closeModal}
-                          className="flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
-                        >
-                          View Full Details <ExternalLink size={14} />
-                        </Link>
+                        <div className="flex items-center justify-center gap-4">
+                          {book.isbn && (
+                            <a
+                              href={getLibroFmUrl(book.isbn, book.title)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              <Headphones size={14} /> Listen on Libro.fm
+                            </a>
+                          )}
+                          <span className="text-border">|</span>
+                          <Link
+                            to={`/book/${book.id}`}
+                            onClick={closeModal}
+                            className="flex items-center gap-1.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                          >
+                            View Full Details <ExternalLink size={14} />
+                          </Link>
+                        </div>
                       </div>
                     ) : (
                       <div className="space-y-3 pt-4">
@@ -263,14 +277,29 @@ export const BookDetailModal: React.FC = () => {
                             View Full Details <ExternalLink size={14} />
                           </Link>
                         </div>
-                        <a
-                          href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          <ExternalLink size={10} /> Also available on Bookshop.org
-                        </a>
+                        <div className="flex items-center justify-center gap-3">
+                          <a
+                            href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <ExternalLink size={10} /> Bookshop.org
+                          </a>
+                          {book.isbn && (
+                            <>
+                              <span className="text-border text-xs">|</span>
+                              <a
+                                href={getLibroFmUrl(book.isbn, book.title)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <Headphones size={10} /> Libro.fm
+                              </a>
+                            </>
+                          )}
+                        </div>
                       </div>
                     )}
                   </div>
