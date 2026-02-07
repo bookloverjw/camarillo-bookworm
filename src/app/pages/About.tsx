@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Twitter, Award, Users, BookOpen, Heart } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Award, Users, BookOpen, Heart } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 
@@ -144,9 +144,8 @@ export const About = () => {
             <div>
               <h3 className="text-2xl font-serif font-bold text-primary mb-6">Stay Connected</h3>
               <div className="flex space-x-4">
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Twitter size={24} /></a>
+                <a href="https://instagram.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
+                <a href="https://facebook.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
               </div>
             </div>
           </div>
