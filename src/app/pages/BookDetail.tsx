@@ -290,17 +290,15 @@ export const BookDetail = () => {
                     <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
                   </a>
                   <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
-                  {book.isbn && (
-                    <a
-                      href={getLibroFmUrl(book.isbn, book.title)}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
-                    >
-                      <Headphones size={14} />
-                      <span>Listen on Libro.fm</span>
-                    </a>
-                  )}
+                  <a
+                    href={getLibroFmUrl(book.title)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <Headphones size={14} />
+                    <span>Listen on Libro.fm</span>
+                  </a>
                 </div>
               ) : (
                 /* In stock, low stock, or preorder — our store buttons are primary */
@@ -331,20 +329,16 @@ export const BookDetail = () => {
                       <ExternalLink size={14} />
                       <span>Bookshop.org</span>
                     </a>
-                    {book.isbn && (
-                      <>
-                        <span className="text-border">|</span>
-                        <a
-                          href={getLibroFmUrl(book.isbn, book.title)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-                        >
-                          <Headphones size={14} />
-                          <span>Libro.fm</span>
-                        </a>
-                      </>
-                    )}
+                    <span className="text-border">|</span>
+                    <a
+                      href={getLibroFmUrl(book.title)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Headphones size={14} />
+                      <span>Libro.fm</span>
+                    </a>
                   </div>
                 </div>
               )}

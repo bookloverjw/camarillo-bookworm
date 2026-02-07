@@ -234,16 +234,14 @@ export const BookDetailModal: React.FC = () => {
                         </a>
                         <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — still supports our store!</p>
                         <div className="flex items-center justify-center gap-4">
-                          {book.isbn && (
-                            <a
-                              href={getLibroFmUrl(book.isbn, book.title)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <Headphones size={14} /> Listen on Libro.fm
-                            </a>
-                          )}
+                          <a
+                            href={getLibroFmUrl(book.title)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Headphones size={14} /> Listen on Libro.fm
+                          </a>
                           <span className="text-border">|</span>
                           <Link
                             to={`/book/${book.id}`}
@@ -286,19 +284,15 @@ export const BookDetailModal: React.FC = () => {
                           >
                             <ExternalLink size={10} /> Bookshop.org
                           </a>
-                          {book.isbn && (
-                            <>
-                              <span className="text-border text-xs">|</span>
-                              <a
-                                href={getLibroFmUrl(book.isbn, book.title)}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
-                              >
-                                <Headphones size={10} /> Libro.fm
-                              </a>
-                            </>
-                          )}
+                          <span className="text-border text-xs">|</span>
+                          <a
+                            href={getLibroFmUrl(book.title)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <Headphones size={10} /> Libro.fm
+                          </a>
                         </div>
                       </div>
                     )}
