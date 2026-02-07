@@ -10,6 +10,7 @@ import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { stripHtmlTags } from '@/lib/stripHtml';
+import { splitTitle } from '@/lib/titleUtils';
 import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 
@@ -225,7 +226,7 @@ export const BookDetail = () => {
             <span>/</span>
             <Link to={`/shop?category=${book.category}`} className="hover:text-primary transition-colors">{book.category}</Link>
             <span>/</span>
-            <span className="text-primary font-medium line-clamp-1">{book.title}</span>
+            <span className="text-primary font-medium line-clamp-1">{splitTitle(book.title).title}</span>
           </div>
         </div>
       </div>
@@ -257,7 +258,10 @@ export const BookDetail = () => {
                 ))}
                 <span className="text-sm text-muted-foreground">(42 reviews)</span>
               </div>
-              <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-2 leading-tight">{book.title}</h1>
+              <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-2 leading-tight">{splitTitle(book.title).title}</h1>
+              {splitTitle(book.title).subtitle && (
+                <p className="text-xl md:text-2xl text-muted-foreground font-serif leading-snug mb-2">{splitTitle(book.title).subtitle}</p>
+              )}
               <p className="text-2xl text-muted-foreground font-serif italic mb-6">by {book.author}</p>
 
               <div className="flex items-center space-x-6">
@@ -453,7 +457,7 @@ export const BookDetail = () => {
                 <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2">
                   <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-cover" />
                 </div>
-                <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
+                <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{splitTitle(item.title).title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>
                 <p className="text-sm font-bold text-primary mt-1">${item.price.toFixed(2)}</p>
               </Link>

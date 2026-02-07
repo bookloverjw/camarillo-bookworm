@@ -60,10 +60,12 @@ export function getBookshopSearchUrl(query: string): string {
 }
 
 // Libro.fm audiobook affiliate link
-// Searches by title because Libro.fm uses audiobook-specific ISBNs
-// that differ from the print ISBNs in our catalog
+// Searches by main title only (no subtitle) because Libro.fm uses
+// audiobook-specific ISBNs that differ from the print ISBNs in our catalog
 export function getLibroFmUrl(title: string): string {
-  return `https://libro.fm/search?q=${encodeURIComponent(title)}&bookstore=${BOOKSHOP_AFFILIATE_ID}`;
+  // Strip subtitle (everything after first ": ") for cleaner search results
+  const mainTitle = title.includes(': ') ? title.slice(0, title.indexOf(': ')) : title;
+  return `https://libro.fm/search?q=${encodeURIComponent(mainTitle)}&bookstore=${BOOKSHOP_AFFILIATE_ID}`;
 }
 
 // Generate ISBN from book ID (for demo purposes)

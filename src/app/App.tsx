@@ -422,7 +422,7 @@ const Footer = () => {
               <li className="flex items-start space-x-2">
                 <MapPin size={16} className="shrink-0 mt-0.5" />
                 <a
-                  href="https://www.google.com/maps/search/?api=1&query=93+E+Daily+Dr+Camarillo+CA+93010"
+                  href="https://maps.app.goo.gl/UGK8t2q3Etce2Q6P7"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="hover:text-white transition-colors underline-offset-2 hover:underline"
