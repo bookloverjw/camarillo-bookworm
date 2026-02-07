@@ -236,7 +236,7 @@ export const BookDetailModal: React.FC = () => {
                         <div className="flex items-center justify-center gap-4">
                           {book.isbn && (
                             <a
-                              href={getLibroFmUrl(book.isbn, book.title)}
+                              href={getLibroFmUrl(book.isbn)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -290,7 +290,7 @@ export const BookDetailModal: React.FC = () => {
                             <>
                               <span className="text-border text-xs">|</span>
                               <a
-                                href={getLibroFmUrl(book.isbn, book.title)}
+                                href={getLibroFmUrl(book.isbn)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"

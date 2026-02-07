@@ -453,7 +453,7 @@ export const Shop = () => {
                       </a>
                       {book.isbn && (
                         <a
-                          href={getLibroFmUrl(book.isbn, book.title)}
+                          href={getLibroFmUrl(book.isbn)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center justify-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors py-0.5"
@@ -484,7 +484,7 @@ export const Shop = () => {
                           <>
                             <span className="text-border text-[10px]">|</span>
                             <a
-                              href={getLibroFmUrl(book.isbn, book.title)}
+                              href={getLibroFmUrl(book.isbn)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="flex items-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"

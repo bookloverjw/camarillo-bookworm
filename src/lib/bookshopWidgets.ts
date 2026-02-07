@@ -59,16 +59,10 @@ export function getBookshopSearchUrl(query: string): string {
   return `https://bookshop.org/search?keywords=${encodeURIComponent(query)}&affiliate=${BOOKSHOP_AFFILIATE_ID}`;
 }
 
-// Libro.fm audiobook affiliate link (ISBN + title slug)
-// URL format: libro.fm/audiobooks/{isbn}-{title-slug}?bookstore={affiliate}
-export function getLibroFmUrl(isbn: string, title: string): string {
-  const slug = title
-    .toLowerCase()
-    .replace(/[^a-z0-9\s-]/g, '')
-    .replace(/\s+/g, '-')
-    .replace(/-+/g, '-')
-    .replace(/^-|-$/g, '');
-  return `https://libro.fm/audiobooks/${isbn}-${slug}?bookstore=${BOOKSHOP_AFFILIATE_ID}`;
+// Libro.fm audiobook affiliate link
+// Links to search-by-ISBN so we don't need to guess the title slug
+export function getLibroFmUrl(isbn: string): string {
+  return `https://libro.fm/search?q=${isbn}&bookstore=${BOOKSHOP_AFFILIATE_ID}`;
 }
 
 // Generate ISBN from book ID (for demo purposes)

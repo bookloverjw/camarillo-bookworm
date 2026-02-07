@@ -292,7 +292,7 @@ export const BookDetail = () => {
                   <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
                   {book.isbn && (
                     <a
-                      href={getLibroFmUrl(book.isbn, book.title)}
+                      href={getLibroFmUrl(book.isbn)}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
@@ -335,7 +335,7 @@ export const BookDetail = () => {
                       <>
                         <span className="text-border">|</span>
                         <a
-                          href={getLibroFmUrl(book.isbn, book.title)}
+                          href={getLibroFmUrl(book.isbn)}
                           target="_blank"
                           rel="noopener noreferrer"
                           className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
