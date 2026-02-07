@@ -6,10 +6,12 @@ import { BOOKS, EVENTS, MERCH, STAFF, type Book } from '@/app/utils/data';
 import { getBooks, getStaffPicks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
+import { useBookModal } from '@/app/context/BookModalContext';
 
 // Horizontal scrolling book carousel component - Elliott Bay style
 const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
+  const { openModal } = useBookModal();
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -44,10 +46,10 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {books.map((book) => (
-          <Link
+          <button
             key={book.id}
-            to={`/book/${book.id}`}
-            className="flex-shrink-0 w-[140px] group/book"
+            onClick={() => openModal(book.id)}
+            className="flex-shrink-0 w-[140px] group/book text-left cursor-pointer"
           >
             <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md">
               <ImageWithFallback
@@ -64,7 +66,7 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
             {book.status === 'In Stock' && (
               <p className="text-xs text-[#16A34A] font-medium mt-1">in store</p>
             )}
-          </Link>
+          </button>
         ))}
       </div>
     </div>

@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
-import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
@@ -8,6 +8,9 @@ import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
 // Context & Auth
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 import { CartProvider, useCart } from '@/app/context/CartContext';
+import { ThemeProvider, useTheme } from '@/app/context/ThemeContext';
+import { BookModalProvider } from '@/app/context/BookModalContext';
+import { BookDetailModal } from '@/app/components/BookDetailModal';
 import { AuthPage } from '@/app/pages/auth/AuthPage';
 import { AccountLayout } from '@/app/pages/account/AccountLayout';
 import { DashboardPage } from '@/app/pages/account/DashboardPage';
@@ -36,6 +39,7 @@ const Navbar = () => {
   const location = useLocation();
   const { user } = useAuth();
   const { itemCount } = useCart();
+  const { theme, toggleTheme } = useTheme();
 
   // Browse dropdown items
   const browseItems = [
@@ -92,6 +96,15 @@ const Navbar = () => {
 
             {/* Icons - Desktop */}
             <div className="hidden md:flex items-center space-x-6">
+              {/* Dark Mode Toggle */}
+              <button
+                onClick={toggleTheme}
+                className="text-white/90 hover:text-white transition-colors p-1"
+                aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              >
+                {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+              </button>
+
               {/* Account */}
               <Link to={user ? "/account" : "/login"} className="flex items-center space-x-2 text-white/90 hover:text-white transition-colors">
                 <User size={20} />
@@ -309,11 +322,19 @@ const Navbar = () => {
                   {link.name}
                 </Link>
               ))}
-              <div className="flex items-center space-x-4 px-3 py-4 border-t border-border mt-4">
+              <div className="flex items-center justify-between px-3 py-4 border-t border-border mt-4">
                 <Link to={user ? "/account" : "/login"} onClick={() => setIsOpen(false)} className="flex items-center space-x-2 text-primary">
                   <User size={20} />
                   <span>{user ? 'Account' : 'Sign In'}</span>
                 </Link>
+                <button
+                  onClick={toggleTheme}
+                  className="flex items-center space-x-2 text-primary"
+                  aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+                >
+                  {theme === 'dark' ? <Sun size={20} /> : <Moon size={20} />}
+                  <span className="text-sm">{theme === 'dark' ? 'Light' : 'Dark'}</span>
+                </button>
               </div>
             </div>
           </motion.div>
@@ -488,8 +509,10 @@ const ScrollToTop = () => {
 
 export default function App() {
   return (
+    <ThemeProvider>
     <AuthProvider>
       <CartProvider>
+        <BookModalProvider>
         <HashRouter>
           <ScrollToTop />
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
@@ -537,11 +560,14 @@ export default function App() {
             </main>
 
             <Footer />
+            <BookDetailModal />
             <Toaster position="bottom-right" richColors />
           </div>
         </HashRouter>
+        </BookModalProvider>
       </CartProvider>
     </AuthProvider>
+    </ThemeProvider>
   );
 }
 
