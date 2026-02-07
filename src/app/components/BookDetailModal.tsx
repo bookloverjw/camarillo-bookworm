@@ -218,28 +218,59 @@ export const BookDetailModal: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Add to cart buttons */}
-                    <div className="flex flex-wrap gap-3 pt-4">
-                      <button
-                        onClick={() => handleAddToCart('pickup')}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
-                      >
-                        <Store size={16} /> In-Store Pickup
-                      </button>
-                      <button
-                        onClick={() => handleAddToCart('ship')}
-                        className="flex items-center gap-2 px-5 py-2.5 border-2 border-primary text-primary rounded-lg text-sm font-bold hover:bg-primary hover:text-white transition-colors"
-                      >
-                        <Truck size={16} /> Ship to Me
-                      </button>
-                      <Link
-                        to={`/book/${book.id}`}
-                        onClick={closeModal}
-                        className="flex items-center gap-2 px-5 py-2.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
-                      >
-                        View Full Details <ExternalLink size={14} />
-                      </Link>
-                    </div>
+                    {/* Purchase actions — priority: pickup > ship > bookshop */}
+                    {book.status === 'Ships in X days' ? (
+                      <div className="space-y-3 pt-4">
+                        <a
+                          href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
+                        >
+                          <ExternalLink size={16} /> Order on Bookshop.org
+                        </a>
+                        <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — still supports our store!</p>
+                        <Link
+                          to={`/book/${book.id}`}
+                          onClick={closeModal}
+                          className="flex items-center justify-center gap-2 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                        >
+                          View Full Details <ExternalLink size={14} />
+                        </Link>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-4">
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            onClick={() => handleAddToCart('pickup')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
+                          >
+                            <Store size={16} /> In-Store Pickup
+                          </button>
+                          <button
+                            onClick={() => handleAddToCart('ship')}
+                            className="flex items-center gap-2 px-5 py-2.5 border-2 border-primary text-primary rounded-lg text-sm font-bold hover:bg-primary hover:text-white transition-colors"
+                          >
+                            <Truck size={16} /> Ship to Me
+                          </button>
+                          <Link
+                            to={`/book/${book.id}`}
+                            onClick={closeModal}
+                            className="flex items-center gap-2 px-5 py-2.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                          >
+                            View Full Details <ExternalLink size={14} />
+                          </Link>
+                        </div>
+                        <a
+                          href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink size={10} /> Also available on Bookshop.org
+                        </a>
+                      </div>
+                    )}
                   </div>
                 </div>
 

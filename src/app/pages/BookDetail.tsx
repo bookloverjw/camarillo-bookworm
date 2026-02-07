@@ -9,7 +9,6 @@ import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { BookshopBuyButton } from '@/app/components/BookshopWidget';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -274,26 +273,51 @@ export const BookDetail = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => handleAddToCart('pickup')}
-                  className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
-                >
-                  <Store size={24} className="mb-2 text-primary group-hover:text-white" />
-                  <span className="text-xs font-bold uppercase tracking-widest">In-Store Pickup</span>
-                </button>
-                <button
-                  onClick={() => handleAddToCart('ship')}
-                  className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
-                >
-                  <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
-                </button>
-                {/* Bookshop.org Buy Button */}
-                <div className="flex items-center justify-center">
-                  <BookshopBuyButton isbn={bookIsbn} className="text-sm" />
+              {/* Purchase buttons — priority: pickup > ship > bookshop */}
+              {book.status === 'Ships in X days' ? (
+                /* Out of stock locally — promote Bookshop as the fastest option */
+                <div className="space-y-3">
+                  <a
+                    href={getBookshopAffiliateUrl(bookIsbn)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full p-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all"
+                  >
+                    <ExternalLink size={20} />
+                    <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
+                  </a>
+                  <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
                 </div>
-              </div>
+              ) : (
+                /* In stock, low stock, or preorder — our store buttons are primary */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleAddToCart('pickup')}
+                      className="flex flex-col items-center justify-center p-4 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all group"
+                    >
+                      <Store size={24} className="mb-2" />
+                      <span className="text-xs font-bold uppercase tracking-widest">In-Store Pickup</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddToCart('ship')}
+                      className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
+                    >
+                      <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
+                    </button>
+                  </div>
+                  <a
+                    href={getBookshopAffiliateUrl(bookIsbn)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors pt-1"
+                  >
+                    <ExternalLink size={14} />
+                    <span>Also available on Bookshop.org</span>
+                  </a>
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <button
