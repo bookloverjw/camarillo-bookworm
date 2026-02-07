@@ -9,6 +9,7 @@ import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { stripHtmlTags } from '@/lib/stripHtml';
+import { splitTitle } from '@/lib/titleUtils';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
 
@@ -193,8 +194,13 @@ export const BookDetailModal: React.FC = () => {
                       {book.genre}
                     </span>
                     <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary leading-tight">
-                      {book.title}
+                      {splitTitle(book.title).title}
                     </h2>
+                    {splitTitle(book.title).subtitle && (
+                      <p className="text-lg md:text-xl text-muted-foreground font-serif leading-snug">
+                        {splitTitle(book.title).subtitle}
+                      </p>
+                    )}
                     <p className="text-lg text-muted-foreground font-serif italic">
                       by {book.author}
                     </p>
@@ -353,7 +359,7 @@ export const BookDetailModal: React.FC = () => {
                             />
                           </div>
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-1 group-hover:text-accent transition-colors">
-                            {item.title}
+                            {splitTitle(item.title).title}
                           </h4>
                           <p className="text-xs text-muted-foreground">{item.author}</p>
                           <p className="text-sm font-bold text-primary mt-1">

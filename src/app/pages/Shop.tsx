@@ -5,6 +5,7 @@ import { Link, useSearchParams } from 'react-router';
 import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount } from '@/lib/bookService';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
+import { splitTitle } from '@/lib/titleUtils';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 const BISAC_GENRES: Record<string, string[]> = {
@@ -429,8 +430,11 @@ export const Shop = () => {
                 <div className="flex-1 flex flex-col justify-between">
                   <div>
                     <Link to={`/book/${book.id}`}>
-                      <h3 className={`font-serif font-bold text-primary group-hover:text-accent transition-colors leading-tight line-clamp-2 ${viewMode === 'list' ? 'text-base mb-1' : 'text-lg mb-1.5'}`}>{book.title}</h3>
+                      <h3 className={`font-serif font-bold text-primary group-hover:text-accent transition-colors leading-tight line-clamp-2 ${viewMode === 'list' ? 'text-base mb-1' : 'text-lg mb-1.5'}`}>{splitTitle(book.title).title}</h3>
                     </Link>
+                    {splitTitle(book.title).subtitle && (
+                      <p className={`text-muted-foreground font-serif leading-snug line-clamp-1 ${viewMode === 'list' ? 'text-sm mb-1' : 'text-xs mb-1'}`}>{splitTitle(book.title).subtitle}</p>
+                    )}
                     <p className="text-muted-foreground text-xs mb-2 italic">by {book.author}</p>
                     
                     <div className={`flex items-baseline space-x-2 ${viewMode === 'list' ? 'mb-4' : 'mb-6'}`}>
