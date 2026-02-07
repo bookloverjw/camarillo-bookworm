@@ -1,12 +1,15 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, ShoppingBag, Store, Truck, ExternalLink } from 'lucide-react';
+import { X, Star, ShoppingBag, Store, Truck, ExternalLink, Headphones } from 'lucide-react';
 import { Link } from 'react-router';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { BookmarksReviews } from '@/app/components/BookmarksReviews';
+import { stripHtmlTags } from '@/lib/stripHtml';
+import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
 
 // Static review data for the modal (adapted from the source improvements)
@@ -200,7 +203,7 @@ export const BookDetailModal: React.FC = () => {
                       <span className="text-sm text-muted-foreground">(42 reviews)</span>
                     </div>
                     <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
-                    <p className="text-muted-foreground leading-relaxed">{book.description}</p>
+                    <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
 
                     {/* Meta info */}
                     <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-sm">
@@ -218,28 +221,87 @@ export const BookDetailModal: React.FC = () => {
                       </div>
                     </div>
 
-                    {/* Add to cart buttons */}
-                    <div className="flex flex-wrap gap-3 pt-4">
-                      <button
-                        onClick={() => handleAddToCart('pickup')}
-                        className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
-                      >
-                        <Store size={16} /> In-Store Pickup
-                      </button>
-                      <button
-                        onClick={() => handleAddToCart('ship')}
-                        className="flex items-center gap-2 px-5 py-2.5 border-2 border-primary text-primary rounded-lg text-sm font-bold hover:bg-primary hover:text-white transition-colors"
-                      >
-                        <Truck size={16} /> Ship to Me
-                      </button>
-                      <Link
-                        to={`/book/${book.id}`}
-                        onClick={closeModal}
-                        className="flex items-center gap-2 px-5 py-2.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
-                      >
-                        View Full Details <ExternalLink size={14} />
-                      </Link>
-                    </div>
+                    {/* Purchase actions — priority: pickup > ship > bookshop/libro */}
+                    {book.status === 'Ships in X days' ? (
+                      <div className="space-y-3 pt-4">
+                        <a
+                          href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
+                        >
+                          <ExternalLink size={16} /> Order on Bookshop.org
+                        </a>
+                        <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — still supports our store!</p>
+                        <div className="flex items-center justify-center gap-4">
+                          {book.isbn && (
+                            <a
+                              href={getLibroFmUrl(book.isbn, book.title)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              <Headphones size={14} /> Listen on Libro.fm
+                            </a>
+                          )}
+                          <span className="text-border">|</span>
+                          <Link
+                            to={`/book/${book.id}`}
+                            onClick={closeModal}
+                            className="flex items-center gap-1.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                          >
+                            View Full Details <ExternalLink size={14} />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="space-y-3 pt-4">
+                        <div className="flex flex-wrap gap-3">
+                          <button
+                            onClick={() => handleAddToCart('pickup')}
+                            className="flex items-center gap-2 px-5 py-2.5 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors"
+                          >
+                            <Store size={16} /> In-Store Pickup
+                          </button>
+                          <button
+                            onClick={() => handleAddToCart('ship')}
+                            className="flex items-center gap-2 px-5 py-2.5 border-2 border-primary text-primary rounded-lg text-sm font-bold hover:bg-primary hover:text-white transition-colors"
+                          >
+                            <Truck size={16} /> Ship to Me
+                          </button>
+                          <Link
+                            to={`/book/${book.id}`}
+                            onClick={closeModal}
+                            className="flex items-center gap-2 px-5 py-2.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                          >
+                            View Full Details <ExternalLink size={14} />
+                          </Link>
+                        </div>
+                        <div className="flex items-center justify-center gap-3">
+                          <a
+                            href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                          >
+                            <ExternalLink size={10} /> Bookshop.org
+                          </a>
+                          {book.isbn && (
+                            <>
+                              <span className="text-border text-xs">|</span>
+                              <a
+                                href={getLibroFmUrl(book.isbn, book.title)}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="flex items-center gap-1 text-xs text-muted-foreground hover:text-primary transition-colors"
+                              >
+                                <Headphones size={10} /> Libro.fm
+                              </a>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
 
@@ -265,6 +327,16 @@ export const BookDetailModal: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Bookmarks.reviews critic reviews */}
+                {book.isbn && (
+                  <div className="mb-10">
+                    <h3 className="text-xl font-serif font-bold text-primary mb-6 pb-2 border-b border-border">
+                      Critic Reviews
+                    </h3>
+                    <BookmarksReviews isbn={book.isbn} />
+                  </div>
+                )}
 
                 {/* Related titles */}
                 {related.length > 0 && (

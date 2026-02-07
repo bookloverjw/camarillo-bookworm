@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Search, ChevronDown, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2 } from 'lucide-react';
+import { Filter, Search, ChevronDown, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount } from '@/lib/bookService';
+import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
 const BISAC_GENRES: Record<string, string[]> = {
@@ -438,22 +439,64 @@ export const Shop = () => {
                     </div>
                   </div>
 
-                  <div className={`flex ${viewMode === 'list' ? 'flex-row gap-3' : 'flex-col gap-2'}`}>
-                    <button className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 ${viewMode === 'list' ? 'flex-1' : 'w-full'}`}>
-                      <ShoppingBag size={14} />
-                      <span>Add to Bag</span>
-                    </button>
-                    <a
-                      href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className={`flex items-center justify-center space-x-2 border-2 border-border text-primary py-2 rounded-xl text-xs font-bold hover:bg-muted hover:border-primary/20 active:scale-[0.98] transition-all ${viewMode === 'list' ? 'flex-1' : 'w-full'}`}
-                    >
-                      <ExternalLink size={14} />
-                      <span className="hidden sm:inline">Order on Bookshop</span>
-                      <span className="sm:hidden">Bookshop</span>
-                    </a>
-                  </div>
+                  {book.status === 'Ships in X days' ? (
+                    /* Out of stock — promote Bookshop as faster option */
+                    <div className={`flex flex-col gap-1.5`}>
+                      <a
+                        href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 w-full`}
+                      >
+                        <ExternalLink size={14} />
+                        <span>Order on Bookshop</span>
+                      </a>
+                      {book.isbn && (
+                        <a
+                          href={getLibroFmUrl(book.isbn, book.title)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center justify-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors py-0.5"
+                        >
+                          <Headphones size={10} />
+                          <span>Audiobook on Libro.fm</span>
+                        </a>
+                      )}
+                    </div>
+                  ) : (
+                    /* In stock / low stock / preorder — our store is primary */
+                    <div className={`flex flex-col gap-1.5`}>
+                      <button className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 w-full`}>
+                        <ShoppingBag size={14} />
+                        <span>Add to Bag</span>
+                      </button>
+                      <div className="flex items-center justify-center gap-2 py-0.5">
+                        <a
+                          href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <ExternalLink size={10} />
+                          <span>Bookshop</span>
+                        </a>
+                        {book.isbn && (
+                          <>
+                            <span className="text-border text-[10px]">|</span>
+                            <a
+                              href={getLibroFmUrl(book.isbn, book.title)}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="flex items-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                            >
+                              <Headphones size={10} />
+                              <span>Libro.fm</span>
+                            </a>
+                          </>
+                        )}
+                      </div>
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))}

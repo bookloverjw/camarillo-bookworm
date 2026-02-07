@@ -421,11 +421,23 @@ const Footer = () => {
             <ul className="space-y-2 text-sm text-white/70">
               <li className="flex items-start space-x-2">
                 <MapPin size={16} className="shrink-0 mt-0.5" />
-                <span>93 E Daily Dr<br/>Camarillo, CA 93010</span>
+                <a
+                  href="https://www.google.com/maps/search/?api=1&query=93+E+Daily+Dr+Camarillo+CA+93010"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="hover:text-white transition-colors underline-offset-2 hover:underline"
+                >
+                  93 E Daily Dr<br/>Camarillo, CA 93010
+                </a>
               </li>
               <li className="flex items-center space-x-2">
                 <Phone size={16} className="shrink-0" />
-                <span>(805) 482-1384</span>
+                <a
+                  href="tel:+18054821384"
+                  className="hover:text-white transition-colors underline-offset-2 hover:underline"
+                >
+                  (805) 482-1384
+                </a>
               </li>
               <li className="flex items-start space-x-2">
                 <Clock size={16} className="shrink-0 mt-0.5" />

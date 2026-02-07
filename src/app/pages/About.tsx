@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Twitter, Award, Users, BookOpen, Heart } from 'lucide-react';
+import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Award, Users, BookOpen, Heart } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 
@@ -105,7 +105,14 @@ export const About = () => {
                   <MapPin className="text-accent mt-1" size={20} />
                   <div>
                     <p className="font-bold text-primary">Store Address</p>
-                    <p className="text-muted-foreground">123 Literary Way<br />Camarillo, CA 93010</p>
+                    <a
+                      href="https://www.google.com/maps/search/?api=1&query=93+E+Daily+Dr+Camarillo+CA+93010"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                    >
+                      93 E Daily Dr<br />Camarillo, CA 93010
+                    </a>
                   </div>
                 </div>
                 <div className="flex items-start space-x-4">
@@ -113,9 +120,9 @@ export const About = () => {
                   <div>
                     <p className="font-bold text-primary">Opening Hours</p>
                     <ul className="text-muted-foreground text-sm space-y-1">
-                      <li className="flex justify-between w-48"><span>Mon – Fri:</span> <span>9am – 8pm</span></li>
-                      <li className="flex justify-between w-48"><span>Saturday:</span> <span>10am – 9pm</span></li>
-                      <li className="flex justify-between w-48"><span>Sunday:</span> <span>11am – 6pm</span></li>
+                      <li className="flex justify-between w-48"><span>Mon – Fri:</span> <span>10am – 6pm</span></li>
+                      <li className="flex justify-between w-48"><span>Saturday:</span> <span>10am – 5pm</span></li>
+                      <li className="flex justify-between w-48"><span>Sunday:</span> <span>12pm – 5pm</span></li>
                     </ul>
                   </div>
                 </div>
@@ -123,7 +130,12 @@ export const About = () => {
                   <Phone className="text-accent mt-1" size={20} />
                   <div>
                     <p className="font-bold text-primary">Call Us</p>
-                    <p className="text-muted-foreground">(805) 482-1384</p>
+                    <a
+                      href="tel:+18054821384"
+                      className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
+                    >
+                      (805) 482-1384
+                    </a>
                   </div>
                 </div>
               </div>
@@ -132,9 +144,8 @@ export const About = () => {
             <div>
               <h3 className="text-2xl font-serif font-bold text-primary mb-6">Stay Connected</h3>
               <div className="flex space-x-4">
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
-                <a href="#" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Twitter size={24} /></a>
+                <a href="https://instagram.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
+                <a href="https://facebook.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
               </div>
             </div>
           </div>

@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2 } from 'lucide-react';
+import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -9,7 +9,9 @@ import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { BookshopBuyButton } from '@/app/components/BookshopWidget';
+import { stripHtmlTags } from '@/lib/stripHtml';
+import { BookmarksReviews } from '@/app/components/BookmarksReviews';
+import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -274,26 +276,78 @@ export const BookDetail = () => {
                 </span>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                <button
-                  onClick={() => handleAddToCart('pickup')}
-                  className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
-                >
-                  <Store size={24} className="mb-2 text-primary group-hover:text-white" />
-                  <span className="text-xs font-bold uppercase tracking-widest">In-Store Pickup</span>
-                </button>
-                <button
-                  onClick={() => handleAddToCart('ship')}
-                  className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
-                >
-                  <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
-                  <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
-                </button>
-                {/* Bookshop.org Buy Button */}
-                <div className="flex items-center justify-center">
-                  <BookshopBuyButton isbn={bookIsbn} className="text-sm" />
+              {/* Purchase buttons — priority: pickup > ship > bookshop */}
+              {book.status === 'Ships in X days' ? (
+                /* Out of stock locally — promote Bookshop as the fastest option */
+                <div className="space-y-3">
+                  <a
+                    href={getBookshopAffiliateUrl(bookIsbn)}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="flex items-center justify-center gap-2 w-full p-4 bg-primary text-white rounded-xl font-bold hover:bg-primary/90 transition-all"
+                  >
+                    <ExternalLink size={20} />
+                    <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
+                  </a>
+                  <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
+                  {book.isbn && (
+                    <a
+                      href={getLibroFmUrl(book.isbn, book.title)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center gap-2 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <Headphones size={14} />
+                      <span>Listen on Libro.fm</span>
+                    </a>
+                  )}
                 </div>
-              </div>
+              ) : (
+                /* In stock, low stock, or preorder — our store buttons are primary */
+                <div className="space-y-3">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <button
+                      onClick={() => handleAddToCart('pickup')}
+                      className="flex flex-col items-center justify-center p-4 bg-primary text-white rounded-xl hover:bg-primary/90 transition-all group"
+                    >
+                      <Store size={24} className="mb-2" />
+                      <span className="text-xs font-bold uppercase tracking-widest">In-Store Pickup</span>
+                    </button>
+                    <button
+                      onClick={() => handleAddToCart('ship')}
+                      className="flex flex-col items-center justify-center p-4 bg-white border-2 border-primary rounded-xl hover:bg-primary hover:text-white transition-all group"
+                    >
+                      <Truck size={24} className="mb-2 text-primary group-hover:text-white" />
+                      <span className="text-xs font-bold uppercase tracking-widest">Ship to Me</span>
+                    </button>
+                  </div>
+                  <div className="flex items-center justify-center gap-4 pt-1">
+                    <a
+                      href={getBookshopAffiliateUrl(bookIsbn)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Bookshop.org</span>
+                    </a>
+                    {book.isbn && (
+                      <>
+                        <span className="text-border">|</span>
+                        <a
+                          href={getLibroFmUrl(book.isbn, book.title)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Headphones size={14} />
+                          <span>Libro.fm</span>
+                        </a>
+                      </>
+                    )}
+                  </div>
+                </div>
+              )}
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
                 <button
@@ -323,11 +377,9 @@ export const BookDetail = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Description</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {book.description}
-                  <br /><br />
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-                </p>
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {stripHtmlTags(book.description)}
+                </div>
               </div>
 
               {book.isStaffPick && (
@@ -346,6 +398,14 @@ export const BookDetail = () => {
                       <p className="text-xs text-muted-foreground">Store Staff</p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Bookmarks.reviews — critic review aggregator */}
+              {bookIsbn && (
+                <div>
+                  <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Critic Reviews</h3>
+                  <BookmarksReviews isbn={bookIsbn} />
                 </div>
               )}
 
