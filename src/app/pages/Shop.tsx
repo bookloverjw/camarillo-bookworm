@@ -451,17 +451,15 @@ export const Shop = () => {
                         <ExternalLink size={14} />
                         <span>Order on Bookshop</span>
                       </a>
-                      {book.isbn && (
-                        <a
-                          href={getLibroFmUrl(book.isbn)}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="flex items-center justify-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors py-0.5"
-                        >
-                          <Headphones size={10} />
-                          <span>Audiobook on Libro.fm</span>
-                        </a>
-                      )}
+                      <a
+                        href={getLibroFmUrl(book.title)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="flex items-center justify-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors py-0.5"
+                      >
+                        <Headphones size={10} />
+                        <span>Audiobook on Libro.fm</span>
+                      </a>
                     </div>
                   ) : (
                     /* In stock / low stock / preorder — our store is primary */
@@ -480,20 +478,16 @@ export const Shop = () => {
                           <ExternalLink size={10} />
                           <span>Bookshop</span>
                         </a>
-                        {book.isbn && (
-                          <>
-                            <span className="text-border text-[10px]">|</span>
-                            <a
-                              href={getLibroFmUrl(book.isbn)}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
-                            >
-                              <Headphones size={10} />
-                              <span>Libro.fm</span>
-                            </a>
-                          </>
-                        )}
+                        <span className="text-border text-[10px]">|</span>
+                        <a
+                          href={getLibroFmUrl(book.title)}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="flex items-center space-x-1 text-[10px] text-muted-foreground hover:text-primary transition-colors"
+                        >
+                          <Headphones size={10} />
+                          <span>Libro.fm</span>
+                        </a>
                       </div>
                     </div>
                   )}

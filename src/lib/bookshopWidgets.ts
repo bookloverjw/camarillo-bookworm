@@ -60,9 +60,10 @@ export function getBookshopSearchUrl(query: string): string {
 }
 
 // Libro.fm audiobook affiliate link
-// Links to search-by-ISBN so we don't need to guess the title slug
-export function getLibroFmUrl(isbn: string): string {
-  return `https://libro.fm/search?q=${isbn}&bookstore=${BOOKSHOP_AFFILIATE_ID}`;
+// Searches by title because Libro.fm uses audiobook-specific ISBNs
+// that differ from the print ISBNs in our catalog
+export function getLibroFmUrl(title: string): string {
+  return `https://libro.fm/search?q=${encodeURIComponent(title)}&bookstore=${BOOKSHOP_AFFILIATE_ID}`;
 }
 
 // Generate ISBN from book ID (for demo purposes)
