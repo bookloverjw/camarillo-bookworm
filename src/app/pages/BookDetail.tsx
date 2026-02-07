@@ -9,6 +9,8 @@ import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
+import { stripHtmlTags } from '@/lib/stripHtml';
+import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -347,11 +349,9 @@ export const BookDetail = () => {
             <div className="space-y-6">
               <div>
                 <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Description</h3>
-                <p className="text-muted-foreground leading-relaxed">
-                  {book.description}
-                  <br /><br />
-                  Lorem ipsum dolor sit amet, consectetur adipiscing elit. Sed do eiusmod tempor incididunt ut labore et dolore magna aliqua. Ut enim ad minim veniam, quis nostrud exercitation ullamco laboris nisi ut aliquip ex ea commodo consequat. Duis aute irure dolor in reprehenderit in voluptate velit esse cillum dolore eu fugiat nulla pariatur.
-                </p>
+                <div className="text-muted-foreground leading-relaxed whitespace-pre-line">
+                  {stripHtmlTags(book.description)}
+                </div>
               </div>
 
               {book.isStaffPick && (
@@ -370,6 +370,14 @@ export const BookDetail = () => {
                       <p className="text-xs text-muted-foreground">Store Staff</p>
                     </div>
                   </div>
+                </div>
+              )}
+
+              {/* Bookmarks.reviews — critic review aggregator */}
+              {bookIsbn && (
+                <div>
+                  <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Critic Reviews</h3>
+                  <BookmarksReviews isbn={bookIsbn} />
                 </div>
               )}
 

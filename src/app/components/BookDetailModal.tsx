@@ -7,6 +7,8 @@ import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { BookmarksReviews } from '@/app/components/BookmarksReviews';
+import { stripHtmlTags } from '@/lib/stripHtml';
 import { toast } from 'sonner';
 
 // Static review data for the modal (adapted from the source improvements)
@@ -200,7 +202,7 @@ export const BookDetailModal: React.FC = () => {
                       <span className="text-sm text-muted-foreground">(42 reviews)</span>
                     </div>
                     <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
-                    <p className="text-muted-foreground leading-relaxed">{book.description}</p>
+                    <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
 
                     {/* Meta info */}
                     <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-sm">
@@ -296,6 +298,16 @@ export const BookDetailModal: React.FC = () => {
                     ))}
                   </div>
                 </div>
+
+                {/* Bookmarks.reviews critic reviews */}
+                {book.isbn && (
+                  <div className="mb-10">
+                    <h3 className="text-xl font-serif font-bold text-primary mb-6 pb-2 border-b border-border">
+                      Critic Reviews
+                    </h3>
+                    <BookmarksReviews isbn={book.isbn} />
+                  </div>
+                )}
 
                 {/* Related titles */}
                 {related.length > 0 && (
