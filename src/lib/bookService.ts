@@ -5,6 +5,7 @@
 
 import { supabase } from './supabase';
 import { type Book } from '@/app/utils/data';
+import { splitTitle } from './titleUtils';
 
 export interface SupabaseBook {
   id: string;
@@ -35,10 +36,12 @@ export interface SupabaseBook {
  * Map Supabase book to website Book format
  */
 function mapSupabaseBookToBook(sb: SupabaseBook): Book {
+  const { title, subtitle } = splitTitle(sb.title);
   return {
     id: sb.id,
     isbn: sb.isbn,
-    title: sb.title,
+    title,
+    subtitle,
     author: sb.author,
     price: sb.price || 0,
     cover: sb.cover_url || 'https://images.unsplash.com/photo-1538981457319-5e459479f9d0?auto=format&fit=crop&q=80&w=600',

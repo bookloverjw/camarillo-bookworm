@@ -7,7 +7,6 @@ import { getBooks, getStaffPicks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
-import { splitTitle } from '@/lib/titleUtils';
 
 // Horizontal scrolling book carousel component - Elliott Bay style
 const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) => {
@@ -60,7 +59,7 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
               />
             </div>
             <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">
-              {splitTitle(book.title).title}
+              {book.title}
             </h3>
             <p className="text-xs text-muted-foreground mb-1">{book.author}</p>
             <p className="text-sm font-medium text-primary">${book.price.toFixed(2)}</p>

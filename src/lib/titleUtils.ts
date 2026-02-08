@@ -1,15 +1,19 @@
 /**
  * Split a book title into main title and subtitle.
- * Splits on the first colon followed by a space (e.g. "1929: Inside the Greatest Crash…").
- * If no colon separator is found, the full string is the title and subtitle is undefined.
+ * Handles common bibliographic separators: ": ", " - ", " — ", " – "
+ * If no separator is found, the full string is the title and subtitle is undefined.
  */
 export function splitTitle(fullTitle: string): { title: string; subtitle?: string } {
-  const idx = fullTitle.indexOf(': ');
-  if (idx === -1) {
-    return { title: fullTitle };
+  // Try separators in order of preference
+  const separators = [': ', ' - ', ' — ', ' – '];
+  for (const sep of separators) {
+    const idx = fullTitle.indexOf(sep);
+    if (idx > 0) {
+      return {
+        title: fullTitle.slice(0, idx),
+        subtitle: fullTitle.slice(idx + sep.length),
+      };
+    }
   }
-  return {
-    title: fullTitle.slice(0, idx),
-    subtitle: fullTitle.slice(idx + 2),
-  };
+  return { title: fullTitle };
 }

@@ -2,6 +2,7 @@ export interface Book {
   id: string;
   isbn?: string; // ISBN-13 for Bookshop.org links
   title: string;
+  subtitle?: string;
   author: string;
   price: number;
   cover: string;
