@@ -48,7 +48,7 @@ const Navbar = () => {
     { name: 'New & Noteworthy', path: '/shop?filter=new', external: false },
     { name: 'Staff Picks', path: '/staff-picks', external: false },
     { name: 'Gift Cards', path: '/gift-cards', external: false },
-    { name: 'Read-Alikes for Kids', path: '/read-alikes', external: false, icon: BookOpen },
+    { name: 'Read-Alikes: What to Read Next', path: '/read-alikes', external: false, icon: BookOpen },
     { name: 'Audiobooks', path: 'https://libro.fm/camarillobookworm', external: true, icon: Headphones },
   ];
 
