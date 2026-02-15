@@ -51,11 +51,11 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
             onClick={() => openModal(book.id)}
             className="flex-shrink-0 w-[140px] group/book text-left cursor-pointer"
           >
-            <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md">
+            <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md bg-black">
               <ImageWithFallback
                 src={book.cover}
                 alt={book.title}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
             <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">
@@ -295,7 +295,7 @@ export const Home = () => {
           <div className="max-w-xl mx-auto text-center">
             <h2 className="font-serif text-3xl text-foreground mb-4">Stay in the loop</h2>
             <p className="text-muted-foreground mb-6">
-              Get weekly book recommendations, event invites, and exclusive offers.
+              Get monthly book recommendations, event invites, and exclusive offers.
             </p>
             <form className="flex gap-2 max-w-md mx-auto">
               <input

@@ -7,6 +7,24 @@ import { supabase } from './supabase';
 import { type Book } from '@/app/utils/data';
 import { splitTitle } from './titleUtils';
 
+export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'best-selling';
+
+export interface BookQueryOptions {
+  category?: string;
+  genre?: string;
+  format?: string;
+  inStockOnly?: boolean;
+  staffPicksOnly?: boolean;
+  preorderOnly?: boolean;
+  limit?: number;
+  offset?: number;
+  search?: string;
+  sortBy?: SortOption;
+  priceMin?: number;
+  priceMax?: number;
+  hideStaleHardcovers?: boolean;
+}
+
 export interface SupabaseBook {
   id: string;
   isbn: string;
@@ -68,38 +86,85 @@ function mapStatus(status: string | null, inventoryCount: number): Book['status'
 }
 
 /**
- * Fetch all books from Supabase with pagination support
+ * Strip leading articles ("A ", "An ", "The ") for alphabetical sorting
  */
-export async function getBooks(options?: {
-  category?: string;
-  inStockOnly?: boolean;
-  staffPicksOnly?: boolean;
-  limit?: number;
-  offset?: number;
-  search?: string;
-}): Promise<Book[]> {
+function sortKeyForTitle(title: string): string {
+  return title.replace(/^(the|a|an)\s+/i, '').toLowerCase();
+}
+
+/**
+ * Build shared Supabase filter query used by both getBooks and getBooksCount.
+ */
+function applyFilters(query: any, options?: BookQueryOptions) {
+  if (options?.category && options.category !== 'All') {
+    query = query.eq('category', options.category);
+  }
+  if (options?.genre && options.genre !== 'All' && !options.genre.startsWith('All ')) {
+    query = query.eq('genre', options.genre);
+  }
+  if (options?.format && options.format !== 'All') {
+    query = query.eq('book_type', options.format);
+  }
+  if (options?.inStockOnly) {
+    query = query.gt('inventory_count', 0);
+  }
+  if (options?.staffPicksOnly) {
+    query = query.eq('is_staff_pick', true);
+  }
+  if (options?.preorderOnly) {
+    query = query.or('status.eq.Preorder,status.eq.preorder');
+  }
+  if (options?.search) {
+    const searchTerm = `%${options.search}%`;
+    query = query.or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`);
+  }
+  if (options?.priceMin !== undefined && options.priceMin > 0) {
+    query = query.gte('price', options.priceMin);
+  }
+  if (options?.priceMax !== undefined && options.priceMax < 100) {
+    query = query.lte('price', options.priceMax);
+  }
+  if (options?.hideStaleHardcovers) {
+    // Hide hardcovers with zero stock — the staleness check (no sales in >1 year)
+    // is applied client-side after joining with order data, but we can at least
+    // note that stale filtering happens in getBooks when this flag is set.
+  }
+  return query;
+}
+
+/**
+ * Fetch all books from Supabase with full filter and sort support
+ */
+export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
+    // For best-selling sort, we need a different query approach
+    if (options?.sortBy === 'best-selling') {
+      return getBestSellingBooks(options);
+    }
+
     let query = supabase
       .from('books')
       .select('*');
 
-    // Apply filters
-    if (options?.category && options.category !== 'All') {
-      query = query.eq('category', options.category);
-    }
-    if (options?.inStockOnly) {
-      query = query.gt('inventory_count', 0);
-    }
-    if (options?.staffPicksOnly) {
-      query = query.eq('is_staff_pick', true);
-    }
-    if (options?.search) {
-      const searchTerm = `%${options.search}%`;
-      query = query.or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`);
-    }
+    query = applyFilters(query, options);
 
-    // Order by title
-    query = query.order('title');
+    // Apply sorting
+    const sortBy = options?.sortBy || 'alphabetical';
+    switch (sortBy) {
+      case 'newest':
+        query = query.order('publication_date', { ascending: false, nullsFirst: false });
+        break;
+      case 'price-asc':
+        query = query.order('price', { ascending: true });
+        break;
+      case 'price-desc':
+        query = query.order('price', { ascending: false });
+        break;
+      case 'alphabetical':
+      default:
+        query = query.order('title');
+        break;
+    }
 
     // Apply pagination
     if (options?.offset !== undefined && options?.limit) {
@@ -115,13 +180,23 @@ export async function getBooks(options?: {
       return [];
     }
 
-    // Return empty array if no books
     if (!data || data.length === 0) {
       return [];
     }
 
-    // Map Supabase books to website format
-    return data.map(mapSupabaseBookToBook);
+    let books = data.map(mapSupabaseBookToBook);
+
+    // Client-side sort for alphabetical to handle article stripping
+    if (sortBy === 'alphabetical') {
+      books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
+    }
+
+    // Filter out stale hardcovers client-side when flag is set
+    if (options?.hideStaleHardcovers) {
+      books = await filterStaleHardcovers(books);
+    }
+
+    return books;
   } catch (error) {
     console.error('Error fetching books:', error);
     return [];
@@ -129,33 +204,143 @@ export async function getBooks(options?: {
 }
 
 /**
+ * Fetch best-selling books, ignoring bulk orders (>20 copies in a single transaction).
+ * Falls back to alphabetical if no sales data is available.
+ */
+async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
+  try {
+    // Get non-bulk order item sales: sum quantity per ISBN, excluding order_items
+    // where a single line item has quantity > 20 (likely bulk/institutional orders)
+    const { data: salesData, error: salesError } = await supabase
+      .from('order_items')
+      .select('isbn, quantity');
+
+    // Get all books with filters applied
+    let query = supabase.from('books').select('*');
+    query = applyFilters(query, options);
+    query = query.order('title'); // fallback order
+
+    const { data: booksData, error: booksError } = await query;
+
+    if (booksError) {
+      console.error('Error fetching books for best-selling:', booksError);
+      return [];
+    }
+
+    if (!booksData || booksData.length === 0) return [];
+
+    // Build sales count map, filtering out bulk orders (>20 per line item)
+    const salesByIsbn: Record<string, number> = {};
+    if (salesData && !salesError) {
+      for (const item of salesData) {
+        if (item.quantity <= 20) {
+          salesByIsbn[item.isbn] = (salesByIsbn[item.isbn] || 0) + item.quantity;
+        }
+      }
+    }
+
+    let books = booksData.map(mapSupabaseBookToBook);
+
+    // Sort by total sales descending, then by title
+    books.sort((a, b) => {
+      const salesA = (a.isbn && salesByIsbn[a.isbn]) || 0;
+      const salesB = (b.isbn && salesByIsbn[b.isbn]) || 0;
+      if (salesB !== salesA) return salesB - salesA;
+      return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+    });
+
+    // Filter out stale hardcovers if needed
+    if (options?.hideStaleHardcovers) {
+      books = await filterStaleHardcovers(books);
+    }
+
+    // Apply pagination client-side since we sorted client-side
+    const offset = options?.offset || 0;
+    const limit = options?.limit || books.length;
+    return books.slice(offset, offset + limit);
+  } catch (error) {
+    console.error('Error fetching best-selling books:', error);
+    return [];
+  }
+}
+
+/**
+ * Filter out stale hardcovers: hardcover books with zero stock that haven't
+ * sold in over a year (likely transitioned to paperback).
+ */
+async function filterStaleHardcovers(books: Book[]): Promise<Book[]> {
+  const oneYearAgo = new Date();
+  oneYearAgo.setFullYear(oneYearAgo.getFullYear() - 1);
+  const oneYearAgoStr = oneYearAgo.toISOString();
+
+  // Find hardcovers with zero stock
+  const zeroStockHardcovers = books.filter(
+    b => b.type === 'Hardcover' && b.status === 'Ships in X days'
+  );
+
+  if (zeroStockHardcovers.length === 0) return books;
+
+  // Check last sale date for these books
+  const isbns = zeroStockHardcovers
+    .map(b => b.isbn)
+    .filter((isbn): isbn is string => !!isbn);
+
+  const staleIds = new Set<string>();
+
+  if (isbns.length > 0) {
+    // Get the most recent order containing each ISBN
+    const { data: recentSales } = await supabase
+      .from('order_items')
+      .select('isbn, order_id, orders!inner(created_at)')
+      .in('isbn', isbns);
+
+    // Find the most recent sale date per ISBN
+    const lastSaleByIsbn: Record<string, string> = {};
+    if (recentSales) {
+      for (const sale of recentSales) {
+        const saleDate = (sale as any).orders?.created_at;
+        if (saleDate) {
+          if (!lastSaleByIsbn[sale.isbn] || saleDate > lastSaleByIsbn[sale.isbn]) {
+            lastSaleByIsbn[sale.isbn] = saleDate;
+          }
+        }
+      }
+    }
+
+    for (const book of zeroStockHardcovers) {
+      const lastSale = book.isbn ? lastSaleByIsbn[book.isbn] : undefined;
+      // Stale if never sold or last sale was over a year ago
+      if (!lastSale || lastSale < oneYearAgoStr) {
+        staleIds.add(book.id);
+      }
+    }
+  } else {
+    // No ISBNs — mark all zero-stock hardcovers as stale
+    for (const book of zeroStockHardcovers) {
+      staleIds.add(book.id);
+    }
+  }
+
+  return books.filter(b => !staleIds.has(b.id));
+}
+
+/**
  * Get total count of books with filters
  */
-export async function getBooksCount(options?: {
-  category?: string;
-  inStockOnly?: boolean;
-  staffPicksOnly?: boolean;
-  search?: string;
-}): Promise<number> {
+export async function getBooksCount(options?: BookQueryOptions): Promise<number> {
   try {
+    // For best-selling, we still count the same filtered set
+    if (options?.sortBy === 'best-selling') {
+      // Count doesn't change based on sort, just use same filters without sort
+      const countOptions = { ...options, sortBy: undefined as any };
+      return getBooksCount(countOptions);
+    }
+
     let query = supabase
       .from('books')
       .select('*', { count: 'exact', head: true });
 
-    // Apply same filters as getBooks
-    if (options?.category && options.category !== 'All') {
-      query = query.eq('category', options.category);
-    }
-    if (options?.inStockOnly) {
-      query = query.gt('inventory_count', 0);
-    }
-    if (options?.staffPicksOnly) {
-      query = query.eq('is_staff_pick', true);
-    }
-    if (options?.search) {
-      const searchTerm = `%${options.search}%`;
-      query = query.or(`title.ilike.${searchTerm},author.ilike.${searchTerm}`);
-    }
+    query = applyFilters(query, options);
 
     const { count, error } = await query;
 

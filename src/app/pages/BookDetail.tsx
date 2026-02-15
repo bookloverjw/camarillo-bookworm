@@ -223,7 +223,13 @@ export const BookDetail = () => {
             <span>/</span>
             <Link to="/shop" className="hover:text-primary transition-colors">Shop</Link>
             <span>/</span>
-            <Link to={`/shop?category=${book.category}`} className="hover:text-primary transition-colors">{book.category}</Link>
+            <Link to={`/shop?category=${encodeURIComponent(book.category)}`} className="hover:text-primary transition-colors">{book.category}</Link>
+            {book.genre && (
+              <>
+                <span>/</span>
+                <Link to={`/shop?category=${encodeURIComponent(book.category)}&genre=${encodeURIComponent(book.genre)}`} className="hover:text-primary transition-colors">{book.genre}</Link>
+              </>
+            )}
             <span>/</span>
             <span className="text-primary font-medium line-clamp-1">{book.title}</span>
           </div>
@@ -237,9 +243,9 @@ export const BookDetail = () => {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="aspect-[2/3] max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28"
+              className="max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28 bg-black"
             >
-              <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+              <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-auto object-contain" />
               {book.isStaffPick && (
                 <div className="absolute top-4 left-4 bg-accent text-white font-bold px-3 py-1.5 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
                   <Quote size={12} className="mr-1.5 fill-white" /> Staff Pick
@@ -453,8 +459,8 @@ export const BookDetail = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {recommendations.map(item => (
               <Link key={item.id} to={`/book/${item.id}`} className="group">
-                <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2">
-                  <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2 bg-black">
+                  <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-contain" />
                 </div>
                 <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>

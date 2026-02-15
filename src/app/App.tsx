@@ -453,7 +453,7 @@ const Footer = () => {
           {/* Newsletter */}
           <div>
             <h4 className="text-sm font-medium mb-4">Newsletter</h4>
-            <p className="text-sm text-white/70 mb-4">Weekly recommendations & event updates.</p>
+            <p className="text-sm text-white/70 mb-4">Monthly recommendations & event updates.</p>
             <form onSubmit={handleNewsletterSubmit} className="flex">
               <input
                 type="email"
