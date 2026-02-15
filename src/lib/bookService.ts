@@ -86,7 +86,14 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
 
 /**
  * Map database status to website status.
- * Limited preorders whose cutoff date has passed become 'Preorder Closed'.
+ *
+ * Status values shown to customers:
+ *   "In Store"           – at least 2 copies in inventory
+ *   "Only 1 Left"        – exactly 1 copy remaining (creates urgency)
+ *   "Available to Order" – 0 inventory but can be ordered
+ *   "Preorder"           – upcoming title
+ *   "Preorder Closed"    – limited preorder whose cutoff has passed
+ *   "Unavailable"        – withdrawn, discontinued, or inactive
  */
 function mapStatus(
   status: string | null,
@@ -94,16 +101,26 @@ function mapStatus(
   isLimitedPreorder?: boolean,
   preorderCutoffDate?: string | null,
 ): Book['status'] {
-  if (status === 'Preorder' || status === 'preorder') {
+  const lower = (status || '').toLowerCase();
+
+  // Withdrawn / inactive books from POS
+  if (lower.includes('withdrawn') || lower.includes('inactive') || lower.includes('discontinued') || lower.includes('removed')) {
+    return 'Unavailable';
+  }
+
+  // Preorder logic
+  if (lower === 'preorder') {
     if (isLimitedPreorder && preorderCutoffDate) {
       const cutoff = new Date(preorderCutoffDate);
       if (new Date() > cutoff) return 'Preorder Closed';
     }
     return 'Preorder';
   }
-  if (inventoryCount <= 0) return 'Ships in X days';
-  if (inventoryCount <= 3) return 'Low Stock';
-  return 'In Stock';
+
+  // Inventory-based status
+  if (inventoryCount <= 0) return 'Available to Order';
+  if (inventoryCount === 1) return 'Only 1 Left';
+  return 'In Store';
 }
 
 /**
@@ -230,6 +247,9 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
 
     let books = data.map(mapSupabaseBookToBook);
 
+    // Hide withdrawn / unavailable books
+    books = books.filter(b => b.status !== 'Unavailable');
+
     // Hide limited preorders whose release date has passed (book already released)
     books = filterExpiredLimitedPreorders(books);
 
@@ -267,6 +287,7 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
 
     let books = data.map(mapSupabaseBookToBook);
 
+    books = books.filter(b => b.status !== 'Unavailable');
     books = filterExpiredLimitedPreorders(books);
 
     // Alphabetical with article stripping
@@ -315,6 +336,7 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     if (!data || data.length === 0) return [];
 
     let books = data.map(mapSupabaseBookToBook);
+    books = books.filter(b => b.status !== 'Unavailable');
     books = filterExpiredLimitedPreorders(books);
 
     if (options?.hideStaleHardcovers) {
@@ -355,7 +377,7 @@ async function filterStaleHardcovers(books: Book[]): Promise<Book[]> {
 
   // Find hardcovers with zero stock
   const zeroStockHardcovers = books.filter(
-    b => b.type === 'Hardcover' && b.status === 'Ships in X days'
+    b => b.type === 'Hardcover' && b.status === 'Available to Order'
   );
 
   if (zeroStockHardcovers.length === 0) return books;

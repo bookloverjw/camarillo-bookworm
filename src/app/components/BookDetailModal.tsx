@@ -227,14 +227,15 @@ export const BookDetailModal: React.FC = () => {
                     </div>
 
                     {/* Purchase actions — priority: pickup > ship > bookshop/libro */}
-                    {book.status === 'Preorder Closed' ? (
+                    {book.status === 'Preorder Closed' || book.status === 'Unavailable' ? (
                       <div className="space-y-3 pt-4">
                         <div className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-gray-100 text-gray-400 rounded-lg text-sm font-bold cursor-not-allowed">
-                          <Calendar size={16} /> Preorder Closed
+                          <Calendar size={16} /> {book.status === 'Unavailable' ? 'Unavailable' : 'Preorder Closed'}
                         </div>
                         <p className="text-xs text-muted-foreground text-center">
-                          The preorder window for this edition has ended.
-                          {book.releaseDate && ` Releases ${book.releaseDate}.`}
+                          {book.status === 'Unavailable'
+                            ? 'This title is currently unavailable through our store.'
+                            : `The preorder window for this edition has ended.${book.releaseDate ? ` Releases ${book.releaseDate}.` : ''}`}
                         </p>
                         <div className="flex items-center justify-center gap-4">
                           <Link
@@ -246,7 +247,7 @@ export const BookDetailModal: React.FC = () => {
                           </Link>
                         </div>
                       </div>
-                    ) : book.status === 'Ships in X days' ? (
+                    ) : book.status === 'Available to Order' ? (
                       <div className="space-y-3 pt-4">
                         <a
                           href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}

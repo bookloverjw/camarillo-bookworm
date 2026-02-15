@@ -76,8 +76,16 @@ export const WishlistPage = () => {
                   
                   <div className="flex items-center space-x-2 mb-4">
                     <span className="text-lg font-bold text-primary">${book.price.toFixed(2)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${book.status === 'In Stock' ? 'text-green-600' : 'text-orange-500'}`}>
-                      {book.status === 'In Stock' ? '✓ In Stock' : '⚠️ Low Stock'}
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                      book.status === 'In Store' ? 'text-green-600' :
+                      book.status === 'Only 1 Left' ? 'text-amber-600' :
+                      book.status === 'Available to Order' ? 'text-blue-600' :
+                      'text-muted-foreground'
+                    }`}>
+                      {book.status === 'In Store' ? 'In Store' :
+                       book.status === 'Only 1 Left' ? 'Only 1 Left' :
+                       book.status === 'Available to Order' ? 'Available to Order' :
+                       book.status}
                     </span>
                   </div>
                 </div>
