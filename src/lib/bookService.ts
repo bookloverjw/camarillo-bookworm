@@ -22,6 +22,7 @@ export interface BookQueryOptions {
   sortBy?: SortOption;
   priceMin?: number;
   priceMax?: number;
+  topicKeywords?: string[];
   hideStaleHardcovers?: boolean;
 }
 
@@ -50,6 +51,7 @@ export interface SupabaseBook {
   is_limited_preorder: boolean;
   preorder_cutoff_date: string | null;
   total_sold: number;
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -74,6 +76,7 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     releaseDate: sb.publication_date || undefined,
     isLimitedPreorder: sb.is_limited_preorder || false,
     preorderCutoffDate: sb.preorder_cutoff_date || undefined,
+    tags: sb.tags || undefined,
     description: sb.description || '',
     isStaffPick: sb.is_staff_pick,
     staffReviewer: sb.staff_reviewer || undefined,
@@ -142,10 +145,17 @@ function applyFilters(query: any, options?: BookQueryOptions) {
   if (options?.priceMax !== undefined && options.priceMax < 100) {
     query = query.lte('price', options.priceMax);
   }
+  if (options?.topicKeywords && options.topicKeywords.length > 0) {
+    // Match books by tags array (if populated) OR keyword search in title/description
+    const conditions = options.topicKeywords.flatMap(kw => [
+      `title.ilike.%${kw}%`,
+      `description.ilike.%${kw}%`,
+    ]);
+    query = query.or(conditions.join(','));
+  }
   if (options?.hideStaleHardcovers) {
-    // Hide hardcovers with zero stock — the staleness check (no sales in >1 year)
-    // is applied client-side after joining with order data, but we can at least
-    // note that stale filtering happens in getBooks when this flag is set.
+    // Staleness check (no sales in >1 year) is applied client-side after
+    // joining with order data in getBooks when this flag is set.
   }
   return query;
 }

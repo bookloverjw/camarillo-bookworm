@@ -13,6 +13,7 @@ export interface Book {
   releaseDate?: string;
   isLimitedPreorder?: boolean;
   preorderCutoffDate?: string;
+  tags?: string[];
   description: string;
   isStaffPick?: boolean;
   staffReviewer?: string;
