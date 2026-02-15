@@ -22,6 +22,7 @@ export interface BookQueryOptions {
   sortBy?: SortOption;
   priceMin?: number;
   priceMax?: number;
+  topicKeywords?: string[];
   hideStaleHardcovers?: boolean;
 }
 
@@ -49,6 +50,8 @@ export interface SupabaseBook {
   author_last: string | null;
   is_limited_preorder: boolean;
   preorder_cutoff_date: string | null;
+  total_sold: number;
+  tags: string[] | null;
   created_at: string;
   updated_at: string;
 }
@@ -73,6 +76,7 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     releaseDate: sb.publication_date || undefined,
     isLimitedPreorder: sb.is_limited_preorder || false,
     preorderCutoffDate: sb.preorder_cutoff_date || undefined,
+    tags: sb.tags || undefined,
     description: sb.description || '',
     isStaffPick: sb.is_staff_pick,
     staffReviewer: sb.staff_reviewer || undefined,
@@ -141,10 +145,17 @@ function applyFilters(query: any, options?: BookQueryOptions) {
   if (options?.priceMax !== undefined && options.priceMax < 100) {
     query = query.lte('price', options.priceMax);
   }
+  if (options?.topicKeywords && options.topicKeywords.length > 0) {
+    // Match books by tags array (if populated) OR keyword search in title/description
+    const conditions = options.topicKeywords.flatMap(kw => [
+      `title.ilike.%${kw}%`,
+      `description.ilike.%${kw}%`,
+    ]);
+    query = query.or(conditions.join(','));
+  }
   if (options?.hideStaleHardcovers) {
-    // Hide hardcovers with zero stock — the staleness check (no sales in >1 year)
-    // is applied client-side after joining with order data, but we can at least
-    // note that stale filtering happens in getBooks when this flag is set.
+    // Staleness check (no sales in >1 year) is applied client-side after
+    // joining with order data in getBooks when this flag is set.
   }
   return query;
 }
@@ -157,7 +168,6 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
     const sortBy = options?.sortBy || 'alphabetical';
 
     // Sorts that require client-side ordering use a separate path:
-    //   best-selling  – needs order_items join
     //   alphabetical  – needs article stripping ("The", "A", "An")
     if (sortBy === 'best-selling') {
       return getBestSellingBooks(options);
@@ -276,63 +286,41 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
 }
 
 /**
- * Fetch best-selling books, ignoring bulk orders (>20 copies in a single transaction).
- * Falls back to alphabetical if no sales data is available.
+ * Fetch best-selling books sorted by total_sold column (populated from POS sync).
+ * Falls back to alphabetical if total_sold is not available.
  */
 async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
-    // Get non-bulk order item sales: sum quantity per ISBN, excluding order_items
-    // where a single line item has quantity > 20 (likely bulk/institutional orders)
-    const { data: salesData, error: salesError } = await supabase
-      .from('order_items')
-      .select('isbn, quantity');
-
-    // Get all books with filters applied
     let query = supabase.from('books').select('*');
     query = applyFilters(query, options);
-    query = query.order('title'); // fallback order
+    query = query
+      .order('total_sold', { ascending: false, nullsFirst: false })
+      .order('title', { ascending: true });
 
-    const { data: booksData, error: booksError } = await query;
+    // Apply pagination server-side
+    if (options?.offset !== undefined && options?.limit) {
+      query = query.range(options.offset, options.offset + options.limit - 1);
+    } else if (options?.limit) {
+      query = query.limit(options.limit);
+    }
 
-    if (booksError) {
-      console.error('Error fetching books for best-selling:', booksError);
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching best-selling books:', error);
       return [];
     }
 
-    if (!booksData || booksData.length === 0) return [];
+    if (!data || data.length === 0) return [];
 
-    // Build sales count map, filtering out bulk orders (>20 per line item)
-    const salesByIsbn: Record<string, number> = {};
-    if (salesData && !salesError) {
-      for (const item of salesData) {
-        if (item.quantity <= 20) {
-          salesByIsbn[item.isbn] = (salesByIsbn[item.isbn] || 0) + item.quantity;
-        }
-      }
-    }
-
-    let books = booksData.map(mapSupabaseBookToBook);
-
-    // Hide limited preorders whose release date has passed
+    let books = data.map(mapSupabaseBookToBook);
     books = filterExpiredLimitedPreorders(books);
 
-    // Sort by total sales descending, then by title
-    books.sort((a, b) => {
-      const salesA = (a.isbn && salesByIsbn[a.isbn]) || 0;
-      const salesB = (b.isbn && salesByIsbn[b.isbn]) || 0;
-      if (salesB !== salesA) return salesB - salesA;
-      return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
-    });
-
-    // Filter out stale hardcovers if needed
     if (options?.hideStaleHardcovers) {
       books = await filterStaleHardcovers(books);
     }
 
-    // Apply pagination client-side since we sorted client-side
-    const offset = options?.offset || 0;
-    const limit = options?.limit || books.length;
-    return books.slice(offset, offset + limit);
+    return books;
   } catch (error) {
     console.error('Error fetching best-selling books:', error);
     return [];
@@ -420,13 +408,6 @@ async function filterStaleHardcovers(books: Book[]): Promise<Book[]> {
  */
 export async function getBooksCount(options?: BookQueryOptions): Promise<number> {
   try {
-    // For best-selling, we still count the same filtered set
-    if (options?.sortBy === 'best-selling') {
-      // Count doesn't change based on sort, just use same filters without sort
-      const countOptions = { ...options, sortBy: undefined as any };
-      return getBooksCount(countOptions);
-    }
-
     let query = supabase
       .from('books')
       .select('*', { count: 'exact', head: true });

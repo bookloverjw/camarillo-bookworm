@@ -59,6 +59,7 @@ CREATE TABLE IF NOT EXISTS books (
 -- Add inventory columns if books table already exists
 ALTER TABLE books ADD COLUMN IF NOT EXISTS inventory_count INTEGER DEFAULT 0;
 ALTER TABLE books ADD COLUMN IF NOT EXISTS reserved_count INTEGER DEFAULT 0;
+ALTER TABLE books ADD COLUMN IF NOT EXISTS total_sold INTEGER DEFAULT 0;
 
 -- ============================================
 -- INVENTORY RESERVATIONS TABLE

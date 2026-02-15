@@ -14,6 +14,27 @@ const BISAC_GENRES: Record<string, string[]> = {
   'YA': ['All YA', 'Graphic Novels', 'Contemporary', 'Fantasy', 'Sci-Fi', 'Dystopian', 'Romance']
 };
 
+interface KidsTopic {
+  label: string;
+  emoji: string;
+  keywords: string[];
+}
+
+const KIDS_TOPICS: KidsTopic[] = [
+  { label: 'Dinosaurs & Dragons', emoji: '🦕', keywords: ['dinosaur', 'dragon', 'dino', 'T-Rex', 'prehistoric'] },
+  { label: 'Cars & Trucks', emoji: '🚗', keywords: ['car', 'truck', 'vehicle', 'race', 'tractor', 'train', 'bus'] },
+  { label: 'Animals & Pets', emoji: '🐾', keywords: ['animal', 'dog', 'cat', 'pet', 'puppy', 'kitten', 'bunny', 'farm', 'zoo'] },
+  { label: 'Space & Rockets', emoji: '🚀', keywords: ['space', 'rocket', 'planet', 'moon', 'star', 'astronaut', 'galaxy'] },
+  { label: 'Fairies & Magic', emoji: '✨', keywords: ['fairy', 'fairies', 'magic', 'magical', 'wizard', 'witch', 'enchant'] },
+  { label: 'Princesses & Royalty', emoji: '👑', keywords: ['princess', 'prince', 'queen', 'king', 'castle', 'royal', 'crown'] },
+  { label: 'Pirates & Adventure', emoji: '🏴\u200D☠️', keywords: ['pirate', 'adventure', 'treasure', 'explorer', 'quest'] },
+  { label: 'Ocean & Sea Life', emoji: '🐠', keywords: ['ocean', 'sea', 'fish', 'whale', 'shark', 'mermaid', 'dolphin'] },
+  { label: 'Superheroes', emoji: '🦸', keywords: ['superhero', 'hero', 'super power', 'cape', 'rescue'] },
+  { label: 'Bugs & Nature', emoji: '🦋', keywords: ['bug', 'insect', 'butterfly', 'bee', 'nature', 'garden', 'flower'] },
+  { label: 'Sports & Games', emoji: '⚽', keywords: ['sport', 'soccer', 'baseball', 'basketball', 'football', 'game'] },
+  { label: 'Art & Creativity', emoji: '🎨', keywords: ['art', 'draw', 'paint', 'color', 'craft', 'creative', 'music'] },
+];
+
 const FilterContent = ({
   activeCategory,
   setActiveCategory,
@@ -21,6 +42,8 @@ const FilterContent = ({
   setActiveGenre,
   activeFormat,
   setActiveFormat,
+  activeTopic,
+  setActiveTopic,
   priceRange,
   setPriceRange,
   availabilityFilters,
@@ -42,7 +65,7 @@ const FilterContent = ({
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
             {activeCategory !== 'All' && (
               <button
-                onClick={() => { setActiveCategory('All'); setActiveGenre('All'); }}
+                onClick={() => { setActiveCategory('All'); setActiveGenre('All'); setActiveTopic(null); }}
                 className="text-[9px] font-bold text-accent uppercase tracking-widest hover:underline"
               >
                 Clear
@@ -56,6 +79,7 @@ const FilterContent = ({
                 onClick={() => {
                   setActiveCategory(cat);
                   setActiveGenre('All ' + cat);
+                  if (cat !== 'Kids') setActiveTopic(null);
                   onFilterChange?.();
                 }}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
@@ -99,6 +123,45 @@ const FilterContent = ({
           </motion.div>
         )}
 
+        {/* Kids Topics */}
+        {activeCategory === 'Kids' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+          >
+            <div className="flex justify-between items-end mb-4">
+              <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Shop by Topic</p>
+              {activeTopic && (
+                <button
+                  onClick={() => { setActiveTopic(null); onFilterChange?.(); }}
+                  className="text-[9px] font-bold text-accent uppercase tracking-widest hover:underline"
+                >
+                  Clear
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              {KIDS_TOPICS.map((topic) => (
+                <button
+                  key={topic.label}
+                  onClick={() => {
+                    setActiveTopic(activeTopic?.label === topic.label ? null : topic);
+                    onFilterChange?.();
+                  }}
+                  className={`flex items-center gap-2 px-3 py-2.5 rounded-xl text-xs font-bold transition-all border ${
+                    activeTopic?.label === topic.label
+                      ? 'bg-primary text-white border-primary shadow-md'
+                      : 'bg-white text-muted-foreground border-border hover:border-primary/30 hover:bg-muted/50'
+                  }`}
+                >
+                  <span className="text-base">{topic.emoji}</span>
+                  <span className="leading-tight text-left">{topic.label}</span>
+                </button>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Format */}
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Format</p>
@@ -125,36 +188,83 @@ const FilterContent = ({
         {/* Price Range */}
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Price Range</p>
-          <div className="space-y-3 px-1">
-            <div className="flex gap-2">
+          <div className="space-y-4 px-1">
+            {/* Dual-thumb range slider */}
+            <div className="relative h-6 flex items-center">
+              {/* Track background */}
+              <div className="absolute w-full h-1.5 bg-border rounded-full" />
+              {/* Active range highlight */}
+              <div
+                className="absolute h-1.5 bg-accent rounded-full"
+                style={{
+                  left: `${priceRange[0]}%`,
+                  right: `${100 - priceRange[1]}%`,
+                }}
+              />
+              {/* Min thumb */}
               <input
                 type="range"
-                className="w-full accent-accent"
                 min="0"
                 max="100"
                 value={priceRange[0]}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  setPriceRange([Math.min(val, priceRange[1]), priceRange[1]]);
+                  setPriceRange([Math.min(val, priceRange[1] - 1), priceRange[1]]);
                 }}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
+                style={{ zIndex: priceRange[0] > 50 ? 5 : 3 }}
               />
-            </div>
-            <div className="flex gap-2">
+              {/* Max thumb */}
               <input
                 type="range"
-                className="w-full accent-accent"
                 min="0"
                 max="100"
                 value={priceRange[1]}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  setPriceRange([priceRange[0], Math.max(val, priceRange[0])]);
+                  setPriceRange([priceRange[0], Math.max(val, priceRange[0] + 1)]);
                 }}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
+                style={{ zIndex: 4 }}
               />
             </div>
-            <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              <span>${priceRange[0]}</span>
-              <span>{priceRange[1] >= 100 ? '$100+' : `$${priceRange[1]}`}</span>
+            {/* Min / Max number inputs */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1 block">Min</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={priceRange[1]}
+                    value={priceRange[0]}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(Number(e.target.value) || 0, priceRange[1] - 1));
+                      setPriceRange([val, priceRange[1]]);
+                    }}
+                    className="w-full pl-6 pr-2 py-1.5 text-sm bg-white border border-border rounded-lg outline-none focus:ring-1 focus:ring-accent text-primary font-bold"
+                  />
+                </div>
+              </div>
+              <span className="text-muted-foreground mt-5">–</span>
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1 block">Max</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min={priceRange[0]}
+                    max="100"
+                    value={priceRange[1]}
+                    onChange={(e) => {
+                      const val = Math.min(100, Math.max(Number(e.target.value) || 0, priceRange[0] + 1));
+                      setPriceRange([priceRange[0], val]);
+                    }}
+                    className="w-full pl-6 pr-2 py-1.5 text-sm bg-white border border-border rounded-lg outline-none focus:ring-1 focus:ring-accent text-primary font-bold"
+                  />
+                </div>
+              </div>
             </div>
             {(priceRange[0] > 0 || priceRange[1] < 100) && (
               <button
@@ -219,6 +329,7 @@ export const Shop = () => {
     genreParam || (filterParam === 'new' ? 'All Fiction' : 'All')
   );
   const [activeFormat, setActiveFormat] = useState<string>('All');
+  const [activeTopic, setActiveTopic] = useState<KidsTopic | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [newestTab, setNewestTab] = useState<'released' | 'preorders'>('released');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
@@ -248,6 +359,7 @@ export const Shop = () => {
       genre: activeGenre,
       format: activeFormat !== 'All' ? activeFormat : undefined,
       sortBy,
+      topicKeywords: activeTopic ? activeTopic.keywords : undefined,
       hideStaleHardcovers: true,
     };
 
@@ -265,7 +377,7 @@ export const Shop = () => {
     }
 
     return options;
-  }, [currentPage, itemsPerPage, searchQuery, activeCategory, activeGenre, activeFormat, sortBy, newestTab, priceRange, availabilityFilters]);
+  }, [currentPage, itemsPerPage, searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, priceRange, availabilityFilters]);
 
   // Load books from Supabase with pagination
   const loadBooks = useCallback(async () => {
@@ -298,7 +410,7 @@ export const Shop = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategory, activeGenre, activeFormat, sortBy, newestTab, priceRange, availabilityFilters]);
+  }, [searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, priceRange, availabilityFilters]);
 
   // Handle page change
   const goToPage = (page: number) => {
@@ -341,7 +453,7 @@ export const Shop = () => {
             <span>Filters & Categories</span>
           </div>
           <div className="bg-accent text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest">
-            {activeCategory !== 'All' || activeFormat !== 'All' || availabilityFilters.inStock || availabilityFilters.preorder ? 'Active' : 'All'}
+            {activeCategory !== 'All' || activeFormat !== 'All' || activeTopic || availabilityFilters.inStock || availabilityFilters.preorder ? 'Active' : 'All'}
           </div>
         </button>
       </div>
@@ -356,6 +468,8 @@ export const Shop = () => {
             setActiveGenre={setActiveGenre}
             activeFormat={activeFormat}
             setActiveFormat={setActiveFormat}
+            activeTopic={activeTopic}
+            setActiveTopic={setActiveTopic}
             priceRange={priceRange}
             setPriceRange={setPriceRange}
             availabilityFilters={availabilityFilters}
@@ -399,6 +513,8 @@ export const Shop = () => {
                   setActiveGenre={setActiveGenre}
                   activeFormat={activeFormat}
                   setActiveFormat={setActiveFormat}
+                  activeTopic={activeTopic}
+                  setActiveTopic={setActiveTopic}
                   priceRange={priceRange}
                   setPriceRange={setPriceRange}
                   availabilityFilters={availabilityFilters}
@@ -493,6 +609,52 @@ export const Shop = () => {
               </button>
             </div>
           )}
+
+          {/* Active filter chips */}
+          {(() => {
+            const chips: { label: string; onClear: () => void }[] = [];
+            if (activeCategory !== 'All') chips.push({ label: activeCategory, onClear: () => { setActiveCategory('All'); setActiveGenre('All'); setActiveTopic(null); } });
+            if (activeGenre !== 'All' && !activeGenre.startsWith('All ')) chips.push({ label: activeGenre, onClear: () => setActiveGenre(activeCategory !== 'All' ? 'All ' + activeCategory : 'All') });
+            if (activeTopic) chips.push({ label: activeTopic.emoji + ' ' + activeTopic.label, onClear: () => setActiveTopic(null) });
+            if (activeFormat !== 'All') chips.push({ label: activeFormat, onClear: () => setActiveFormat('All') });
+            if (priceRange[0] > 0 || priceRange[1] < 100) chips.push({ label: `$${priceRange[0]}–${priceRange[1] >= 100 ? '$100+' : '$' + priceRange[1]}`, onClear: () => setPriceRange([0, 100]) });
+            if (availabilityFilters.inStock) chips.push({ label: 'In Stock', onClear: () => setAvailabilityFilters({ ...availabilityFilters, inStock: false }) });
+            if (availabilityFilters.preorder) chips.push({ label: 'Preorder', onClear: () => setAvailabilityFilters({ ...availabilityFilters, preorder: false }) });
+            if (searchQuery) chips.push({ label: `"${searchQuery}"`, onClear: () => setSearchQuery('') });
+
+            if (chips.length === 0) return null;
+
+            return (
+              <div className="flex flex-wrap items-center gap-2 mb-6">
+                {chips.map((chip) => (
+                  <button
+                    key={chip.label}
+                    onClick={chip.onClear}
+                    className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-accent/10 text-accent text-xs font-bold rounded-full hover:bg-accent/20 transition-colors group"
+                  >
+                    <span>{chip.label}</span>
+                    <X size={12} className="opacity-60 group-hover:opacity-100" />
+                  </button>
+                ))}
+                {chips.length > 1 && (
+                  <button
+                    onClick={() => {
+                      setActiveCategory('All');
+                      setActiveGenre('All');
+                      setActiveFormat('All');
+                      setActiveTopic(null);
+                      setSearchQuery('');
+                      setPriceRange([0, 100]);
+                      setAvailabilityFilters({ inStock: false, preorder: false });
+                    }}
+                    className="text-[10px] font-bold text-muted-foreground uppercase tracking-widest hover:text-primary ml-1"
+                  >
+                    Clear all
+                  </button>
+                )}
+              </div>
+            );
+          })()}
 
           {/* Results count */}
           <div className="mb-6 text-sm text-muted-foreground">
@@ -636,6 +798,7 @@ export const Shop = () => {
                   setActiveCategory('All');
                   setActiveGenre('All');
                   setActiveFormat('All');
+                  setActiveTopic(null);
                   setSearchQuery('');
                   setPriceRange([0, 100]);
                   setAvailabilityFilters({ inStock: false, preorder: false });
