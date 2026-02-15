@@ -271,7 +271,7 @@ export const BookDetail = () => {
               {book.subtitle && (
                 <p className="text-xl md:text-2xl text-muted-foreground font-serif leading-snug mb-2">{book.subtitle}</p>
               )}
-              <p className="text-2xl text-muted-foreground font-serif italic mb-6">by {book.author}</p>
+              {book.author && <p className="text-2xl text-muted-foreground font-serif italic mb-6">by {book.author}</p>}
 
               <div className="flex items-center space-x-6">
                 <p className="text-3xl font-bold text-primary">${book.price.toFixed(2)}</p>

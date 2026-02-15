@@ -72,7 +72,7 @@ export const WishlistPage = () => {
                   <div className="flex justify-between items-start mb-2">
                     <h3 className="font-serif font-bold text-primary leading-tight line-clamp-2">{book.title}</h3>
                   </div>
-                  <p className="text-xs text-muted-foreground mb-4 italic">by {book.author}</p>
+                  {book.author && <p className="text-xs text-muted-foreground mb-4 italic">by {book.author}</p>}
                   
                   <div className="flex items-center space-x-2 mb-4">
                     <span className="text-lg font-bold text-primary">${book.price.toFixed(2)}</span>

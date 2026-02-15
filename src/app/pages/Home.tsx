@@ -61,7 +61,7 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
             <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">
               {book.title}
             </h3>
-            <p className="text-xs text-muted-foreground mb-1">{book.author}</p>
+            {book.author && <p className="text-xs text-muted-foreground mb-1">{book.author}</p>}
             <p className="text-sm font-medium text-primary">${book.price.toFixed(2)}</p>
             {book.status === 'In Stock' && (
               <p className="text-xs text-[#16A34A] font-medium mt-1">in store</p>
