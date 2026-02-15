@@ -249,9 +249,9 @@ export const BookDetail = () => {
             <motion.div
               initial={{ opacity: 0, x: -20 }}
               animate={{ opacity: 1, x: 0 }}
-              className="max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28 bg-black"
+              className="max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28"
             >
-              <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-auto object-contain" />
+              <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-auto" />
               {book.isStaffPick && (
                 <div className="absolute top-4 left-4 bg-accent text-white font-bold px-3 py-1.5 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
                   <Quote size={12} className="mr-1.5 fill-white" /> Staff Pick
@@ -484,8 +484,8 @@ export const BookDetail = () => {
           <div className="grid grid-cols-2 md:grid-cols-4 gap-8">
             {recommendations.map(item => (
               <Link key={item.id} to={`/book/${item.id}`} className="group">
-                <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2 bg-black">
-                  <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-contain" />
+                <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2">
+                  <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-cover" />
                 </div>
                 <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>
