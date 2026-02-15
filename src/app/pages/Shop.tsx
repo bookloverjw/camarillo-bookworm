@@ -125,36 +125,83 @@ const FilterContent = ({
         {/* Price Range */}
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Price Range</p>
-          <div className="space-y-3 px-1">
-            <div className="flex gap-2">
+          <div className="space-y-4 px-1">
+            {/* Dual-thumb range slider */}
+            <div className="relative h-6 flex items-center">
+              {/* Track background */}
+              <div className="absolute w-full h-1.5 bg-border rounded-full" />
+              {/* Active range highlight */}
+              <div
+                className="absolute h-1.5 bg-accent rounded-full"
+                style={{
+                  left: `${priceRange[0]}%`,
+                  right: `${100 - priceRange[1]}%`,
+                }}
+              />
+              {/* Min thumb */}
               <input
                 type="range"
-                className="w-full accent-accent"
                 min="0"
                 max="100"
                 value={priceRange[0]}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  setPriceRange([Math.min(val, priceRange[1]), priceRange[1]]);
+                  setPriceRange([Math.min(val, priceRange[1] - 1), priceRange[1]]);
                 }}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
+                style={{ zIndex: priceRange[0] > 50 ? 5 : 3 }}
               />
-            </div>
-            <div className="flex gap-2">
+              {/* Max thumb */}
               <input
                 type="range"
-                className="w-full accent-accent"
                 min="0"
                 max="100"
                 value={priceRange[1]}
                 onChange={(e) => {
                   const val = Number(e.target.value);
-                  setPriceRange([priceRange[0], Math.max(val, priceRange[0])]);
+                  setPriceRange([priceRange[0], Math.max(val, priceRange[0] + 1)]);
                 }}
+                className="absolute w-full appearance-none bg-transparent pointer-events-none [&::-webkit-slider-thumb]:pointer-events-auto [&::-webkit-slider-thumb]:appearance-none [&::-webkit-slider-thumb]:w-4 [&::-webkit-slider-thumb]:h-4 [&::-webkit-slider-thumb]:rounded-full [&::-webkit-slider-thumb]:bg-accent [&::-webkit-slider-thumb]:border-2 [&::-webkit-slider-thumb]:border-white [&::-webkit-slider-thumb]:shadow-md [&::-webkit-slider-thumb]:cursor-pointer [&::-moz-range-thumb]:pointer-events-auto [&::-moz-range-thumb]:appearance-none [&::-moz-range-thumb]:w-4 [&::-moz-range-thumb]:h-4 [&::-moz-range-thumb]:rounded-full [&::-moz-range-thumb]:bg-accent [&::-moz-range-thumb]:border-2 [&::-moz-range-thumb]:border-white [&::-moz-range-thumb]:shadow-md [&::-moz-range-thumb]:cursor-pointer"
+                style={{ zIndex: 4 }}
               />
             </div>
-            <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              <span>${priceRange[0]}</span>
-              <span>{priceRange[1] >= 100 ? '$100+' : `$${priceRange[1]}`}</span>
+            {/* Min / Max number inputs */}
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1 block">Min</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min="0"
+                    max={priceRange[1]}
+                    value={priceRange[0]}
+                    onChange={(e) => {
+                      const val = Math.max(0, Math.min(Number(e.target.value) || 0, priceRange[1] - 1));
+                      setPriceRange([val, priceRange[1]]);
+                    }}
+                    className="w-full pl-6 pr-2 py-1.5 text-sm bg-white border border-border rounded-lg outline-none focus:ring-1 focus:ring-accent text-primary font-bold"
+                  />
+                </div>
+              </div>
+              <span className="text-muted-foreground mt-5">–</span>
+              <div className="flex-1">
+                <label className="text-[10px] text-muted-foreground uppercase tracking-widest font-bold mb-1 block">Max</label>
+                <div className="relative">
+                  <span className="absolute left-2.5 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">$</span>
+                  <input
+                    type="number"
+                    min={priceRange[0]}
+                    max="100"
+                    value={priceRange[1]}
+                    onChange={(e) => {
+                      const val = Math.min(100, Math.max(Number(e.target.value) || 0, priceRange[0] + 1));
+                      setPriceRange([priceRange[0], val]);
+                    }}
+                    className="w-full pl-6 pr-2 py-1.5 text-sm bg-white border border-border rounded-lg outline-none focus:ring-1 focus:ring-accent text-primary font-bold"
+                  />
+                </div>
+              </div>
             </div>
             {(priceRange[0] > 0 || priceRange[1] < 100) && (
               <button
