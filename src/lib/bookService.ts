@@ -7,7 +7,7 @@ import { supabase } from './supabase';
 import { type Book } from '@/app/utils/data';
 import { splitTitle } from './titleUtils';
 
-export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'best-selling';
+export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'author' | 'best-selling';
 
 export interface BookQueryOptions {
   category?: string;
@@ -153,9 +153,17 @@ function applyFilters(query: any, options?: BookQueryOptions) {
  */
 export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
-    // For best-selling sort, we need a different query approach
-    if (options?.sortBy === 'best-selling') {
+    const sortBy = options?.sortBy || 'alphabetical';
+
+    // Sorts that require client-side ordering use a separate path:
+    //   best-selling  – needs order_items join
+    //   alphabetical  – needs article stripping ("The", "A", "An")
+    //   author        – needs article stripping on author last-name
+    if (sortBy === 'best-selling') {
       return getBestSellingBooks(options);
+    }
+    if (sortBy === 'alphabetical' || sortBy === 'author') {
+      return getClientSortedBooks(options);
     }
 
     let query = supabase
@@ -164,19 +172,23 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
 
     query = applyFilters(query, options);
 
-    // Apply sorting
-    const sortBy = options?.sortBy || 'alphabetical';
+    // Apply sorting with secondary keys for deterministic ordering
     switch (sortBy) {
       case 'newest':
-        query = query.order('publication_date', { ascending: false, nullsFirst: false });
+        query = query
+          .order('publication_date', { ascending: false, nullsFirst: false })
+          .order('title', { ascending: true });
         break;
       case 'price-asc':
-        query = query.order('price', { ascending: true });
+        query = query
+          .order('price', { ascending: true })
+          .order('title', { ascending: true });
         break;
       case 'price-desc':
-        query = query.order('price', { ascending: false });
+        query = query
+          .order('price', { ascending: false })
+          .order('title', { ascending: true });
         break;
-      case 'alphabetical':
       default:
         query = query.order('title');
         break;
@@ -205,11 +217,6 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
     // Hide limited preorders whose release date has passed (book already released)
     books = filterExpiredLimitedPreorders(books);
 
-    // Client-side sort for alphabetical to handle article stripping
-    if (sortBy === 'alphabetical') {
-      books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
-    }
-
     // Filter out stale hardcovers client-side when flag is set
     if (options?.hideStaleHardcovers) {
       books = await filterStaleHardcovers(books);
@@ -218,6 +225,56 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
     return books;
   } catch (error) {
     console.error('Error fetching books:', error);
+    return [];
+  }
+}
+
+/**
+ * Fetch books with client-side sorting and pagination.
+ * Used for sorts that need JavaScript logic (article stripping, author parsing).
+ */
+async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]> {
+  try {
+    let query = supabase.from('books').select('*');
+    query = applyFilters(query, options);
+    query = query.order('title'); // fallback DB order
+
+    const { data, error } = await query;
+
+    if (error) {
+      console.error('Error fetching books for client sort:', error);
+      return [];
+    }
+
+    if (!data || data.length === 0) return [];
+
+    let books = data.map(mapSupabaseBookToBook);
+
+    books = filterExpiredLimitedPreorders(books);
+
+    // Sort client-side
+    const sortBy = options?.sortBy || 'alphabetical';
+    if (sortBy === 'author') {
+      books.sort((a, b) => {
+        const cmp = a.author.toLowerCase().localeCompare(b.author.toLowerCase());
+        if (cmp !== 0) return cmp;
+        return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+      });
+    } else {
+      // alphabetical with article stripping
+      books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
+    }
+
+    if (options?.hideStaleHardcovers) {
+      books = await filterStaleHardcovers(books);
+    }
+
+    // Apply pagination client-side
+    const offset = options?.offset || 0;
+    const limit = options?.limit || books.length;
+    return books.slice(offset, offset + limit);
+  } catch (error) {
+    console.error('Error fetching client-sorted books:', error);
     return [];
   }
 }

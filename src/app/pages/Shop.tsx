@@ -450,7 +450,8 @@ export const Shop = () => {
                   className="bg-muted/50 border border-border rounded-lg px-3 py-2 outline-none text-primary font-bold cursor-pointer text-sm"
                 >
                   <option value="newest">Newest Arrivals</option>
-                  <option value="best-selling">Best Selling</option>
+                  <option value="best-selling">Bestsellers</option>
+                  <option value="author">Author</option>
                   <option value="price-asc">Price: Low to High</option>
                   <option value="price-desc">Price: High to Low</option>
                   <option value="alphabetical">Alphabetical</option>
