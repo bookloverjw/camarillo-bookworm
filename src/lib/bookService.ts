@@ -150,6 +150,7 @@ function applyFilters(query: any, options?: BookQueryOptions) {
     const conditions = options.topicKeywords.flatMap(kw => [
       `title.ilike.%${kw}%`,
       `description.ilike.%${kw}%`,
+      `tags.cs.{${kw}}`,
     ]);
     query = query.or(conditions.join(','));
   }
