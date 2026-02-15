@@ -1,6 +1,6 @@
 import React, { useEffect } from 'react';
 import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
-import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon } from 'lucide-react';
+import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
@@ -27,6 +27,7 @@ import { StaffPicks } from '@/app/pages/StaffPicks';
 import { GiftCards } from '@/app/pages/GiftCards';
 import { About } from '@/app/pages/About';
 import { Contact } from '@/app/pages/Contact';
+import { ReadAlikes } from '@/app/pages/ReadAlikes';
 import { Cart } from '@/app/pages/Cart';
 import { Checkout } from '@/app/pages/Checkout';
 
@@ -47,6 +48,7 @@ const Navbar = () => {
     { name: 'New & Noteworthy', path: '/shop?filter=new', external: false },
     { name: 'Staff Picks', path: '/staff-picks', external: false },
     { name: 'Gift Cards', path: '/gift-cards', external: false },
+    { name: 'Read-Alikes for Kids', path: '/read-alikes', external: false, icon: BookOpen },
     { name: 'Audiobooks', path: 'https://libro.fm/camarillobookworm', external: true, icon: Headphones },
   ];
 
@@ -541,6 +543,7 @@ export default function App() {
                 <Route path="/staff-picks" element={<StaffPicks />} />
                 <Route path="/gift-cards" element={<GiftCards />} />
                 <Route path="/about" element={<About />} />
+                <Route path="/read-alikes" element={<ReadAlikes />} />
                 <Route path="/contact" element={<Contact />} />
                 <Route path="/cart" element={<Cart />} />
                 <Route path="/checkout" element={<Checkout />} />
