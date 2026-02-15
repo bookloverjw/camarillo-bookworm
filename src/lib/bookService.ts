@@ -46,6 +46,7 @@ export interface SupabaseBook {
   is_staff_pick: boolean;
   staff_reviewer: string | null;
   staff_quote: string | null;
+  author_last: string | null;
   is_limited_preorder: boolean;
   preorder_cutoff_date: string | null;
   created_at: string;
@@ -158,11 +159,10 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
     // Sorts that require client-side ordering use a separate path:
     //   best-selling  – needs order_items join
     //   alphabetical  – needs article stripping ("The", "A", "An")
-    //   author        – needs article stripping on author last-name
     if (sortBy === 'best-selling') {
       return getBestSellingBooks(options);
     }
-    if (sortBy === 'alphabetical' || sortBy === 'author') {
+    if (sortBy === 'alphabetical') {
       return getClientSortedBooks(options);
     }
 
@@ -177,6 +177,11 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
       case 'newest':
         query = query
           .order('publication_date', { ascending: false, nullsFirst: false })
+          .order('title', { ascending: true });
+        break;
+      case 'author':
+        query = query
+          .order('author_last', { ascending: true, nullsFirst: false })
           .order('title', { ascending: true });
         break;
       case 'price-asc':
@@ -231,7 +236,8 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
 
 /**
  * Fetch books with client-side sorting and pagination.
- * Used for sorts that need JavaScript logic (article stripping, author parsing).
+ * Used for alphabetical sort which needs article stripping ("The", "A", "An")
+ * so page boundaries are correct.
  */
 async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
@@ -252,18 +258,8 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
 
     books = filterExpiredLimitedPreorders(books);
 
-    // Sort client-side
-    const sortBy = options?.sortBy || 'alphabetical';
-    if (sortBy === 'author') {
-      books.sort((a, b) => {
-        const cmp = a.author.toLowerCase().localeCompare(b.author.toLowerCase());
-        if (cmp !== 0) return cmp;
-        return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
-      });
-    } else {
-      // alphabetical with article stripping
-      books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
-    }
+    // Alphabetical with article stripping
+    books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
 
     if (options?.hideStaleHardcovers) {
       books = await filterStaleHardcovers(books);
