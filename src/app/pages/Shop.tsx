@@ -431,11 +431,12 @@ export const Shop = () => {
 
   const getStatusBadge = (status: string) => {
     switch (status) {
-      case 'In Stock': return 'bg-green-50 text-green-700 border-green-100';
-      case 'Low Stock': return 'bg-yellow-50 text-yellow-700 border-yellow-100';
+      case 'In Store': return 'bg-green-50 text-green-700 border-green-100';
+      case 'Only 1 Left': return 'bg-amber-50 text-amber-700 border-amber-100';
+      case 'Available to Order': return 'bg-blue-50 text-blue-700 border-blue-100';
       case 'Preorder': return 'bg-purple-50 text-purple-700 border-purple-100';
       case 'Preorder Closed': return 'bg-gray-50 text-gray-500 border-gray-200';
-      case 'Ships in X days': return 'bg-blue-50 text-blue-700 border-blue-100';
+      case 'Unavailable': return 'bg-gray-50 text-gray-400 border-gray-200';
       default: return 'bg-gray-50 text-gray-700 border-gray-100';
     }
   };
@@ -726,8 +727,8 @@ export const Shop = () => {
                         </p>
                       )}
                     </div>
-                  ) : book.status === 'Ships in X days' ? (
-                    /* Out of stock — promote Bookshop as faster option */
+                  ) : book.status === 'Available to Order' ? (
+                    /* Not in store — promote Bookshop as faster option */
                     <div className={`flex flex-col gap-1.5`}>
                       <a
                         href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
@@ -749,7 +750,7 @@ export const Shop = () => {
                       </a>
                     </div>
                   ) : (
-                    /* In stock / low stock / preorder — our store is primary */
+                    /* In Store / Only 1 Left / Preorder — our store is primary */
                     <div className={`flex flex-col gap-1.5`}>
                       <button className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 w-full`}>
                         <ShoppingBag size={14} />

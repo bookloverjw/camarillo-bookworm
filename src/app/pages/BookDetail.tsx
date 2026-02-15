@@ -78,24 +78,26 @@ export const BookDetail = () => {
 
   const getStatusIcon = (status: string) => {
     switch (status) {
-      case 'In Stock': return <CheckCircle size={18} className="text-green-600" />;
-      case 'Low Stock': return <AlertCircle size={18} className="text-yellow-600" />;
+      case 'In Store': return <CheckCircle size={18} className="text-green-600" />;
+      case 'Only 1 Left': return <AlertCircle size={18} className="text-amber-600" />;
+      case 'Available to Order': return <Clock size={18} className="text-blue-600" />;
       case 'Preorder': return <Calendar size={18} className="text-purple-600" />;
       case 'Preorder Closed': return <Calendar size={18} className="text-gray-400" />;
-      case 'Ships in X days': return <Clock size={18} className="text-blue-600" />;
+      case 'Unavailable': return <AlertCircle size={18} className="text-gray-400" />;
       default: return null;
     }
   };
 
   const getStatusMessage = (status: string) => {
     switch (status) {
-      case 'In Stock': return `✓ In Stock at Camarillo Bookworm (3 copies)`;
-      case 'Low Stock': return `Only 1 left at Camarillo Bookworm!`;
+      case 'In Store': return `In Stock at Camarillo Bookworm`;
+      case 'Only 1 Left': return `Only 1 left at Camarillo Bookworm — grab it!`;
+      case 'Available to Order': return `Order online — ships in 2-3 business days`;
       case 'Preorder': return book.isLimitedPreorder && book.preorderCutoffDate
-        ? `Preorder by ${new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} - Ships on ${book.releaseDate}`
-        : `Preorder - Ships on ${book.releaseDate}`;
+        ? `Preorder by ${new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })} — Ships on ${book.releaseDate}`
+        : `Preorder — Ships on ${book.releaseDate}`;
       case 'Preorder Closed': return `Preorder closed${book.preorderCutoffDate ? ` on ${new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}` : ''}`;
-      case 'Ships in X days': return `Available to ship in 2-3 business days`;
+      case 'Unavailable': return `Currently unavailable`;
       default: return status;
     }
   };
@@ -284,26 +286,33 @@ export const BookDetail = () => {
             <div className="p-6 bg-muted/50 rounded-xl border border-border space-y-6">
               <div className="flex items-center space-x-3">
                 {getStatusIcon(book.status)}
-                <span className={`font-bold text-sm ${book.status === 'In Stock' ? 'text-green-700' : 'text-primary'}`}>
+                <span className={`font-bold text-sm ${book.status === 'In Store' ? 'text-green-700' : book.status === 'Only 1 Left' ? 'text-amber-700' : 'text-primary'}`}>
                   {getStatusMessage(book.status)}
                 </span>
               </div>
 
               {/* Purchase buttons — priority: pickup > ship > bookshop */}
-              {book.status === 'Preorder Closed' ? (
-                /* Limited preorder window has closed */
+              {book.status === 'Preorder Closed' || book.status === 'Unavailable' ? (
+                /* Limited preorder window has closed, or book unavailable */
                 <div className="space-y-3">
                   <div className="flex items-center justify-center gap-2 w-full p-4 bg-gray-100 text-gray-400 rounded-xl font-bold cursor-not-allowed">
                     <Calendar size={20} />
-                    <span className="text-sm uppercase tracking-widest">Preorder Closed</span>
+                    <span className="text-sm uppercase tracking-widest">{book.status === 'Unavailable' ? 'Unavailable' : 'Preorder Closed'}</span>
                   </div>
-                  <p className="text-xs text-muted-foreground text-center">
-                    The preorder window for this edition has ended.
-                    {book.releaseDate && ` This title releases on ${book.releaseDate}.`}
-                  </p>
+                  {book.status === 'Preorder Closed' && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      The preorder window for this edition has ended.
+                      {book.releaseDate && ` This title releases on ${book.releaseDate}.`}
+                    </p>
+                  )}
+                  {book.status === 'Unavailable' && (
+                    <p className="text-xs text-muted-foreground text-center">
+                      This title is currently unavailable through our store.
+                    </p>
+                  )}
                 </div>
-              ) : book.status === 'Ships in X days' ? (
-                /* Out of stock locally — promote Bookshop as the fastest option */
+              ) : book.status === 'Available to Order' ? (
+                /* Not in store — promote Bookshop as the fastest option */
                 <div className="space-y-3">
                   <a
                     href={getBookshopAffiliateUrl(bookIsbn)}
@@ -326,7 +335,7 @@ export const BookDetail = () => {
                   </a>
                 </div>
               ) : (
-                /* In stock, low stock, or preorder — our store buttons are primary */
+                /* In Store, Only 1 Left, or Preorder — our store buttons are primary */
                 <div className="space-y-3">
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
                     <button

@@ -63,8 +63,10 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
             </h3>
             {book.author && <p className="text-xs text-muted-foreground mb-1">{book.author}</p>}
             <p className="text-sm font-medium text-primary">${book.price.toFixed(2)}</p>
-            {book.status === 'In Stock' && (
-              <p className="text-xs text-[#16A34A] font-medium mt-1">in store</p>
+            {(book.status === 'In Store' || book.status === 'Only 1 Left') && (
+              <p className={`text-xs font-medium mt-1 ${book.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
+                {book.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
+              </p>
             )}
           </button>
         ))}

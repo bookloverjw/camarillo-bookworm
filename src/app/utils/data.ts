@@ -9,7 +9,7 @@ export interface Book {
   category: 'Fiction' | 'Nonfiction' | 'Kids' | 'YA';
   genre: string; // BISAC Genre
   type: 'Hardcover' | 'Paperback' | 'Audiobook';
-  status: 'In Stock' | 'Low Stock' | 'Preorder' | 'Preorder Closed' | 'Ships in X days';
+  status: 'In Store' | 'Only 1 Left' | 'Available to Order' | 'Preorder' | 'Preorder Closed' | 'Unavailable';
   releaseDate?: string;
   isLimitedPreorder?: boolean;
   preorderCutoffDate?: string;
@@ -52,7 +52,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Literary',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'Between life and death there is a library, and within that library, the shelves go on forever. Every book provides a chance to try another life you could have lived.',
     isStaffPick: true,
     staffReviewer: 'Elena',
@@ -68,7 +68,7 @@ export const BOOKS: Book[] = [
     category: 'Nonfiction',
     genre: 'Self-Help',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'No matter your goals, Atomic Habits offers a proven framework for improving—every day.'
   },
   {
@@ -95,7 +95,7 @@ export const BOOKS: Book[] = [
     category: 'Kids',
     genre: 'Picture Books',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A charming story for young readers about finding your way home.'
   },
   {
@@ -108,7 +108,7 @@ export const BOOKS: Book[] = [
     category: 'Nonfiction',
     genre: 'Biography',
     type: 'Paperback',
-    status: 'Low Stock',
+    status: 'Only 1 Left',
     description: 'A powerful memoir about growing up Korean-American, losing her mother, and forging her own identity.'
   },
   {
@@ -121,7 +121,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Historical',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'Set in Constantinople in the 15th century, in a small town in Idaho today, and on an interstellar ship in the future.'
   },
   {
@@ -134,7 +134,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Sci-Fi',
     type: 'Hardcover',
-    status: 'Ships in X days',
+    status: 'Available to Order',
     description: 'Ryland Grace is the sole survivor on a desperate, last-chance mission—and if he fails, humanity and the earth itself will perish.'
   },
   {
@@ -147,7 +147,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Contemporary',
     type: 'Paperback',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A story of love, betrayal, and a long-held family secret that unfolds over twenty-four hours.'
   },
   {
@@ -160,7 +160,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Historical',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A murder mystery, a story of love and community, and a glimpse into the American past.'
   },
   {
@@ -173,7 +173,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Literary',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: "Chemist Elizabeth Zott is not your average woman. But it's the early 1960s and her all-male team at Hastings Research Institute takes a very unscientific view of equality."
   },
   {
@@ -186,7 +186,7 @@ export const BOOKS: Book[] = [
     category: 'Nonfiction',
     genre: 'True Crime',
     type: 'Paperback',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'The Osage Murders and the Birth of the FBI.'
   },
   {
@@ -199,7 +199,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Literary',
     type: 'Hardcover',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A reimagining of David Copperfield set in modern-day Appalachia.'
   },
   {
@@ -211,7 +211,7 @@ export const BOOKS: Book[] = [
     category: 'Fiction',
     genre: 'Graphic Novels',
     type: 'Paperback',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A revolutionary work of graphic fiction that reimagines the superhero genre.'
   },
   {
@@ -223,7 +223,7 @@ export const BOOKS: Book[] = [
     category: 'Kids',
     genre: 'Graphic Novels',
     type: 'Paperback',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'A charming autobiographical graphic novel about the perils of middle school and dental drama.'
   },
   {
@@ -235,7 +235,7 @@ export const BOOKS: Book[] = [
     category: 'YA',
     genre: 'Graphic Novels',
     type: 'Paperback',
-    status: 'In Stock',
+    status: 'In Store',
     description: 'Boy meets boy. Boys become friends. Boys fall in love. A sweet and charming graphic novel about life, love, and everything in between.'
   }
 ];
