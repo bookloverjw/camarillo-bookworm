@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Search, ChevronDown, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones, Calendar } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { type Book } from '@/app/utils/data';
-import { getBooks, getBooksCount } from '@/lib/bookService';
+import { getBooks, getBooksCount, type SortOption, type BookQueryOptions } from '@/lib/bookService';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
@@ -14,14 +14,18 @@ const BISAC_GENRES: Record<string, string[]> = {
   'YA': ['All YA', 'Graphic Novels', 'Contemporary', 'Fantasy', 'Sci-Fi', 'Dystopian', 'Romance']
 };
 
-const FilterContent = ({ 
-  activeCategory, 
-  setActiveCategory, 
+const FilterContent = ({
+  activeCategory,
+  setActiveCategory,
   activeGenre,
   setActiveGenre,
-  activeFormat, 
-  setActiveFormat, 
-  categories, 
+  activeFormat,
+  setActiveFormat,
+  priceRange,
+  setPriceRange,
+  availabilityFilters,
+  setAvailabilityFilters,
+  categories,
   formats,
   onFilterChange
 }: any) => (
@@ -30,14 +34,14 @@ const FilterContent = ({
       <h3 className="text-lg font-bold text-primary mb-6 flex items-center">
         <Filter size={20} className="mr-2 text-accent" /> Browse
       </h3>
-      
+
       <div className="space-y-8">
         {/* Category Selection */}
         <div>
           <div className="flex justify-between items-end mb-4">
             <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground">Department</p>
             {activeCategory !== 'All' && (
-              <button 
+              <button
                 onClick={() => { setActiveCategory('All'); setActiveGenre('All'); }}
                 className="text-[9px] font-bold text-accent uppercase tracking-widest hover:underline"
               >
@@ -55,8 +59,8 @@ const FilterContent = ({
                   onFilterChange?.();
                 }}
                 className={`px-3 py-2 rounded-xl text-xs font-bold transition-all border ${
-                  activeCategory === cat 
-                    ? 'bg-primary text-white border-primary shadow-md' 
+                  activeCategory === cat
+                    ? 'bg-primary text-white border-primary shadow-md'
                     : 'bg-white text-muted-foreground border-border hover:border-primary/30'
                 }`}
               >
@@ -68,7 +72,7 @@ const FilterContent = ({
 
         {/* Dynamic Genre Selection */}
         {activeCategory !== 'All' && BISAC_GENRES[activeCategory] && (
-          <motion.div 
+          <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
             className="pt-2"
@@ -83,8 +87,8 @@ const FilterContent = ({
                     onFilterChange?.();
                   }}
                   className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
-                    activeGenre === genre 
-                      ? 'bg-accent/10 text-accent font-bold border-l-2 border-accent' 
+                    activeGenre === genre
+                      ? 'bg-accent/10 text-accent font-bold border-l-2 border-accent'
                       : 'text-muted-foreground hover:bg-muted hover:text-primary'
                   }`}
                 >
@@ -94,8 +98,6 @@ const FilterContent = ({
             </div>
           </motion.div>
         )}
-
-        {/* Format */}
 
         {/* Format */}
         <div>
@@ -109,8 +111,8 @@ const FilterContent = ({
                   onFilterChange?.();
                 }}
                 className={`block w-full text-left px-3 py-2 rounded-lg text-sm transition-all ${
-                  activeFormat === format 
-                    ? 'bg-primary text-white font-bold shadow-md shadow-primary/20 translate-x-1' 
+                  activeFormat === format
+                    ? 'bg-primary text-white font-bold shadow-md shadow-primary/20 translate-x-1'
                     : 'text-muted-foreground hover:bg-muted hover:text-primary'
                 }`}
               >
@@ -120,15 +122,48 @@ const FilterContent = ({
           </div>
         </div>
 
-        {/* Price Range (Mock) */}
+        {/* Price Range */}
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Price Range</p>
           <div className="space-y-3 px-1">
-            <input type="range" className="w-full accent-accent" min="0" max="100" />
-            <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
-              <span>$0</span>
-              <span>$100+</span>
+            <div className="flex gap-2">
+              <input
+                type="range"
+                className="w-full accent-accent"
+                min="0"
+                max="100"
+                value={priceRange[0]}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setPriceRange([Math.min(val, priceRange[1]), priceRange[1]]);
+                }}
+              />
             </div>
+            <div className="flex gap-2">
+              <input
+                type="range"
+                className="w-full accent-accent"
+                min="0"
+                max="100"
+                value={priceRange[1]}
+                onChange={(e) => {
+                  const val = Number(e.target.value);
+                  setPriceRange([priceRange[0], Math.max(val, priceRange[0])]);
+                }}
+              />
+            </div>
+            <div className="flex justify-between text-[10px] font-bold text-muted-foreground uppercase tracking-widest">
+              <span>${priceRange[0]}</span>
+              <span>{priceRange[1] >= 100 ? '$100+' : `$${priceRange[1]}`}</span>
+            </div>
+            {(priceRange[0] > 0 || priceRange[1] < 100) && (
+              <button
+                onClick={() => setPriceRange([0, 100])}
+                className="text-[9px] font-bold text-accent uppercase tracking-widest hover:underline"
+              >
+                Reset price
+              </button>
+            )}
           </div>
         </div>
 
@@ -136,12 +171,24 @@ const FilterContent = ({
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Availability</p>
           <div className="space-y-3">
-            {['In Stock at Store', 'Online Preorder', 'Available to Ship'].map(item => (
-              <label key={item} className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
-                <input type="checkbox" className="w-4 h-4 rounded border-border text-accent focus:ring-accent" />
-                <span className="group-hover:text-primary transition-colors">{item}</span>
-              </label>
-            ))}
+            <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
+                checked={availabilityFilters.inStock}
+                onChange={(e) => setAvailabilityFilters({ ...availabilityFilters, inStock: e.target.checked })}
+              />
+              <span className="group-hover:text-primary transition-colors">In Stock at Store</span>
+            </label>
+            <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
+              <input
+                type="checkbox"
+                className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
+                checked={availabilityFilters.preorder}
+                onChange={(e) => setAvailabilityFilters({ ...availabilityFilters, preorder: e.target.checked })}
+              />
+              <span className="group-hover:text-primary transition-colors">Online Preorder</span>
+            </label>
           </div>
         </div>
       </div>
@@ -149,7 +196,7 @@ const FilterContent = ({
 
     <div className="bg-muted p-6 rounded-2xl border border-border">
       <h4 className="font-bold text-primary mb-2">Staff Recommendations</h4>
-      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Sign up for our "Weekly Worm" newsletter for hand-picked gems.</p>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Sign up for our monthly "Bookworm Buzz" newsletter for hand-picked gems.</p>
       <input type="email" placeholder="Email address" className="w-full px-4 py-2 text-sm bg-white border border-border rounded-lg mb-2 outline-none focus:ring-1 focus:ring-accent" />
       <button className="w-full bg-accent text-white py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors">Subscribe</button>
     </div>
@@ -161,13 +208,23 @@ const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96];
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
   const filterParam = searchParams.get('filter');
+  const categoryParam = searchParams.get('category');
+  const genreParam = searchParams.get('genre');
 
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [activeCategory, setActiveCategory] = useState<string>(filterParam === 'new' ? 'Fiction' : 'All');
-  const [activeGenre, setActiveGenre] = useState<string>(filterParam === 'new' ? 'All Fiction' : 'All');
+  const [activeCategory, setActiveCategory] = useState<string>(
+    categoryParam || (filterParam === 'new' ? 'Fiction' : 'All')
+  );
+  const [activeGenre, setActiveGenre] = useState<string>(
+    genreParam || (filterParam === 'new' ? 'All Fiction' : 'All')
+  );
   const [activeFormat, setActiveFormat] = useState<string>('All');
-  const [searchQuery, setSearchQuery] = useState('');
+  const [sortBy, setSortBy] = useState<SortOption>('newest');
+  const [newestTab, setNewestTab] = useState<'released' | 'preorders'>('released');
+  const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
+  const [availabilityFilters, setAvailabilityFilters] = useState({ inStock: false, preorder: false });
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -181,19 +238,40 @@ export const Shop = () => {
   // Calculate total pages
   const totalPages = Math.ceil(totalItems / itemsPerPage);
 
+  // Build query options from all filter state
+  const buildFilterOptions = useCallback((): BookQueryOptions => {
+    const options: BookQueryOptions = {
+      limit: itemsPerPage,
+      offset: (currentPage - 1) * itemsPerPage,
+      search: searchQuery || undefined,
+      category: activeCategory !== 'All' ? activeCategory : undefined,
+      genre: activeGenre,
+      format: activeFormat !== 'All' ? activeFormat : undefined,
+      sortBy,
+      hideStaleHardcovers: true,
+    };
+
+    // Price range
+    if (priceRange[0] > 0) options.priceMin = priceRange[0];
+    if (priceRange[1] < 100) options.priceMax = priceRange[1];
+
+    // Availability filters
+    if (availabilityFilters.inStock) options.inStockOnly = true;
+    if (availabilityFilters.preorder) options.preorderOnly = true;
+
+    // Newest arrivals with preorder tab
+    if (sortBy === 'newest' && newestTab === 'preorders') {
+      options.preorderOnly = true;
+    }
+
+    return options;
+  }, [currentPage, itemsPerPage, searchQuery, activeCategory, activeGenre, activeFormat, sortBy, newestTab, priceRange, availabilityFilters]);
+
   // Load books from Supabase with pagination
   const loadBooks = useCallback(async () => {
     setIsLoading(true);
     try {
-      const offset = (currentPage - 1) * itemsPerPage;
-
-      // Build filter options
-      const filterOptions: Parameters<typeof getBooks>[0] = {
-        limit: itemsPerPage,
-        offset,
-        search: searchQuery || undefined,
-        category: activeCategory !== 'All' ? activeCategory : undefined,
-      };
+      const filterOptions = buildFilterOptions();
 
       // Fetch books and count in parallel
       const [fetchedBooks, count] = await Promise.all([
@@ -210,7 +288,7 @@ export const Shop = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [currentPage, itemsPerPage, searchQuery, activeCategory]);
+  }, [buildFilterOptions]);
 
   // Load books when filters or pagination changes
   useEffect(() => {
@@ -220,19 +298,7 @@ export const Shop = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategory, activeGenre, activeFormat]);
-
-  // Client-side filtering for genre and format (since these may not be in Supabase)
-  const filteredBooks = books.filter(book => {
-    // Genre filtering
-    let matchesGenre = true;
-    if (activeCategory !== 'All' && activeGenre !== 'All' && !activeGenre.startsWith('All ')) {
-      matchesGenre = book.genre === activeGenre;
-    }
-
-    const matchesFormat = activeFormat === 'All' || book.type === activeFormat;
-    return matchesGenre && matchesFormat;
-  });
+  }, [searchQuery, activeCategory, activeGenre, activeFormat, sortBy, newestTab, priceRange, availabilityFilters]);
 
   // Handle page change
   const goToPage = (page: number) => {
@@ -245,7 +311,7 @@ export const Shop = () => {
   // Handle items per page change
   const handleItemsPerPageChange = (newValue: number) => {
     setItemsPerPage(newValue);
-    setCurrentPage(1); // Reset to first page
+    setCurrentPage(1);
   };
 
   const categories = ['Fiction', 'Nonfiction', 'Kids', 'YA'];
@@ -256,6 +322,7 @@ export const Shop = () => {
       case 'In Stock': return 'bg-green-50 text-green-700 border-green-100';
       case 'Low Stock': return 'bg-yellow-50 text-yellow-700 border-yellow-100';
       case 'Preorder': return 'bg-purple-50 text-purple-700 border-purple-100';
+      case 'Preorder Closed': return 'bg-gray-50 text-gray-500 border-gray-200';
       case 'Ships in X days': return 'bg-blue-50 text-blue-700 border-blue-100';
       default: return 'bg-gray-50 text-gray-700 border-gray-100';
     }
@@ -265,7 +332,7 @@ export const Shop = () => {
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
       {/* Mobile Filter Toggle */}
       <div className="lg:hidden mb-8">
-        <button 
+        <button
           onClick={() => setShowMobileFilters(true)}
           className="w-full flex items-center justify-between bg-white border-2 border-primary text-primary px-6 py-4 rounded-2xl font-bold shadow-sm active:scale-[0.98] transition-all"
         >
@@ -274,7 +341,7 @@ export const Shop = () => {
             <span>Filters & Categories</span>
           </div>
           <div className="bg-accent text-white text-[10px] px-2 py-0.5 rounded-full uppercase tracking-widest">
-            {activeCategory !== 'All' || activeFormat !== 'All' ? 'Active' : 'All'}
+            {activeCategory !== 'All' || activeFormat !== 'All' || availabilityFilters.inStock || availabilityFilters.preorder ? 'Active' : 'All'}
           </div>
         </button>
       </div>
@@ -282,13 +349,17 @@ export const Shop = () => {
       <div className="flex flex-col lg:flex-row gap-12">
         {/* Desktop Sidebar Filters */}
         <aside className="hidden lg:block w-64 shrink-0">
-          <FilterContent 
-            activeCategory={activeCategory} 
+          <FilterContent
+            activeCategory={activeCategory}
             setActiveCategory={setActiveCategory}
             activeGenre={activeGenre}
             setActiveGenre={setActiveGenre}
             activeFormat={activeFormat}
             setActiveFormat={setActiveFormat}
+            priceRange={priceRange}
+            setPriceRange={setPriceRange}
+            availabilityFilters={availabilityFilters}
+            setAvailabilityFilters={setAvailabilityFilters}
             categories={categories}
             formats={formats}
           />
@@ -298,14 +369,14 @@ export const Shop = () => {
         <AnimatePresence>
           {showMobileFilters && (
             <>
-              <motion.div 
+              <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 onClick={() => setShowMobileFilters(false)}
                 className="fixed inset-0 bg-black/60 z-[100] lg:hidden backdrop-blur-sm"
               />
-              <motion.div 
+              <motion.div
                 initial={{ x: '-100%' }}
                 animate={{ x: 0 }}
                 exit={{ x: '-100%' }}
@@ -321,13 +392,17 @@ export const Shop = () => {
                     <X size={20} />
                   </button>
                 </div>
-                <FilterContent 
-                  activeCategory={activeCategory} 
+                <FilterContent
+                  activeCategory={activeCategory}
                   setActiveCategory={setActiveCategory}
                   activeGenre={activeGenre}
                   setActiveGenre={setActiveGenre}
                   activeFormat={activeFormat}
                   setActiveFormat={setActiveFormat}
+                  priceRange={priceRange}
+                  setPriceRange={setPriceRange}
+                  availabilityFilters={availabilityFilters}
+                  setAvailabilityFilters={setAvailabilityFilters}
                   categories={categories}
                   formats={formats}
                   onFilterChange={() => setShowMobileFilters(false)}
@@ -369,11 +444,17 @@ export const Shop = () => {
 
               <div className="flex items-center text-sm">
                 <span className="text-muted-foreground mr-2 hidden sm:inline">Sort:</span>
-                <select className="bg-muted/50 border border-border rounded-lg px-3 py-2 outline-none text-primary font-bold cursor-pointer text-sm">
-                  <option>Newest Arrivals</option>
-                  <option>Price: Low to High</option>
-                  <option>Price: High to Low</option>
-                  <option>Alphabetical</option>
+                <select
+                  value={sortBy}
+                  onChange={(e) => setSortBy(e.target.value as SortOption)}
+                  className="bg-muted/50 border border-border rounded-lg px-3 py-2 outline-none text-primary font-bold cursor-pointer text-sm"
+                >
+                  <option value="newest">Newest Arrivals</option>
+                  <option value="best-selling">Bestsellers</option>
+                  <option value="author">Author</option>
+                  <option value="price-asc">Price: Low to High</option>
+                  <option value="price-desc">Price: High to Low</option>
+                  <option value="alphabetical">Alphabetical</option>
                 </select>
               </div>
               <div className="flex items-center bg-muted rounded-xl p-1.5 border border-border shadow-inner">
@@ -387,10 +468,38 @@ export const Shop = () => {
             </div>
           </div>
 
+          {/* Newest Arrivals toggle: Released vs Preorders */}
+          {sortBy === 'newest' && (
+            <div className="flex items-center gap-2 mb-6">
+              <button
+                onClick={() => setNewestTab('released')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  newestTab === 'released'
+                    ? 'bg-primary text-white shadow-md'
+                    : 'bg-muted text-muted-foreground hover:text-primary'
+                }`}
+              >
+                Released
+              </button>
+              <button
+                onClick={() => setNewestTab('preorders')}
+                className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                  newestTab === 'preorders'
+                    ? 'bg-purple-600 text-white shadow-md'
+                    : 'bg-muted text-muted-foreground hover:text-primary'
+                }`}
+              >
+                Preorders
+              </button>
+            </div>
+          )}
+
           {/* Results count */}
           <div className="mb-6 text-sm text-muted-foreground">
             {isLoading ? (
               <span>Loading...</span>
+            ) : totalItems === 0 ? (
+              <span>No books found</span>
             ) : (
               <span>
                 Showing {Math.min((currentPage - 1) * itemsPerPage + 1, totalItems)}-{Math.min(currentPage * itemsPerPage, totalItems)} of {totalItems} books
@@ -407,19 +516,19 @@ export const Shop = () => {
           )}
 
           {!isLoading && <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12' : 'grid-cols-1 gap-4'}`}>
-            {filteredBooks.map(book => (
+            {books.map(book => (
               <motion.div
                 key={book.id}
                 layout
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
-                className={`group ${viewMode === 'list' 
-                  ? 'flex flex-col sm:flex-row gap-6 p-4 bg-white rounded-2xl border border-border hover:shadow-lg transition-all items-center sm:items-stretch' 
+                className={`group ${viewMode === 'list'
+                  ? 'flex flex-col sm:flex-row gap-6 p-4 bg-white rounded-2xl border border-border hover:shadow-lg transition-all items-center sm:items-stretch'
                   : ''}`}
               >
                 <Link to={`/book/${book.id}`} className={viewMode === 'list' ? 'w-full sm:w-28 shrink-0' : 'block'}>
-                  <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
-                    <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                  <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl bg-black ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
+                    <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-contain" />
                     <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
                       {book.status}
                     </div>
@@ -435,14 +544,27 @@ export const Shop = () => {
                       <p className={`text-muted-foreground font-serif leading-snug line-clamp-1 ${viewMode === 'list' ? 'text-sm mb-1' : 'text-xs mb-1'}`}>{book.subtitle}</p>
                     )}
                     <p className="text-muted-foreground text-xs mb-2 italic">by {book.author}</p>
-                    
+
                     <div className={`flex items-baseline space-x-2 ${viewMode === 'list' ? 'mb-4' : 'mb-6'}`}>
                       <p className="text-primary font-bold text-lg">${book.price.toFixed(2)}</p>
                       <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">{book.type}</span>
                     </div>
                   </div>
 
-                  {book.status === 'Ships in X days' ? (
+                  {book.status === 'Preorder Closed' ? (
+                    /* Limited preorder window has closed */
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-center space-x-2 bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-bold w-full cursor-not-allowed">
+                        <Calendar size={14} />
+                        <span>Preorder Closed</span>
+                      </div>
+                      {book.preorderCutoffDate && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Preorder ended {new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                  ) : book.status === 'Ships in X days' ? (
                     /* Out of stock — promote Bookshop as faster option */
                     <div className={`flex flex-col gap-1.5`}>
                       <a
@@ -471,6 +593,11 @@ export const Shop = () => {
                         <ShoppingBag size={14} />
                         <span>Add to Bag</span>
                       </button>
+                      {book.status === 'Preorder' && book.isLimitedPreorder && book.preorderCutoffDate && (
+                        <p className="text-[10px] text-purple-600 font-medium text-center">
+                          Preorder by {new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
                       <div className="flex items-center justify-center gap-2 py-0.5">
                         <a
                           href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
@@ -499,13 +626,20 @@ export const Shop = () => {
             ))}
           </div>}
 
-          {!isLoading && filteredBooks.length === 0 && (
+          {!isLoading && books.length === 0 && (
             <div className="text-center py-32 bg-muted/20 rounded-3xl border border-dashed border-border">
               <Search size={48} className="mx-auto text-muted-foreground mb-6 opacity-20" />
               <h3 className="text-2xl font-serif font-bold text-primary mb-3">No results found</h3>
               <p className="text-muted-foreground max-w-sm mx-auto mb-8">We couldn't find any books matching your criteria. Try adjusting your filters or search term.</p>
-              <button 
-                onClick={() => { setActiveCategory('All'); setActiveGenre('All'); setActiveFormat('All'); setSearchQuery(''); }}
+              <button
+                onClick={() => {
+                  setActiveCategory('All');
+                  setActiveGenre('All');
+                  setActiveFormat('All');
+                  setSearchQuery('');
+                  setPriceRange([0, 100]);
+                  setAvailabilityFilters({ inStock: false, preorder: false });
+                }}
                 className="bg-primary text-white px-8 py-3 rounded-full font-bold shadow-lg shadow-primary/20 hover:bg-primary/90 transition-all"
               >
                 Clear all filters
@@ -514,7 +648,7 @@ export const Shop = () => {
           )}
 
           {/* Pagination */}
-          {!isLoading && filteredBooks.length > 0 && totalPages > 1 && (
+          {!isLoading && books.length > 0 && totalPages > 1 && (
             <div className="mt-24 pt-12 border-t border-border flex flex-col sm:flex-row justify-center items-center gap-6">
               <div className="flex items-center space-x-2">
                 {/* Previous button */}

@@ -9,8 +9,10 @@ export interface Book {
   category: 'Fiction' | 'Nonfiction' | 'Kids' | 'YA';
   genre: string; // BISAC Genre
   type: 'Hardcover' | 'Paperback' | 'Audiobook';
-  status: 'In Stock' | 'Low Stock' | 'Preorder' | 'Ships in X days';
+  status: 'In Stock' | 'Low Stock' | 'Preorder' | 'Preorder Closed' | 'Ships in X days';
   releaseDate?: string;
+  isLimitedPreorder?: boolean;
+  preorderCutoffDate?: string;
   description: string;
   isStaffPick?: boolean;
   staffReviewer?: string;

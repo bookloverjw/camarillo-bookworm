@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Star, ShoppingBag, Store, Truck, ExternalLink, Headphones } from 'lucide-react';
+import { X, Star, ShoppingBag, Store, Truck, ExternalLink, Headphones, Calendar } from 'lucide-react';
 import { Link } from 'react-router';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -178,11 +178,11 @@ export const BookDetailModal: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-8 mb-10">
                   {/* Cover */}
                   <div className="w-full md:w-48 lg:w-56 shrink-0">
-                    <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-border">
+                    <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-border bg-black">
                       <ImageWithFallback
                         src={book.cover}
                         alt={book.title}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     </div>
                   </div>
@@ -227,7 +227,26 @@ export const BookDetailModal: React.FC = () => {
                     </div>
 
                     {/* Purchase actions — priority: pickup > ship > bookshop/libro */}
-                    {book.status === 'Ships in X days' ? (
+                    {book.status === 'Preorder Closed' ? (
+                      <div className="space-y-3 pt-4">
+                        <div className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-gray-100 text-gray-400 rounded-lg text-sm font-bold cursor-not-allowed">
+                          <Calendar size={16} /> Preorder Closed
+                        </div>
+                        <p className="text-xs text-muted-foreground text-center">
+                          The preorder window for this edition has ended.
+                          {book.releaseDate && ` Releases ${book.releaseDate}.`}
+                        </p>
+                        <div className="flex items-center justify-center gap-4">
+                          <Link
+                            to={`/book/${book.id}`}
+                            onClick={closeModal}
+                            className="flex items-center gap-1.5 text-muted-foreground hover:text-primary text-sm font-medium transition-colors"
+                          >
+                            View Full Details <ExternalLink size={14} />
+                          </Link>
+                        </div>
+                      </div>
+                    ) : book.status === 'Ships in X days' ? (
                       <div className="space-y-3 pt-4">
                         <a
                           href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
@@ -259,6 +278,11 @@ export const BookDetailModal: React.FC = () => {
                       </div>
                     ) : (
                       <div className="space-y-3 pt-4">
+                        {book.status === 'Preorder' && book.isLimitedPreorder && book.preorderCutoffDate && (
+                          <p className="text-xs text-purple-600 font-medium">
+                            Preorder by {new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric' })}
+                          </p>
+                        )}
                         <div className="flex flex-wrap gap-3">
                           <button
                             onClick={() => handleAddToCart('pickup')}
@@ -350,11 +374,11 @@ export const BookDetailModal: React.FC = () => {
                           onClick={() => handleRelatedClick(item.id)}
                           className="group text-left"
                         >
-                          <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-3 transition-transform group-hover:-translate-y-1">
+                          <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-3 transition-transform group-hover:-translate-y-1 bg-black">
                             <ImageWithFallback
                               src={item.cover}
                               alt={item.title}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-1 group-hover:text-accent transition-colors">
