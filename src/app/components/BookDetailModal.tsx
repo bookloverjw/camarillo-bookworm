@@ -178,11 +178,11 @@ export const BookDetailModal: React.FC = () => {
                 <div className="flex flex-col md:flex-row gap-8 mb-10">
                   {/* Cover */}
                   <div className="w-full md:w-48 lg:w-56 shrink-0">
-                    <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-border bg-black">
+                    <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-border">
                       <ImageWithFallback
                         src={book.cover}
                         alt={book.title}
-                        className="w-full h-full object-contain"
+                        className="w-full h-full object-cover"
                       />
                     </div>
                   </div>
@@ -375,11 +375,11 @@ export const BookDetailModal: React.FC = () => {
                           onClick={() => handleRelatedClick(item.id)}
                           className="group text-left"
                         >
-                          <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-3 transition-transform group-hover:-translate-y-1 bg-black">
+                          <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-3 transition-transform group-hover:-translate-y-1">
                             <ImageWithFallback
                               src={item.cover}
                               alt={item.title}
-                              className="w-full h-full object-contain"
+                              className="w-full h-full object-cover"
                             />
                           </div>
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-1 group-hover:text-accent transition-colors">

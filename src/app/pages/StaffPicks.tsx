@@ -78,9 +78,9 @@ export const StaffPicks = () => {
                       <div className="text-5xl font-serif font-bold text-accent/20 shrink-0 tabular-nums">
                         {String(i + 1).padStart(2, '0')}
                       </div>
-                      <div className="w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-2 bg-black">
+                      <div className="w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-2">
                         <Link to={`/book/${book.id}`}>
-                          <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-contain" />
+                          <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
                         </Link>
                       </div>
                       <div className="flex-1 py-2">

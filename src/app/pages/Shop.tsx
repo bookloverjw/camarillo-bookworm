@@ -690,8 +690,8 @@ export const Shop = () => {
                   : 'flex flex-col'}`}
               >
                 <Link to={`/book/${book.id}`} className={viewMode === 'list' ? 'w-full sm:w-28 shrink-0' : 'block'}>
-                  <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl bg-black ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
-                    <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-contain" />
+                  <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
+                    <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
                     <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
                       {book.status}
                     </div>
