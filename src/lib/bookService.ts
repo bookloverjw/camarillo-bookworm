@@ -46,6 +46,8 @@ export interface SupabaseBook {
   is_staff_pick: boolean;
   staff_reviewer: string | null;
   staff_quote: string | null;
+  is_limited_preorder: boolean;
+  preorder_cutoff_date: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -66,8 +68,10 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     category: (sb.category as Book['category']) || 'Fiction',
     genre: sb.genre || 'Literary',
     type: (sb.book_type as Book['type']) || 'Paperback',
-    status: mapStatus(sb.status, sb.inventory_count),
+    status: mapStatus(sb.status, sb.inventory_count, sb.is_limited_preorder, sb.preorder_cutoff_date),
     releaseDate: sb.publication_date || undefined,
+    isLimitedPreorder: sb.is_limited_preorder || false,
+    preorderCutoffDate: sb.preorder_cutoff_date || undefined,
     description: sb.description || '',
     isStaffPick: sb.is_staff_pick,
     staffReviewer: sb.staff_reviewer || undefined,
@@ -76,10 +80,22 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
 }
 
 /**
- * Map database status to website status
+ * Map database status to website status.
+ * Limited preorders whose cutoff date has passed become 'Preorder Closed'.
  */
-function mapStatus(status: string | null, inventoryCount: number): Book['status'] {
-  if (status === 'Preorder' || status === 'preorder') return 'Preorder';
+function mapStatus(
+  status: string | null,
+  inventoryCount: number,
+  isLimitedPreorder?: boolean,
+  preorderCutoffDate?: string | null,
+): Book['status'] {
+  if (status === 'Preorder' || status === 'preorder') {
+    if (isLimitedPreorder && preorderCutoffDate) {
+      const cutoff = new Date(preorderCutoffDate);
+      if (new Date() > cutoff) return 'Preorder Closed';
+    }
+    return 'Preorder';
+  }
   if (inventoryCount <= 0) return 'Ships in X days';
   if (inventoryCount <= 3) return 'Low Stock';
   return 'In Stock';
@@ -186,6 +202,9 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
 
     let books = data.map(mapSupabaseBookToBook);
 
+    // Hide limited preorders whose release date has passed (book already released)
+    books = filterExpiredLimitedPreorders(books);
+
     // Client-side sort for alphabetical to handle article stripping
     if (sortBy === 'alphabetical') {
       books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
@@ -241,6 +260,9 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
 
     let books = booksData.map(mapSupabaseBookToBook);
 
+    // Hide limited preorders whose release date has passed
+    books = filterExpiredLimitedPreorders(books);
+
     // Sort by total sales descending, then by title
     books.sort((a, b) => {
       const salesA = (a.isbn && salesByIsbn[a.isbn]) || 0;
@@ -262,6 +284,22 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     console.error('Error fetching best-selling books:', error);
     return [];
   }
+}
+
+/**
+ * Hide limited-preorder books whose release date has passed.
+ * After release, the special edition listing (separate ISBN) should no longer appear.
+ */
+function filterExpiredLimitedPreorders(books: Book[]): Book[] {
+  const now = new Date();
+  return books.filter(book => {
+    if (!book.isLimitedPreorder || !book.releaseDate) return true;
+    // Only hide if both the cutoff AND the release date have passed
+    if (book.status === 'Preorder Closed' && new Date(book.releaseDate) <= now) {
+      return false;
+    }
+    return true;
+  });
 }
 
 /**

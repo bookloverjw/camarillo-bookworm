@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones } from 'lucide-react';
+import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones, Calendar } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount, type SortOption, type BookQueryOptions } from '@/lib/bookService';
@@ -322,6 +322,7 @@ export const Shop = () => {
       case 'In Stock': return 'bg-green-50 text-green-700 border-green-100';
       case 'Low Stock': return 'bg-yellow-50 text-yellow-700 border-yellow-100';
       case 'Preorder': return 'bg-purple-50 text-purple-700 border-purple-100';
+      case 'Preorder Closed': return 'bg-gray-50 text-gray-500 border-gray-200';
       case 'Ships in X days': return 'bg-blue-50 text-blue-700 border-blue-100';
       default: return 'bg-gray-50 text-gray-700 border-gray-100';
     }
@@ -549,7 +550,20 @@ export const Shop = () => {
                     </div>
                   </div>
 
-                  {book.status === 'Ships in X days' ? (
+                  {book.status === 'Preorder Closed' ? (
+                    /* Limited preorder window has closed */
+                    <div className="flex flex-col gap-1.5">
+                      <div className="flex items-center justify-center space-x-2 bg-gray-100 text-gray-400 py-2 rounded-xl text-xs font-bold w-full cursor-not-allowed">
+                        <Calendar size={14} />
+                        <span>Preorder Closed</span>
+                      </div>
+                      {book.preorderCutoffDate && (
+                        <p className="text-[10px] text-muted-foreground text-center">
+                          Preorder ended {new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
+                    </div>
+                  ) : book.status === 'Ships in X days' ? (
                     /* Out of stock — promote Bookshop as faster option */
                     <div className={`flex flex-col gap-1.5`}>
                       <a
@@ -578,6 +592,11 @@ export const Shop = () => {
                         <ShoppingBag size={14} />
                         <span>Add to Bag</span>
                       </button>
+                      {book.status === 'Preorder' && book.isLimitedPreorder && book.preorderCutoffDate && (
+                        <p className="text-[10px] text-purple-600 font-medium text-center">
+                          Preorder by {new Date(book.preorderCutoffDate).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}
+                        </p>
+                      )}
                       <div className="flex items-center justify-center gap-2 py-0.5">
                         <a
                           href={book.isbn ? `https://bookshop.org/a/camarillobookworm/${book.isbn}` : `https://bookshop.org/shop/camarillobookworm`}
