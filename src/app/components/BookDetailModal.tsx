@@ -200,9 +200,9 @@ export const BookDetailModal: React.FC = () => {
                         {book.subtitle}
                       </p>
                     )}
-                    <p className="text-lg text-muted-foreground font-serif italic">
+                    {book.author && <p className="text-lg text-muted-foreground font-serif italic">
                       by {book.author}
-                    </p>
+                    </p>}
                     <div className="flex items-center gap-3">
                       <StarRating rating={4} />
                       <span className="text-sm text-muted-foreground">(42 reviews)</span>

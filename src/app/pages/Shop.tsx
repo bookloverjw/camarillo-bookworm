@@ -686,7 +686,7 @@ export const Shop = () => {
                 animate={{ opacity: 1, y: 0 }}
                 className={`group ${viewMode === 'list'
                   ? 'flex flex-col sm:flex-row gap-6 p-4 bg-white rounded-2xl border border-border hover:shadow-lg transition-all items-center sm:items-stretch'
-                  : ''}`}
+                  : 'flex flex-col'}`}
               >
                 <Link to={`/book/${book.id}`} className={viewMode === 'list' ? 'w-full sm:w-28 shrink-0' : 'block'}>
                   <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl bg-black ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
@@ -705,7 +705,7 @@ export const Shop = () => {
                     {book.subtitle && (
                       <p className={`text-muted-foreground font-serif leading-snug line-clamp-1 ${viewMode === 'list' ? 'text-sm mb-1' : 'text-xs mb-1'}`}>{book.subtitle}</p>
                     )}
-                    <p className="text-muted-foreground text-xs mb-2 italic">by {book.author}</p>
+                    {book.author && <p className="text-muted-foreground text-xs mb-2 italic">by {book.author}</p>}
 
                     <div className={`flex items-baseline space-x-2 ${viewMode === 'list' ? 'mb-4' : 'mb-6'}`}>
                       <p className="text-primary font-bold text-lg">${book.price.toFixed(2)}</p>

@@ -87,7 +87,7 @@ export const StaffPicks = () => {
                         <Link to={`/book/${book.id}`}>
                           <h4 className="text-2xl font-serif font-bold text-primary mb-1 group-hover:text-accent transition-colors">{book.title}</h4>
                         </Link>
-                        <p className="text-muted-foreground mb-6 font-medium italic">by {book.author}</p>
+                        {book.author && <p className="text-muted-foreground mb-6 font-medium italic">by {book.author}</p>}
                         
                         <div className="flex items-center space-x-6">
                           <p className="font-bold text-primary text-xl">${book.price.toFixed(2)}</p>

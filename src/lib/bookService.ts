@@ -66,7 +66,7 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     isbn: sb.isbn,
     title,
     subtitle,
-    author: sb.author,
+    author: sb.author_last ? sb.author : '',
     price: sb.price || 0,
     cover: sb.cover_url || 'https://images.unsplash.com/photo-1538981457319-5e459479f9d0?auto=format&fit=crop&q=80&w=600',
     category: (sb.category as Book['category']) || 'Fiction',
