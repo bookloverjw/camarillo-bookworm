@@ -2,9 +2,7 @@ import type { Event } from '@/app/utils/data';
 
 const API_KEY = 'AlzaSyDA5ZN50FWfA_w3JgT6X_R3ANHL41QBTFA';
 
-// TODO: Replace with your actual Google Calendar ID
-// Find it at: Google Calendar > Settings > [Your Calendar] > Integrate calendar > Calendar ID
-const CALENDAR_ID = 'primary';
+const CALENDAR_ID = 'c_da642ff06a28dO2114cd3f4bfc0074acf15d77618e13396e088db41fd847228c@group.calendar.google.com';
 
 interface GoogleCalendarEvent {
   id: string;
