@@ -1,7 +1,9 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, List as ListIcon, MapPin, Clock, ChevronLeft, ChevronRight, Share2, Plus, ArrowRight, X, User, Mail, Phone, Users, Loader2, CheckCircle, BookOpen } from 'lucide-react';
-import { EVENTS, BOOKS } from '@/app/utils/data';
+import { EVENTS as MOCK_EVENTS, BOOKS } from '@/app/utils/data';
+import type { Event } from '@/app/utils/data';
+import { fetchGoogleCalendarEvents } from '@/lib/googleCalendar';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 import { toast } from 'sonner';
@@ -9,7 +11,7 @@ import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 
 interface RegistrationModalProps {
-  event: typeof EVENTS[0];
+  event: Event;
   onClose: () => void;
 }
 
@@ -245,7 +247,7 @@ function isSameDay(d1: Date, d2: Date) {
 // --- Event detail panel shown beside calendar ---
 
 const EventDetailPanel: React.FC<{
-  event: typeof EVENTS[0];
+  event: Event;
   onRegister: () => void;
   onAddToCalendar: () => void;
   onShare: () => void;
@@ -383,9 +385,39 @@ const EventDetailPanel: React.FC<{
 export const Events = () => {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
   const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1)); // Feb 2026
-  const [selectedEvent, setSelectedEvent] = useState<typeof EVENTS[0] | null>(null);
-  const [registerEvent, setRegisterEvent] = useState<typeof EVENTS[0] | null>(null);
+  const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+  const [registerEvent, setRegisterEvent] = useState<Event | null>(null);
+  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
   const today = new Date();
+
+  // Fetch events from Google Calendar when month changes
+  useEffect(() => {
+    let cancelled = false;
+    const loadEvents = async () => {
+      setIsLoadingEvents(true);
+      try {
+        const y = currentMonth.getFullYear();
+        const m = currentMonth.getMonth();
+        const timeMin = new Date(y, m, 1).toISOString();
+        const timeMax = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
+        const gcalEvents = await fetchGoogleCalendarEvents(timeMin, timeMax);
+        if (!cancelled) {
+          setEvents(gcalEvents.length > 0 ? gcalEvents : MOCK_EVENTS);
+        }
+      } catch {
+        if (!cancelled) {
+          setEvents(MOCK_EVENTS);
+        }
+      } finally {
+        if (!cancelled) {
+          setIsLoadingEvents(false);
+        }
+      }
+    };
+    loadEvents();
+    return () => { cancelled = true; };
+  }, [currentMonth]);
 
   const getEventTypeBadge = (type: string) => {
     switch (type) {
@@ -409,7 +441,7 @@ export const Events = () => {
     }
   };
 
-  const handleAddToCalendar = (event: typeof EVENTS[0]) => {
+  const handleAddToCalendar = (event: Event) => {
     const startDate = new Date(`${event.date}T${event.time.replace(' PM', ':00').replace(' AM', ':00')}`);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
 
@@ -434,7 +466,7 @@ END:VCALENDAR`;
     toast.success('Calendar event downloaded!');
   };
 
-  const handleShare = async (event: typeof EVENTS[0]) => {
+  const handleShare = async (event: Event) => {
     const shareData = {
       title: event.title,
       text: `Join me at "${event.title}" at Camarillo Bookworm on ${new Date(event.date).toLocaleDateString()}!`,
@@ -507,7 +539,7 @@ END:VCALENDAR`;
   };
 
   // Events for the current month
-  const eventsThisMonth = EVENTS.filter(e => {
+  const eventsThisMonth = events.filter(e => {
     const d = new Date(e.date + 'T00:00:00');
     return d.getMonth() === month && d.getFullYear() === year;
   });
@@ -561,6 +593,7 @@ END:VCALENDAR`;
                   <div className="flex items-center justify-between px-6 py-4 border-b border-border bg-muted/20">
                     <div className="flex items-center gap-3">
                       <h2 className="text-xl font-serif font-bold text-primary">{monthLabel}</h2>
+                      {isLoadingEvents && <Loader2 size={16} className="animate-spin text-muted-foreground" />}
                       <button
                         onClick={goToToday}
                         className="text-xs font-bold text-accent hover:text-accent/80 px-2.5 py-1 rounded-md border border-accent/30 hover:border-accent/50 transition-all"
@@ -597,7 +630,7 @@ END:VCALENDAR`;
                   <div className="grid grid-cols-7">
                     {calendarCells.map((cell, i) => {
                       const isToday = isSameDay(cell.date, today);
-                      const eventsOnDay = EVENTS.filter(e => {
+                      const eventsOnDay = events.filter(e => {
                         const ed = new Date(e.date + 'T00:00:00');
                         return isSameDay(ed, cell.date);
                       });
@@ -740,7 +773,7 @@ END:VCALENDAR`;
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
-            {EVENTS.map((event) => {
+            {events.map((event) => {
               const featuredBook = BOOKS.find(b => b.id === event.featuredBookId);
               const eventDate = new Date(event.date + 'T00:00:00');
               return (
