@@ -1,11 +1,44 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Quote, BookOpen, ChevronRight, ArrowRight, Instagram, Twitter } from 'lucide-react';
-import { STAFF, BOOKS } from '@/app/utils/data';
+import { STAFF, BOOKS, type StaffMember } from '@/app/utils/data';
+import { getStaffMembersWithPicks, type StaffMemberWithPicks } from '@/lib/staffService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 
 export const StaffPicks = () => {
+  const [staffWithPicks, setStaffWithPicks] = useState<StaffMemberWithPicks[] | null>(null);
+
+  useEffect(() => {
+    async function load() {
+      try {
+        const data = await getStaffMembersWithPicks();
+        if (data.length > 0) {
+          setStaffWithPicks(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch staff picks:', error);
+      }
+    }
+    load();
+  }, []);
+
+  // Use Supabase data if available, otherwise fall back to mock
+  const staffMembers: StaffMember[] = staffWithPicks || STAFF;
+
+  // Helper to get book data for a staff member's pick
+  const getBookForPick = (member: StaffMember, bookId: string, index: number) => {
+    // If we have Supabase data, use the resolved picks
+    if (staffWithPicks) {
+      const swp = staffWithPicks.find(s => s.id === member.id);
+      if (swp && swp.picks[index]) {
+        return swp.picks[index].book;
+      }
+    }
+    // Fall back to mock BOOKS lookup
+    return BOOKS.find(b => b.id === bookId) || null;
+  };
+
   return (
     <div className="pb-24">
       {/* Hero Header */}
@@ -32,7 +65,7 @@ export const StaffPicks = () => {
       </section>
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24 space-y-32">
-        {STAFF.map((member, index) => (
+        {staffMembers.map((member, index) => (
           <div key={member.id} className={`flex flex-col lg:flex-row gap-16 items-start ${index % 2 !== 0 ? 'lg:flex-row-reverse' : ''}`}>
             {/* Staff Profile Card */}
             <div className="lg:w-1/3 w-full sticky top-28">
@@ -64,11 +97,11 @@ export const StaffPicks = () => {
 
               <div className="space-y-12">
                 {member.topPicks.map((bookId, i) => {
-                  const book = BOOKS.find(b => b.id === bookId);
+                  const book = getBookForPick(member, bookId, i);
                   if (!book) return null;
                   return (
-                    <motion.div 
-                      key={bookId} 
+                    <motion.div
+                      key={bookId}
                       initial={{ opacity: 0, x: 20 }}
                       whileInView={{ opacity: 1, x: 0 }}
                       viewport={{ once: true }}
@@ -88,7 +121,7 @@ export const StaffPicks = () => {
                           <h4 className="text-2xl font-serif font-bold text-primary mb-1 group-hover:text-accent transition-colors">{book.title}</h4>
                         </Link>
                         {book.author && <p className="text-muted-foreground mb-6 font-medium italic">by {book.author}</p>}
-                        
+
                         <div className="flex items-center space-x-6">
                           <p className="font-bold text-primary text-xl">${book.price.toFixed(2)}</p>
                           <Link to={`/book/${book.id}`} className="text-xs font-bold uppercase tracking-widest text-accent flex items-center hover:underline">
@@ -102,8 +135,8 @@ export const StaffPicks = () => {
               </div>
 
               <div className="pt-12">
-                <Link 
-                  to="/shop" 
+                <Link
+                  to="/shop"
                   className="inline-flex items-center space-x-3 bg-muted px-10 py-5 rounded-2xl border border-border text-primary font-bold hover:bg-white hover:shadow-xl transition-all"
                 >
                   <span>View Full Curation from {member.name.split(' ')[0]}</span>

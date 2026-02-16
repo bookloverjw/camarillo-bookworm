@@ -534,6 +534,13 @@ export async function checkBookAvailability(id: string): Promise<{
 }
 
 /**
+ * Fetch bestselling books sorted by total_sold
+ */
+export async function getBestsellers(limit: number = 10): Promise<Book[]> {
+  return getBooks({ sortBy: 'best-selling', limit });
+}
+
+/**
  * Search books by title or author
  */
 export async function searchBooks(query: string, limit?: number): Promise<Book[]> {
