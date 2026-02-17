@@ -1,9 +1,11 @@
 import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones } from 'lucide-react';
+import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router';
-import { BOOKS, EVENTS, MERCH, STAFF, type Book } from '@/app/utils/data';
-import { getBooks, getStaffPicks } from '@/lib/bookService';
+import { BOOKS, EVENTS as MOCK_EVENTS, MERCH, STAFF as MOCK_STAFF, type Book, type Event, type StaffMember } from '@/app/utils/data';
+import { getBooks, getStaffPicks, getBestsellers } from '@/lib/bookService';
+import { getStaffMembers } from '@/lib/staffService';
+import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
@@ -78,8 +80,11 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
 export const Home = () => {
   const [activeFilter, setActiveFilter] = useState('Fiction');
   const [books, setBooks] = useState<Book[]>(BOOKS);
+  const [bestsellers, setBestsellers] = useState<Book[]>([]);
+  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
+  const [staff, setStaff] = useState<StaffMember[]>(MOCK_STAFF);
 
-  // Load books from Supabase on mount
+  // Load data from Supabase on mount
   useEffect(() => {
     async function loadBooks() {
       try {
@@ -91,7 +96,44 @@ export const Home = () => {
         console.error('Failed to fetch books:', error);
       }
     }
+
+    async function loadBestsellers() {
+      try {
+        const data = await getBestsellers(10);
+        if (data.length > 0) {
+          setBestsellers(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch bestsellers:', error);
+      }
+    }
+
+    async function loadEvents() {
+      try {
+        const data = await getUpcomingEvents(3);
+        if (data.length > 0) {
+          setEvents(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch events:', error);
+      }
+    }
+
+    async function loadStaff() {
+      try {
+        const data = await getStaffMembers();
+        if (data.length > 0) {
+          setStaff(data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch staff:', error);
+      }
+    }
+
     loadBooks();
+    loadBestsellers();
+    loadEvents();
+    loadStaff();
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
@@ -99,7 +141,7 @@ export const Home = () => {
   const preorders = books.filter(b => b.status === 'Preorder');
   const staffPicks = books.filter(b => b.isStaffPick);
   const staffPick = books.find(b => b.isStaffPick);
-  const featuredStaff = STAFF.find(s => s.topPicks.includes(staffPick?.id || ''));
+  const featuredStaff = staff.find(s => s.topPicks.includes(staffPick?.id || ''));
 
   return (
     <div className="pb-16">
@@ -136,6 +178,24 @@ export const Home = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Bestsellers Section */}
+      {bestsellers.length > 0 && (
+        <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+          <div className="text-center mb-10">
+            <h2 className="section-title">Bestsellers</h2>
+            <p className="text-muted-foreground mt-4">Our most popular titles right now</p>
+          </div>
+
+          <BookCarousel books={bestsellers} title="Bestsellers" />
+
+          <div className="mt-8 text-center">
+            <Link to="/shop?sort=best-selling" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
+              View All Bestsellers <ArrowRight size={16} className="ml-1" />
+            </Link>
+          </div>
+        </section>
+      )}
 
       {/* New Releases Section - Elliott Bay style with horizontal carousel */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
@@ -212,7 +272,7 @@ export const Home = () => {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {EVENTS.slice(0, 3).map((event) => (
+            {events.slice(0, 3).map((event) => (
               <Link
                 key={event.id}
                 to="/events"
