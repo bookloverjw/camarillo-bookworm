@@ -309,7 +309,7 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
 
 /**
  * Fetch best-selling books sorted by total_sold column (populated from POS sync).
- * Falls back to alphabetical if total_sold is not available.
+ * Falls back to alphabetical if total_sold query fails or returns no results.
  */
 async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
@@ -329,11 +329,14 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     const { data, error } = await query;
 
     if (error) {
-      console.error('Error fetching best-selling books:', error);
-      return [];
+      console.error('Error fetching best-selling books, falling back to alphabetical:', error);
+      return getClientSortedBooks(options);
     }
 
-    if (!data || data.length === 0) return [];
+    if (!data || data.length === 0) {
+      // If total_sold is all zeros/nulls and returns nothing, fall back
+      return getClientSortedBooks(options);
+    }
 
     let books = data.map(mapSupabaseBookToBook);
     books = books.filter(b => b.status !== 'Unavailable');
@@ -346,7 +349,7 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     return books;
   } catch (error) {
     console.error('Error fetching best-selling books:', error);
-    return [];
+    return getClientSortedBooks(options);
   }
 }
 
