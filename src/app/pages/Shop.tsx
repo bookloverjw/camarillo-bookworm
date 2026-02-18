@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones, Calendar } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
 import { type Book } from '@/app/utils/data';
-import { getBooks, getBooksCount, type SortOption, type BookQueryOptions } from '@/lib/bookService';
+import { getBooks, getBooksCount, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 
@@ -332,6 +332,8 @@ export const Shop = () => {
   const [activeTopic, setActiveTopic] = useState<KidsTopic | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
   const [newestTab, setNewestTab] = useState<'released' | 'preorders'>('released');
+  const [bestsellerPeriod, setBestsellerPeriod] = useState<BestsellerPeriod>('month');
+  const [bestsellerCategory, setBestsellerCategory] = useState<BestsellerCategory>('all');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
@@ -376,8 +378,14 @@ export const Shop = () => {
       options.preorderOnly = true;
     }
 
+    // Bestseller period + category
+    if (sortBy === 'best-selling') {
+      options.bestsellerPeriod = bestsellerPeriod;
+      options.bestsellerCategory = bestsellerCategory;
+    }
+
     return options;
-  }, [currentPage, itemsPerPage, searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, priceRange, availabilityFilters]);
+  }, [currentPage, itemsPerPage, searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, bestsellerPeriod, bestsellerCategory, priceRange, availabilityFilters]);
 
   // Load books from Supabase with pagination
   const loadBooks = useCallback(async () => {
@@ -410,7 +418,7 @@ export const Shop = () => {
   // Reset to page 1 when filters change
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, priceRange, availabilityFilters]);
+  }, [searchQuery, activeCategory, activeGenre, activeFormat, activeTopic, sortBy, newestTab, bestsellerPeriod, bestsellerCategory, priceRange, availabilityFilters]);
 
   // Handle page change
   const goToPage = (page: number) => {
@@ -608,6 +616,62 @@ export const Shop = () => {
               >
                 Preorders
               </button>
+            </div>
+          )}
+
+          {/* Bestsellers: time period tabs + category pills */}
+          {sortBy === 'best-selling' && (
+            <div className="mb-6 space-y-4">
+              {/* Time period tabs */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Time Period</p>
+                <div className="flex items-center gap-2">
+                  {([
+                    { value: 'month' as BestsellerPeriod, label: 'This Month' },
+                    { value: 'quarter' as BestsellerPeriod, label: 'This Quarter' },
+                    { value: 'year' as BestsellerPeriod, label: 'This Year' },
+                  ]).map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setBestsellerPeriod(value)}
+                      className={`px-4 py-2 rounded-lg text-sm font-bold transition-all ${
+                        bestsellerPeriod === value
+                          ? 'bg-primary text-white shadow-md'
+                          : 'bg-muted text-muted-foreground hover:text-primary'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Category pills */}
+              <div>
+                <p className="text-[10px] font-bold uppercase tracking-[0.2em] text-muted-foreground mb-2">Category</p>
+                <div className="flex flex-wrap items-center gap-2">
+                  {([
+                    { value: 'all' as BestsellerCategory, label: 'All' },
+                    { value: 'fiction' as BestsellerCategory, label: 'Fiction' },
+                    { value: 'nonfiction' as BestsellerCategory, label: 'Nonfiction' },
+                    { value: 'ya' as BestsellerCategory, label: 'YA' },
+                    { value: 'children' as BestsellerCategory, label: 'Children' },
+                    { value: 'picture-books' as BestsellerCategory, label: 'Picture Books' },
+                  ]).map(({ value, label }) => (
+                    <button
+                      key={value}
+                      onClick={() => setBestsellerCategory(value)}
+                      className={`px-3 py-1.5 rounded-full text-xs font-bold transition-all border ${
+                        bestsellerCategory === value
+                          ? 'bg-accent text-white border-accent shadow-sm'
+                          : 'bg-white text-muted-foreground border-border hover:border-accent/40 hover:text-accent'
+                      }`}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
           )}
 
