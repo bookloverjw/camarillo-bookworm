@@ -307,15 +307,25 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
   }
 }
 
+/** ISO date string for N days ago, used to scope "recent" bestseller queries. */
+function recentCutoff(days: number = 90): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
 /**
  * Compute sales totals from transaction_items (book_id + quantity).
- * Returns a map of book_id -> total units sold.
+ * Only counts transactions created within the recent window.
+ * Returns a map of book_id -> total units sold, or null on failure.
  */
 async function getSalesFromTransactions(): Promise<Record<string, number> | null> {
   try {
+    const cutoff = recentCutoff();
     const { data, error } = await supabase
       .from('transaction_items')
-      .select('book_id, quantity');
+      .select('book_id, quantity, transactions!inner(created_at)')
+      .gte('transactions.created_at', cutoff);
 
     if (error || !data || data.length === 0) return null;
 
@@ -333,13 +343,16 @@ async function getSalesFromTransactions(): Promise<Record<string, number> | null
 
 /**
  * Compute sales totals from order_items (isbn + quantity) as a fallback.
- * Returns a map of isbn -> total units sold.
+ * Only counts orders created within the recent window.
+ * Returns a map of isbn -> total units sold, or null on failure.
  */
 async function getSalesFromOrders(): Promise<Record<string, number> | null> {
   try {
+    const cutoff = recentCutoff();
     const { data, error } = await supabase
       .from('order_items')
-      .select('isbn, quantity');
+      .select('isbn, quantity, orders!inner(created_at)')
+      .gte('orders.created_at', cutoff);
 
     if (error || !data || data.length === 0) return null;
 
