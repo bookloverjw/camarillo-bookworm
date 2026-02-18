@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Award, Users, BookOpen, Heart } from 'lucide-react';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
+import { STORE } from '@/lib/storeConfig';
 
 export const About = () => {
   return (
@@ -120,9 +121,9 @@ export const About = () => {
                   <div>
                     <p className="font-bold text-primary">Opening Hours</p>
                     <ul className="text-muted-foreground text-sm space-y-1">
-                      <li className="flex justify-between w-48"><span>Mon – Fri:</span> <span>10am – 6pm</span></li>
-                      <li className="flex justify-between w-48"><span>Saturday:</span> <span>10am – 5pm</span></li>
-                      <li className="flex justify-between w-48"><span>Sunday:</span> <span>12pm – 5pm</span></li>
+                      {Object.entries(STORE.hours).map(([day, time]) => (
+                        <li key={day} className="flex justify-between w-48"><span>{day}:</span> <span>{time}</span></li>
+                      ))}
                     </ul>
                   </div>
                 </div>

@@ -15,6 +15,8 @@ export interface Book {
   preorderCutoffDate?: string;
   tags?: string[];
   description: string;
+  publisher?: string;
+  pageCount?: number;
   isStaffPick?: boolean;
   staffReviewer?: string;
   staffQuote?: string;

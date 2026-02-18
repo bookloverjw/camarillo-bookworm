@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Star, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
+import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -263,12 +263,7 @@ export const BookDetail = () => {
           {/* Right: Info */}
           <div className="lg:col-span-8 space-y-8">
             <div>
-              <div className="flex items-center space-x-2 mb-4">
-                {Array.from({ length: 5 }).map((_, i) => (
-                  <Star key={i} size={16} className={i < 4 ? "fill-accent text-accent" : "text-border fill-border"} />
-                ))}
-                <span className="text-sm text-muted-foreground">(42 reviews)</span>
-              </div>
+              {/* Ratings sourced from Bookmarks.reviews widget below */}
               <h1 className="text-4xl md:text-5xl font-serif font-bold text-primary mb-2 leading-tight">{book.title}</h1>
               {book.subtitle && (
                 <p className="text-xl md:text-2xl text-muted-foreground font-serif leading-snug mb-2">{book.subtitle}</p>
@@ -415,7 +410,7 @@ export const BookDetail = () => {
                   <Quote size={48} className="absolute -top-6 -left-2 text-accent/10 fill-accent/10" />
                   <h3 className="text-lg font-bold text-accent mb-4">Staff Pick Review</h3>
                   <p className="italic text-primary leading-relaxed mb-6">
-                    "{book.staffQuote} I couldn't put it down. The prose is beautiful and the characters feel like real people I've known my whole life."
+                    "{book.staffQuote}"
                   </p>
                   <div className="flex items-center space-x-4">
                     <div className="w-12 h-12 rounded-full bg-muted border border-border overflow-hidden">
@@ -440,21 +435,37 @@ export const BookDetail = () => {
               <div>
                 <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Product Details</h3>
                 <div className="grid grid-cols-2 gap-y-4 text-sm">
+                  {book.publisher && (
+                    <div>
+                      <p className="text-muted-foreground">Publisher</p>
+                      <p className="font-medium text-primary">{book.publisher}</p>
+                    </div>
+                  )}
+                  {book.releaseDate && (
+                    <div>
+                      <p className="text-muted-foreground">Publication Date</p>
+                      <p className="font-medium text-primary">{new Date(book.releaseDate).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}</p>
+                    </div>
+                  )}
+                  {book.isbn && (
+                    <div>
+                      <p className="text-muted-foreground">ISBN</p>
+                      <p className="font-medium text-primary">{book.isbn}</p>
+                    </div>
+                  )}
+                  {book.pageCount && (
+                    <div>
+                      <p className="text-muted-foreground">Pages</p>
+                      <p className="font-medium text-primary">{book.pageCount}</p>
+                    </div>
+                  )}
                   <div>
-                    <p className="text-muted-foreground">Publisher</p>
-                    <p className="font-medium text-primary">Vintage Books</p>
+                    <p className="text-muted-foreground">Format</p>
+                    <p className="font-medium text-primary">{book.type}</p>
                   </div>
                   <div>
-                    <p className="text-muted-foreground">Publication Date</p>
-                    <p className="font-medium text-primary">Oct 26, 2024</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">ISBN</p>
-                    <p className="font-medium text-primary">{bookIsbn}</p>
-                  </div>
-                  <div>
-                    <p className="text-muted-foreground">Pages</p>
-                    <p className="font-medium text-primary">320</p>
+                    <p className="text-muted-foreground">Category</p>
+                    <p className="font-medium text-primary">{book.genre}</p>
                   </div>
                 </div>
               </div>

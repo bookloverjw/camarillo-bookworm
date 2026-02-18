@@ -82,6 +82,8 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     preorderCutoffDate: sb.preorder_cutoff_date || undefined,
     tags: sb.tags || undefined,
     description: sb.description || '',
+    publisher: sb.publisher || undefined,
+    pageCount: sb.page_count || undefined,
     isStaffPick: sb.is_staff_pick,
     staffReviewer: sb.staff_reviewer || undefined,
     staffQuote: sb.staff_quote || undefined,
@@ -178,6 +180,17 @@ function applyFilters(query: any, options?: BookQueryOptions) {
   if (options?.hideStaleHardcovers) {
     // Staleness check (no sales in >1 year) is applied client-side after
     // joining with order data in getBooks when this flag is set.
+  }
+  // Bestseller category filter (also applied in getBestSellingBooks client-side,
+  // but needed here too so getBooksCount returns the correct total)
+  if (options?.bestsellerCategory && options.bestsellerCategory !== 'all') {
+    switch (options.bestsellerCategory) {
+      case 'fiction':       query = query.eq('category', 'Fiction'); break;
+      case 'nonfiction':    query = query.eq('category', 'Nonfiction'); break;
+      case 'ya':            query = query.eq('category', 'YA'); break;
+      case 'children':      query = query.eq('category', 'Kids'); break;
+      case 'picture-books': query = query.eq('category', 'Kids').eq('genre', 'Picture Books'); break;
+    }
   }
   return query;
 }
