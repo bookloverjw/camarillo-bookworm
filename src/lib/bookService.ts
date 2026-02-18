@@ -406,10 +406,67 @@ function applyBestsellerCategoryFilter(books: Book[], bsCat?: BestsellerCategory
 }
 
 /**
- * Fetch best-selling books by computing sales from transaction data.
+ * Fetch best-selling books from the pre-computed bestseller_rankings table.
  *
- * Supports `bestsellerPeriod` (month/quarter/year) and `bestsellerCategory`
- * (fiction/nonfiction/ya/children/picture-books) for the sectioned UI.
+ * The rankings table is refreshed nightly by a pg_cron job, so reads are
+ * a single indexed query instead of expensive joins across transaction /
+ * order tables.  Falls back to live computation if the table is empty.
+ */
+async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
+  try {
+    const periodKey = options?.bestsellerPeriod || 'quarter';
+
+    // Step 1: Fetch pre-computed rankings for this period
+    const { data: rankings, error: rankError } = await supabase
+      .from('bestseller_rankings')
+      .select('book_id, rank')
+      .eq('period', periodKey)
+      .order('rank', { ascending: true });
+
+    // If the rankings table is empty or doesn't exist yet, use live query
+    if (rankError || !rankings || rankings.length === 0) {
+      return getLiveBestSellingBooks(options);
+    }
+
+    const rankMap = new Map(rankings.map(r => [r.book_id, r.rank]));
+    const rankedIds = rankings.map(r => r.book_id);
+
+    // Step 2: Fetch books with normal filters, scoped to ranked IDs
+    let query = supabase.from('books').select('*');
+    query = applyFilters(query, options);
+    query = query.in('id', rankedIds);
+
+    const { data, error } = await query;
+
+    if (error || !data || data.length === 0) {
+      return [];
+    }
+
+    let books = data.map(mapSupabaseBookToBook);
+    books = books.filter(b => b.status !== 'Unavailable');
+    books = filterExpiredLimitedPreorders(books);
+    books = applyBestsellerCategoryFilter(books, options?.bestsellerCategory);
+
+    // Sort by pre-computed rank
+    books.sort((a, b) => (rankMap.get(a.id) || 9999) - (rankMap.get(b.id) || 9999));
+
+    if (options?.hideStaleHardcovers) {
+      books = await filterStaleHardcovers(books);
+    }
+
+    // Apply pagination client-side
+    const offset = options?.offset || 0;
+    const limit = options?.limit || books.length;
+    return books.slice(offset, offset + limit);
+  } catch (error) {
+    console.error('Error fetching best-selling books:', error);
+    return getLiveBestSellingBooks(options);
+  }
+}
+
+/**
+ * Live fallback: compute bestseller ranking on-the-fly from sales data.
+ * Used when the bestseller_rankings table hasn't been populated yet.
  *
  * Priority:
  *   1. transaction_items (POS-style, keyed by book_id)
@@ -417,11 +474,10 @@ function applyBestsellerCategoryFilter(books: Book[], bsCat?: BestsellerCategory
  *   3. books.total_sold column (static counter from POS sync)
  *   4. Alphabetical fallback
  */
-async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
+async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
     const days = periodToDays(options?.bestsellerPeriod);
 
-    // Fetch all filtered books first (needed for any ranking approach)
     let query = supabase.from('books').select('*');
     query = applyFilters(query, options);
     const { data, error } = await query;
@@ -433,8 +489,6 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     let books = data.map(mapSupabaseBookToBook);
     books = books.filter(b => b.status !== 'Unavailable');
     books = filterExpiredLimitedPreorders(books);
-
-    // Apply bestseller category filter
     books = applyBestsellerCategoryFilter(books, options?.bestsellerCategory);
 
     // Try ranking from transaction_items (book_id)
@@ -462,7 +516,6 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
             return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
           });
         } else {
-          // No sales data anywhere — alphabetical
           books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
         }
       }
@@ -472,12 +525,11 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
       books = await filterStaleHardcovers(books);
     }
 
-    // Apply pagination client-side
     const offset = options?.offset || 0;
     const limit = options?.limit || books.length;
     return books.slice(offset, offset + limit);
   } catch (error) {
-    console.error('Error fetching best-selling books:', error);
+    console.error('Error in live bestseller fallback:', error);
     return getClientSortedBooks(options);
   }
 }
