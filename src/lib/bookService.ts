@@ -308,45 +308,119 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
 }
 
 /**
- * Fetch best-selling books sorted by total_sold column (populated from POS sync).
- * Falls back to alphabetical if total_sold is not available.
+ * Compute sales totals from transaction_items (book_id + quantity).
+ * Returns a map of book_id -> total units sold.
+ */
+async function getSalesFromTransactions(): Promise<Record<string, number> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('transaction_items')
+      .select('book_id, quantity');
+
+    if (error || !data || data.length === 0) return null;
+
+    const salesByBook: Record<string, number> = {};
+    for (const item of data) {
+      if (item.book_id) {
+        salesByBook[item.book_id] = (salesByBook[item.book_id] || 0) + (item.quantity || 1);
+      }
+    }
+    return Object.keys(salesByBook).length > 0 ? salesByBook : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Compute sales totals from order_items (isbn + quantity) as a fallback.
+ * Returns a map of isbn -> total units sold.
+ */
+async function getSalesFromOrders(): Promise<Record<string, number> | null> {
+  try {
+    const { data, error } = await supabase
+      .from('order_items')
+      .select('isbn, quantity');
+
+    if (error || !data || data.length === 0) return null;
+
+    const salesByIsbn: Record<string, number> = {};
+    for (const item of data) {
+      if (item.isbn) {
+        salesByIsbn[item.isbn] = (salesByIsbn[item.isbn] || 0) + (item.quantity || 1);
+      }
+    }
+    return Object.keys(salesByIsbn).length > 0 ? salesByIsbn : null;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Fetch best-selling books by computing sales from transaction data.
+ *
+ * Priority:
+ *   1. transaction_items (POS-style, keyed by book_id)
+ *   2. order_items (website orders, keyed by isbn)
+ *   3. books.total_sold column (static counter from POS sync)
+ *   4. Alphabetical fallback
  */
 async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
+    // Fetch all filtered books first (needed for any ranking approach)
     let query = supabase.from('books').select('*');
     query = applyFilters(query, options);
-    query = query
-      .order('total_sold', { ascending: false, nullsFirst: false })
-      .order('title', { ascending: true });
-
-    // Apply pagination server-side
-    if (options?.offset !== undefined && options?.limit) {
-      query = query.range(options.offset, options.offset + options.limit - 1);
-    } else if (options?.limit) {
-      query = query.limit(options.limit);
-    }
-
     const { data, error } = await query;
 
-    if (error) {
-      console.error('Error fetching best-selling books:', error);
-      return [];
+    if (error || !data || data.length === 0) {
+      return getClientSortedBooks(options);
     }
-
-    if (!data || data.length === 0) return [];
 
     let books = data.map(mapSupabaseBookToBook);
     books = books.filter(b => b.status !== 'Unavailable');
     books = filterExpiredLimitedPreorders(books);
 
+    // Try ranking from transaction_items (book_id)
+    const txSales = await getSalesFromTransactions();
+    if (txSales) {
+      books.sort((a, b) => {
+        const diff = (txSales[b.id] || 0) - (txSales[a.id] || 0);
+        return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+      });
+    } else {
+      // Try ranking from order_items (isbn)
+      const orderSales = await getSalesFromOrders();
+      if (orderSales) {
+        books.sort((a, b) => {
+          const diff = (orderSales[b.isbn || ''] || 0) - (orderSales[a.isbn || ''] || 0);
+          return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+        });
+      } else {
+        // Fall back to total_sold column (may be all zeros)
+        const rawById = new Map(data.map((d: SupabaseBook) => [d.id, d.total_sold || 0]));
+        const hasAnySales = [...rawById.values()].some(v => v > 0);
+        if (hasAnySales) {
+          books.sort((a, b) => {
+            const diff = (rawById.get(b.id) || 0) - (rawById.get(a.id) || 0);
+            return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+          });
+        } else {
+          // No sales data anywhere — alphabetical
+          books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
+        }
+      }
+    }
+
     if (options?.hideStaleHardcovers) {
       books = await filterStaleHardcovers(books);
     }
 
-    return books;
+    // Apply pagination client-side
+    const offset = options?.offset || 0;
+    const limit = options?.limit || books.length;
+    return books.slice(offset, offset + limit);
   } catch (error) {
     console.error('Error fetching best-selling books:', error);
-    return [];
+    return getClientSortedBooks(options);
   }
 }
 
