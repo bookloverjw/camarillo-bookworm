@@ -8,6 +8,8 @@ import { type Book } from '@/app/utils/data';
 import { splitTitle } from './titleUtils';
 
 export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'author' | 'best-selling';
+export type BestsellerPeriod = 'month' | 'quarter' | 'year';
+export type BestsellerCategory = 'all' | 'fiction' | 'nonfiction' | 'ya' | 'children' | 'picture-books';
 
 export interface BookQueryOptions {
   category?: string;
@@ -24,6 +26,8 @@ export interface BookQueryOptions {
   priceMax?: number;
   topicKeywords?: string[];
   hideStaleHardcovers?: boolean;
+  bestsellerPeriod?: BestsellerPeriod;
+  bestsellerCategory?: BestsellerCategory;
 }
 
 export interface SupabaseBook {
@@ -307,15 +311,40 @@ async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]>
   }
 }
 
+/** Max quantity per line item before we consider it a bulk order (excluded). */
+const BULK_ORDER_THRESHOLD = 20;
+
+/** Map bestseller period to number of days. */
+function periodToDays(period?: BestsellerPeriod): number {
+  switch (period) {
+    case 'month': return 30;
+    case 'quarter': return 90;
+    case 'year': return 365;
+    default: return 90;
+  }
+}
+
+/** ISO date string for N days ago, used to scope "recent" bestseller queries. */
+function recentCutoff(days: number = 90): string {
+  const d = new Date();
+  d.setDate(d.getDate() - days);
+  return d.toISOString();
+}
+
 /**
  * Compute sales totals from transaction_items (book_id + quantity).
- * Returns a map of book_id -> total units sold.
+ * Only counts transactions created within the recent window.
+ * Excludes bulk orders (quantity > 20 per line item).
+ * Returns a map of book_id -> total units sold, or null on failure.
  */
-async function getSalesFromTransactions(): Promise<Record<string, number> | null> {
+async function getSalesFromTransactions(days: number): Promise<Record<string, number> | null> {
   try {
+    const cutoff = recentCutoff(days);
     const { data, error } = await supabase
       .from('transaction_items')
-      .select('book_id, quantity');
+      .select('book_id, quantity, transactions!inner(created_at)')
+      .gte('transactions.created_at', cutoff)
+      .lte('quantity', BULK_ORDER_THRESHOLD);
 
     if (error || !data || data.length === 0) return null;
 
@@ -333,13 +362,18 @@ async function getSalesFromTransactions(): Promise<Record<string, number> | null
 
 /**
  * Compute sales totals from order_items (isbn + quantity) as a fallback.
- * Returns a map of isbn -> total units sold.
+ * Only counts orders created within the recent window.
+ * Excludes bulk orders (quantity > 20 per line item).
+ * Returns a map of isbn -> total units sold, or null on failure.
  */
-async function getSalesFromOrders(): Promise<Record<string, number> | null> {
+async function getSalesFromOrders(days: number): Promise<Record<string, number> | null> {
   try {
+    const cutoff = recentCutoff(days);
     const { data, error } = await supabase
       .from('order_items')
-      .select('isbn, quantity');
+      .select('isbn, quantity, orders!inner(created_at)')
+      .gte('orders.created_at', cutoff)
+      .lte('quantity', BULK_ORDER_THRESHOLD);
 
     if (error || !data || data.length === 0) return null;
 
@@ -356,7 +390,26 @@ async function getSalesFromOrders(): Promise<Record<string, number> | null> {
 }
 
 /**
+ * Apply the bestseller category filter client-side.
+ * Maps user-facing categories to the book's category/genre fields.
+ */
+function applyBestsellerCategoryFilter(books: Book[], bsCat?: BestsellerCategory): Book[] {
+  if (!bsCat || bsCat === 'all') return books;
+  switch (bsCat) {
+    case 'fiction':       return books.filter(b => b.category === 'Fiction');
+    case 'nonfiction':    return books.filter(b => b.category === 'Nonfiction');
+    case 'ya':            return books.filter(b => b.category === 'YA');
+    case 'children':      return books.filter(b => b.category === 'Kids');
+    case 'picture-books': return books.filter(b => b.category === 'Kids' && b.genre === 'Picture Books');
+    default: return books;
+  }
+}
+
+/**
  * Fetch best-selling books by computing sales from transaction data.
+ *
+ * Supports `bestsellerPeriod` (month/quarter/year) and `bestsellerCategory`
+ * (fiction/nonfiction/ya/children/picture-books) for the sectioned UI.
  *
  * Priority:
  *   1. transaction_items (POS-style, keyed by book_id)
@@ -366,6 +419,8 @@ async function getSalesFromOrders(): Promise<Record<string, number> | null> {
  */
 async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
+    const days = periodToDays(options?.bestsellerPeriod);
+
     // Fetch all filtered books first (needed for any ranking approach)
     let query = supabase.from('books').select('*');
     query = applyFilters(query, options);
@@ -379,8 +434,11 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     books = books.filter(b => b.status !== 'Unavailable');
     books = filterExpiredLimitedPreorders(books);
 
+    // Apply bestseller category filter
+    books = applyBestsellerCategoryFilter(books, options?.bestsellerCategory);
+
     // Try ranking from transaction_items (book_id)
-    const txSales = await getSalesFromTransactions();
+    const txSales = await getSalesFromTransactions(days);
     if (txSales) {
       books.sort((a, b) => {
         const diff = (txSales[b.id] || 0) - (txSales[a.id] || 0);
@@ -388,7 +446,7 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
       });
     } else {
       // Try ranking from order_items (isbn)
-      const orderSales = await getSalesFromOrders();
+      const orderSales = await getSalesFromOrders(days);
       if (orderSales) {
         books.sort((a, b) => {
           const diff = (orderSales[b.isbn || ''] || 0) - (orderSales[a.isbn || ''] || 0);
