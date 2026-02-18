@@ -7,6 +7,7 @@ import { useCart, BOOKSHOP_AFFILIATE_ID } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { confirmPurchase } from '@/lib/inventory';
+import { STORE } from '@/lib/storeConfig';
 import {
   loadSquareSdk,
   initializeSquarePayments,
@@ -344,12 +345,9 @@ export const Checkout = () => {
 
       if (orderError) {
         console.error('Order creation error:', orderError);
-        toast.error(`Database error: ${orderError.message}`, {
-          description: 'Check browser console for details. RLS policies may need setup.',
-        });
-      } else {
-        console.log('Order created successfully:', order);
+        throw new Error(`Order could not be saved: ${orderError.message}`);
       }
+      console.log('Order created successfully:', order);
 
       // ============================================
       // STEP 4: Create ORDER_ITEMS (for order tracking)
@@ -743,7 +741,7 @@ export const Checkout = () => {
                         <div className="p-4 bg-accent/5 rounded-xl border border-accent/20">
                           <p className="font-bold text-primary mb-1">Camarillo Bookworm</p>
                           <p className="text-sm text-muted-foreground">93 E Daily Dr, Camarillo, CA 93010</p>
-                          <p className="text-sm text-muted-foreground mt-2">Mon-Fri: 10am-6pm | Sat: 10am-5pm | Sun: 12pm-5pm</p>
+                          <p className="text-sm text-muted-foreground mt-2">{STORE.hoursOneLiner}</p>
                         </div>
                       )}
 

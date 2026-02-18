@@ -167,8 +167,9 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setItems(currentItems => {
       const item = currentItems.find(i => i.id === id);
       if (item && !item.id.startsWith('gc-')) {
-        // Release the inventory reservation
-        releaseInventory(item.id, item.quantity, item.reservationId);
+        // Release the inventory reservation (fire-and-forget but log errors)
+        releaseInventory(item.id, item.quantity, item.reservationId)
+          .catch(err => console.error('Failed to release inventory for', id, err));
       }
       return currentItems.filter(i => i.id !== id);
     });
@@ -190,12 +191,13 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Clear entire cart and release all reservations
   const clearCart = useCallback(() => {
-    // Release all inventory reservations
-    items.forEach(item => {
-      if (!item.id.startsWith('gc-') && item.reservationId) {
-        releaseInventory(item.id, item.quantity, item.reservationId);
-      }
-    });
+    // Release all inventory reservations (fire-and-forget but log errors)
+    Promise.allSettled(
+      items
+        .filter(item => !item.id.startsWith('gc-') && item.reservationId)
+        .map(item => releaseInventory(item.id, item.quantity, item.reservationId))
+    ).catch(err => console.error('Failed to release some inventory reservations:', err));
+
     setItems([]);
     setPreferredDeliveryState(null);
     localStorage.removeItem(CART_STORAGE_KEY);

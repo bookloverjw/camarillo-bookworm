@@ -4,6 +4,7 @@ import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapP
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
+import { STORE } from '@/lib/storeConfig';
 
 // Context & Auth
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
@@ -444,9 +445,9 @@ const Footer = () => {
               <li className="flex items-start space-x-2">
                 <Clock size={16} className="shrink-0 mt-0.5" />
                 <div>
-                  <p>Mon-Fri: 10am - 6pm</p>
-                  <p>Sat: 10am - 5pm</p>
-                  <p>Sun: 12pm - 5pm</p>
+                  {Object.entries(STORE.hours).map(([day, time]) => (
+                    <p key={day}>{day}: {time}</p>
+                  ))}
                 </div>
               </li>
             </ul>

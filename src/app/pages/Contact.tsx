@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Mail, Phone, MapPin, Send, HelpCircle, Loader2, Clock, ExternalLink } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
+import { STORE } from '@/lib/storeConfig';
 
 export const Contact = () => {
   const [formData, setFormData] = useState({
@@ -69,7 +70,7 @@ export const Contact = () => {
               <h2 className="text-3xl font-serif font-bold text-primary">Contact Information</h2>
               <div className="space-y-6">
                 <a
-                  href="tel:+18055550123"
+                  href={STORE.phoneTel}
                   className="flex items-start space-x-6 p-6 bg-white rounded-2xl border border-border hover:border-accent transition-colors group"
                 >
                   <div className="p-4 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-all"><Phone size={24} /></div>
@@ -108,8 +109,9 @@ export const Contact = () => {
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Store Hours</p>
                     <div className="text-primary">
-                      <p className="font-medium">Monday - Saturday: 10am - 8pm</p>
-                      <p className="font-medium">Sunday: 11am - 6pm</p>
+                      {Object.entries(STORE.hours).map(([day, time]) => (
+                        <p key={day} className="font-medium">{day}: {time}</p>
+                      ))}
                     </div>
                   </div>
                 </div>
