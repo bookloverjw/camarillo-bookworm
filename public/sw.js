@@ -1,4 +1,5 @@
-const CACHE_NAME = 'bookworm-v1';
+// Bump this on breaking cache-strategy changes; old caches are purged on activate.
+const CACHE_NAME = 'bookworm-v2';
 
 // Core assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -15,7 +16,8 @@ self.addEventListener('install', (event) => {
   self.skipWaiting();
 });
 
-// Activate: clean old caches
+// Activate: clean old caches (purges the unversioned bookworm-v1 cache,
+// which served first-visit assets forever and white-screened after deploys)
 self.addEventListener('activate', (event) => {
   event.waitUntil(
     caches.keys().then((keys) =>
@@ -29,7 +31,11 @@ self.addEventListener('activate', (event) => {
   self.clients.claim();
 });
 
-// Fetch: network-first for navigations, cache-first for static assets
+// Fetch strategy: network-first everywhere, cache as offline fallback.
+// The old cache-first asset branch pinned the first-ever-fetched JS/CSS
+// permanently; after a deploy the cached index.html referenced bundle
+// hashes that no longer existed. Network-first trades a little latency
+// for always-fresh content, and the cache still covers offline visits.
 self.addEventListener('fetch', (event) => {
   const { request } = event;
 
@@ -39,32 +45,27 @@ self.addEventListener('fetch', (event) => {
   // Skip cross-origin requests (CDNs, APIs, etc.)
   if (!request.url.startsWith(self.location.origin)) return;
 
-  // Navigation requests: network-first with offline fallback
-  if (request.mode === 'navigate') {
-    event.respondWith(
-      fetch(request)
-        .then((response) => {
-          const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
-          return response;
-        })
-        .catch(() => caches.match('/index.html'))
-    );
-    return;
-  }
-
-  // Static assets: cache-first with network fallback
   event.respondWith(
-    caches.match(request).then((cached) => {
-      if (cached) return cached;
-      return fetch(request).then((response) => {
-        // Only cache successful same-origin responses
+    fetch(request)
+      .then((response) => {
         if (response.ok) {
           const clone = response.clone();
-          caches.open(CACHE_NAME).then((cache) => cache.put(request, clone));
+          caches.open(CACHE_NAME).then((cache) => {
+            cache.put(request, clone);
+            // Keep the offline navigation fallback fresh too
+            if (request.mode === 'navigate') {
+              cache.put('/index.html', response.clone());
+            }
+          });
         }
         return response;
-      });
-    })
+      })
+      .catch(() =>
+        caches.match(request).then((cached) => {
+          if (cached) return cached;
+          if (request.mode === 'navigate') return caches.match('/index.html');
+          return Response.error();
+        })
+      )
   );
 });

@@ -110,10 +110,10 @@ export const BookDetailModal: React.FC = () => {
 
   const reviews = bookId ? (BOOK_REVIEWS[bookId] || DEFAULT_REVIEWS) : [];
 
-  const handleAddToCart = (deliveryOption: 'pickup' | 'ship') => {
+  const handleAddToCart = async (deliveryOption: 'pickup' | 'ship') => {
     if (!book) return;
     const bookIsbn = book.isbn || `978${book.id.padStart(10, '0')}`;
-    addItem(
+    const added = await addItem(
       {
         id: book.id,
         isbn: bookIsbn,
@@ -127,6 +127,8 @@ export const BookDetailModal: React.FC = () => {
       1,
       deliveryOption
     );
+    // addItem shows its own error toast when the reservation fails
+    if (!added) return;
     toast.success(
       deliveryOption === 'pickup'
         ? `"${book.title}" added for in-store pickup!`

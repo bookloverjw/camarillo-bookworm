@@ -102,8 +102,8 @@ export const BookDetail = () => {
     }
   };
 
-  const handleAddToCart = (deliveryOption: 'pickup' | 'ship') => {
-    addItem({
+  const handleAddToCart = async (deliveryOption: 'pickup' | 'ship') => {
+    const added = await addItem({
       id: book.id,
       isbn: bookIsbn,
       title: book.title,
@@ -113,6 +113,9 @@ export const BookDetail = () => {
       type: book.type,
       bookshopUrl: getBookshopAffiliateUrl(bookIsbn),
     }, 1, deliveryOption);
+
+    // addItem shows its own error toast when the reservation fails
+    if (!added) return;
 
     toast.success(
       deliveryOption === 'pickup'

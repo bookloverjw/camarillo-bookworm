@@ -79,7 +79,8 @@ export const GiftCards = () => {
         author: recipientName || recipientEmail || 'Gift Recipient',
         price: finalAmount,
         cover: 'https://images.unsplash.com/photo-1549465220-1a8b9238cd48?auto=format&fit=crop&q=80&w=600',
-        type: 'Hardcover', // Using Hardcover as a placeholder type
+        type: 'Gift Card',
+        digital: cardType === 'digital',
       });
 
       if (added) {
@@ -125,35 +126,40 @@ export const GiftCards = () => {
       // Format card number (remove spaces/dashes)
       const formattedCode = cardNumber.replace(/[\s-]/g, '').toUpperCase();
 
-      const { data, error } = await supabase
-        .from('gift_cards')
-        .select('current_balance, status, expires_at')
-        .eq('code', formattedCode)
-        .single();
+      // Exact-match lookup via SECURITY DEFINER function - the gift_cards
+      // table itself is not readable by the browser (see rls-lockdown.sql)
+      const { data, error } = await supabase.rpc('check_gift_card_balance', {
+        p_code: formattedCode,
+      });
 
-      if (error || !data) {
+      if (error) {
+        console.error('Balance check error:', error);
+        setBalanceError("We couldn't check your balance right now. Please try again, or call us at (805) 482-1384.");
+        return;
+      }
+
+      const card = Array.isArray(data) ? data[0] : data;
+      if (!card) {
         setBalanceError('Gift card not found. Please check your card number.');
         return;
       }
 
-      if (data.status !== 'active') {
-        setBalanceError(`This gift card is ${data.status}`);
+      if (card.status !== 'active') {
+        setBalanceError(`This gift card is ${card.status}`);
         return;
       }
 
-      if (data.expires_at && new Date(data.expires_at) < new Date()) {
+      if (card.expires_at && new Date(card.expires_at) < new Date()) {
         setBalanceError('This gift card has expired');
         return;
       }
 
-      setBalanceResult(data.current_balance);
+      setBalanceResult(card.current_balance);
       toast.success('Balance retrieved!');
 
     } catch (err) {
       console.error('Balance check error:', err);
-      // Demo fallback
-      setBalanceResult(42.50);
-      toast.success('Balance retrieved! (Demo)');
+      setBalanceError("We couldn't check your balance right now. Please try again, or call us at (805) 482-1384.");
     } finally {
       setIsCheckingBalance(false);
     }

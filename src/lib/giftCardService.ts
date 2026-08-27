@@ -1,4 +1,11 @@
 // Gift Card Service - handles activation of gift cards after payment
+//
+// NOTE: activateGiftCard() below can no longer run from the browser -
+// rls-lockdown.sql removed all client access to the gift_cards table
+// (anyone with the public anon key could previously mint cards with
+// arbitrary balances). When real payments go live, issue cards from a
+// server (Supabase Edge Function with the service-role key) after the
+// payment is verified, and generate codes with a CSPRNG there.
 import { supabase } from './supabase';
 import {
   generateBarcodeNumber,

@@ -6,6 +6,8 @@ import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
+import { toast } from 'sonner';
 
 const BISAC_GENRES: Record<string, string[]> = {
   'Fiction': ['All Fiction', 'Literary', 'Graphic Novels', 'Mystery', 'Thriller', 'Romance', 'Sci-Fi', 'Fantasy', 'Historical', 'Contemporary'],
@@ -317,6 +319,23 @@ const ITEMS_PER_PAGE_OPTIONS = [12, 24, 48, 96];
 
 export const Shop = () => {
   const [searchParams, setSearchParams] = useSearchParams();
+  const { addItem } = useCart();
+
+  const handleAddToBag = async (book: Book) => {
+    const ok = await addItem({
+      id: book.id,
+      isbn: book.isbn,
+      title: book.title,
+      author: book.author,
+      price: book.price,
+      cover: book.cover,
+      type: book.type,
+      bookshopUrl: book.isbn ? getBookshopAffiliateUrl(book.isbn) : undefined,
+    }, 1);
+    if (ok) {
+      toast.success(`"${book.title}" added to cart!`);
+    }
+  };
   const filterParam = searchParams.get('filter');
   const categoryParam = searchParams.get('category');
   const genreParam = searchParams.get('genre');
@@ -816,7 +835,10 @@ export const Shop = () => {
                   ) : (
                     /* In Store / Only 1 Left / Preorder — our store is primary */
                     <div className={`flex flex-col gap-1.5`}>
-                      <button className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 w-full`}>
+                      <button
+                        onClick={() => handleAddToBag(book)}
+                        className={`flex items-center justify-center space-x-2 bg-primary text-white py-2 rounded-xl text-xs font-bold hover:bg-primary/90 active:scale-[0.98] transition-all shadow-md shadow-primary/10 w-full`}
+                      >
                         <ShoppingBag size={14} />
                         <span>Add to Bag</span>
                       </button>

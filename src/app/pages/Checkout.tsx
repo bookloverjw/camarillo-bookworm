@@ -3,10 +3,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CreditCard, Truck, MapPin, User, Mail, Phone, Lock, CheckCircle2, Loader2, AlertCircle, ShoppingBag, ExternalLink } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
-import { useCart, BOOKSHOP_AFFILIATE_ID } from '@/app/context/CartContext';
+import { useCart, BOOKSHOP_AFFILIATE_ID, SHIPPING_THRESHOLD, STANDARD_SHIPPING } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
-import { confirmPurchase } from '@/lib/inventory';
 import { STORE } from '@/lib/storeConfig';
 import {
   loadSquareSdk,
@@ -26,8 +25,12 @@ const SQUARE_SETTINGS: SquareSettings = {
   environment: 'sandbox', // Change to 'production' for live payments
 };
 
+// Payment processing isn't connected yet - no card is charged and no real
+// order, transaction, or inventory record is created while this is true.
+const IS_DEMO_MODE = SQUARE_SETTINGS.applicationId.includes('REPLACE');
+
 export const Checkout = () => {
-  const { items, subtotal, tax, shipping, total, clearCart, preferredDelivery } = useCart();
+  const { items, subtotal, tax, shipping, total, clearCart, confirmCartPurchase, preferredDelivery, setPreferredDelivery } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -76,7 +79,7 @@ export const Checkout = () => {
 
       try {
         // Check if Square is configured
-        if (SQUARE_SETTINGS.applicationId.includes('REPLACE')) {
+        if (IS_DEMO_MODE) {
           console.warn('Square not configured - using demo mode');
           setIsCardReady(true);
           return;
@@ -149,7 +152,21 @@ export const Checkout = () => {
       }
 
       // Generate order number
-      const newOrderNumber = `CBW-${Date.now().toString(36).toUpperCase()}`;
+      const newOrderNumber = IS_DEMO_MODE
+        ? `TEST-${Date.now().toString(36).toUpperCase()}`
+        : `CBW-${Date.now().toString(36).toUpperCase()}`;
+
+      if (IS_DEMO_MODE) {
+        // Online payment isn't connected yet - simulate the confirmation
+        // screen without writing an order, transaction, or inventory change.
+        await new Promise(resolve => setTimeout(resolve, 600));
+        setOrderNumber(newOrderNumber);
+        setOrderComplete(true);
+        setStep('confirmation');
+        clearCart();
+        toast('This was a test checkout - no payment was charged and no order was placed.');
+        return;
+      }
 
       // Build complete order details to store in notes (JSON)
       // This ensures all info is captured regardless of table schema
@@ -378,15 +395,20 @@ export const Checkout = () => {
       // ============================================
       // STEP 5: Update Inventory (decrement stock)
       // ============================================
-      // Confirm each purchase to decrement inventory_count and release reservations
-      for (const item of items) {
-        try {
-          await confirmPurchase(item.id, item.quantity);
-          console.log(`Inventory updated for book ${item.id}: -${item.quantity}`);
-        } catch (e) {
-          console.error(`Failed to update inventory for book ${item.id}:`, e);
-          // Non-critical - order still proceeds
-        }
+      // Mark the order complete BEFORE confirmCartPurchase empties the cart,
+      // or the empty-cart redirect effect bounces the user off this page.
+      setOrderNumber(newOrderNumber);
+      setOrderComplete(true);
+      setStep('confirmation');
+
+      // confirmCartPurchase consumes each item's reservation and decrements
+      // stock atomically, then clears the cart WITHOUT re-releasing the
+      // reservations (a separate clearCart() here would double-decrement).
+      try {
+        await confirmCartPurchase();
+      } catch (e) {
+        console.error('Failed to update inventory:', e);
+        // Non-critical - order still proceeds
       }
 
       // Save shipping address if user is logged in (skip errors)
@@ -415,11 +437,7 @@ export const Checkout = () => {
         }
       }
 
-      // Success!
-      setOrderNumber(newOrderNumber);
-      setOrderComplete(true);
-      setStep('confirmation');
-      clearCart();
+      // Success! (order state was set above, before the cart emptied)
       toast.success('Order placed successfully!');
 
     } catch (err: any) {
@@ -482,17 +500,35 @@ export const Checkout = () => {
           animate={{ opacity: 1, scale: 1 }}
           className="max-w-md w-full text-center"
         >
-          <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
-            <CheckCircle2 size={40} className="text-green-600" />
-          </div>
-          <h1 className="text-3xl font-serif font-bold text-primary mb-2">Order Confirmed!</h1>
-          <p className="text-muted-foreground mb-6">
-            Thank you for your order. We've sent a confirmation to {shippingInfo.email}.
-          </p>
-          <div className="bg-muted p-4 rounded-xl mb-8">
-            <p className="text-sm text-muted-foreground">Order Number</p>
-            <p className="text-xl font-bold text-primary">{orderNumber}</p>
-          </div>
+          {IS_DEMO_MODE ? (
+            <>
+              <div className="w-20 h-20 bg-yellow-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <AlertCircle size={40} className="text-yellow-600" />
+              </div>
+              <h1 className="text-3xl font-serif font-bold text-primary mb-2">Test Checkout Complete</h1>
+              <p className="text-muted-foreground mb-6">
+                This was a test only — no payment was charged, and no real order was placed. To buy these books, please call the store or visit us in person.
+              </p>
+              <div className="bg-muted p-4 rounded-xl mb-8">
+                <p className="text-sm text-muted-foreground">Test Reference Number</p>
+                <p className="text-xl font-bold text-primary">{orderNumber}</p>
+              </div>
+            </>
+          ) : (
+            <>
+              <div className="w-20 h-20 bg-green-100 rounded-full flex items-center justify-center mx-auto mb-6">
+                <CheckCircle2 size={40} className="text-green-600" />
+              </div>
+              <h1 className="text-3xl font-serif font-bold text-primary mb-2">Order Confirmed!</h1>
+              <p className="text-muted-foreground mb-6">
+                Thank you for your order, placed under {shippingInfo.email}.
+              </p>
+              <div className="bg-muted p-4 rounded-xl mb-8">
+                <p className="text-sm text-muted-foreground">Order Number</p>
+                <p className="text-xl font-bold text-primary">{orderNumber}</p>
+              </div>
+            </>
+          )}
           <div className="space-y-3">
             <Link
               to="/shop"
@@ -500,7 +536,7 @@ export const Checkout = () => {
             >
               Continue Shopping
             </Link>
-            {user && (
+            {user && !IS_DEMO_MODE && (
               <Link
                 to="/account/orders"
                 className="block w-full border border-border py-4 rounded-xl font-bold text-primary hover:bg-muted transition-all"
@@ -517,6 +553,16 @@ export const Checkout = () => {
   return (
     <div className="py-12">
       <div className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8">
+        {/* Demo Mode Notice */}
+        {IS_DEMO_MODE && (
+          <div className="mb-6 p-4 bg-yellow-50 border border-yellow-300 rounded-xl flex items-start space-x-3">
+            <AlertCircle size={20} className="text-yellow-600 shrink-0 mt-0.5" />
+            <p className="text-sm text-yellow-800">
+              <span className="font-bold">Test checkout only.</span> Online payment isn't connected yet — no card will be charged and no order will be placed. Please call the store or visit in person to complete a real purchase.
+            </p>
+          </div>
+        )}
+
         {/* Header */}
         <div className="flex items-center justify-between mb-8">
           <Link to="/cart" className="text-muted-foreground hover:text-primary flex items-center space-x-2">
@@ -592,12 +638,15 @@ export const Checkout = () => {
                             name="delivery"
                             value="standard"
                             checked={shippingInfo.deliveryOption === 'standard'}
-                            onChange={() => setShippingInfo({ ...shippingInfo, deliveryOption: 'standard' })}
+                            onChange={() => {
+                              setShippingInfo({ ...shippingInfo, deliveryOption: 'standard' });
+                              setPreferredDelivery('ship');
+                            }}
                             className="sr-only"
                           />
                           <Truck size={24} className="text-accent mb-2" />
                           <p className="font-bold text-primary">Ship to Me</p>
-                          <p className="text-xs text-muted-foreground">{shipping === 0 ? 'FREE' : `$${shipping.toFixed(2)}`} • 3-5 days</p>
+                          <p className="text-xs text-muted-foreground">{subtotal >= SHIPPING_THRESHOLD ? 'FREE' : `$${STANDARD_SHIPPING.toFixed(2)}`} • 3-5 days</p>
                         </label>
 
                         <label
@@ -612,7 +661,10 @@ export const Checkout = () => {
                             name="delivery"
                             value="pickup"
                             checked={shippingInfo.deliveryOption === 'pickup'}
-                            onChange={() => setShippingInfo({ ...shippingInfo, deliveryOption: 'pickup' })}
+                            onChange={() => {
+                              setShippingInfo({ ...shippingInfo, deliveryOption: 'pickup' });
+                              setPreferredDelivery('pickup');
+                            }}
                             className="sr-only"
                           />
                           <MapPin size={24} className="text-accent mb-2" />
@@ -822,13 +874,23 @@ export const Checkout = () => {
                       )}
 
                       {/* Security Notice */}
-                      <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-xl">
-                        <Lock size={20} className="text-green-600 shrink-0" />
-                        <div>
-                          <p className="text-sm font-bold text-green-800">Secure Payment</p>
-                          <p className="text-xs text-green-700">Your payment is encrypted and secure. We never store your full card details.</p>
+                      {IS_DEMO_MODE ? (
+                        <div className="flex items-start space-x-3 p-4 bg-yellow-50 rounded-xl border border-yellow-200">
+                          <AlertCircle size={20} className="text-yellow-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-yellow-800">Not a Real Payment</p>
+                            <p className="text-xs text-yellow-700">Online checkout isn't wired up yet. Submitting this form will not charge a card or place a real order.</p>
+                          </div>
                         </div>
-                      </div>
+                      ) : (
+                        <div className="flex items-start space-x-3 p-4 bg-green-50 rounded-xl">
+                          <Lock size={20} className="text-green-600 shrink-0" />
+                          <div>
+                            <p className="text-sm font-bold text-green-800">Secure Payment</p>
+                            <p className="text-xs text-green-700">Your payment is encrypted and secure. We never store your full card details.</p>
+                          </div>
+                        </div>
+                      )}
 
                       <button
                         type="submit"
@@ -839,6 +901,11 @@ export const Checkout = () => {
                           <>
                             <Loader2 size={20} className="animate-spin" />
                             <span>Processing...</span>
+                          </>
+                        ) : IS_DEMO_MODE ? (
+                          <>
+                            <AlertCircle size={20} />
+                            <span>Submit Test Checkout (${total.toFixed(2)}, not charged)</span>
                           </>
                         ) : (
                           <>

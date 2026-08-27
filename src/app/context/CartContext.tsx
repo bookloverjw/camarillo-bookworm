@@ -1,7 +1,13 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from './AuthContext';
-import { reserveInventory, releaseInventory, confirmPurchase } from '@/lib/inventory';
+import {
+  reserveInventory,
+  releaseInventory,
+  confirmPurchase,
+  growReservation,
+  releaseReservationQuantity,
+} from '@/lib/inventory';
 import { toast } from 'sonner';
 
 export interface CartItem {
@@ -12,7 +18,8 @@ export interface CartItem {
   price: number;
   quantity: number;
   cover: string;
-  type: 'Hardcover' | 'Paperback' | 'Audiobook';
+  type: 'Hardcover' | 'Paperback' | 'Audiobook' | 'Gift Card';
+  digital?: boolean; // Digital gift cards need no shipping
   bookshopUrl?: string; // For Bookshop.org integration
   reservationId?: string; // For inventory reservation tracking
   deliveryOption?: 'pickup' | 'ship'; // Track delivery preference
@@ -42,8 +49,8 @@ interface CartContextType {
 
 const AFFILIATE_ID = 'camarillobookworm';
 const TAX_RATE = 0.0825; // California sales tax
-const SHIPPING_THRESHOLD = 50; // Free shipping over $50
-const STANDARD_SHIPPING = 5.00;
+export const SHIPPING_THRESHOLD = 50; // Free shipping over $50
+export const STANDARD_SHIPPING = 5.00;
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
 
@@ -58,9 +65,15 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Calculate totals - shipping is FREE for pickup
   const subtotal = items.reduce((sum, item) => sum + item.price * item.quantity, 0);
+  // Gift card purchases are not taxable in California (tax applies when redeemed)
+  const taxableSubtotal = items
+    .filter(item => !item.id.startsWith('gc-'))
+    .reduce((sum, item) => sum + item.price * item.quantity, 0);
   const isPickup = preferredDelivery === 'pickup';
-  const shipping = isPickup ? 0 : (subtotal >= SHIPPING_THRESHOLD ? 0 : items.length > 0 ? STANDARD_SHIPPING : 0);
-  const tax = subtotal * TAX_RATE;
+  // Digital-only carts (e-gift cards) never need shipping
+  const needsShipping = items.some(item => !item.digital);
+  const shipping = isPickup || !needsShipping ? 0 : (subtotal >= SHIPPING_THRESHOLD ? 0 : items.length > 0 ? STANDARD_SHIPPING : 0);
+  const tax = Math.round(taxableSubtotal * TAX_RATE * 100) / 100;
   const total = subtotal + shipping + tax;
   const itemCount = items.reduce((count, item) => count + item.quantity, 0);
 
@@ -123,8 +136,27 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const isGiftCard = item.id.startsWith('gc-');
 
     if (!isGiftCard) {
-      // Reserve inventory
-      const reservation = await reserveInventory(item.id, quantity, user?.id);
+      const existing = items.find(i => i.id === item.id);
+
+      if (existing?.reservationId) {
+        // Grow the existing reservation instead of orphaning a second one
+        const grown = await growReservation(existing.reservationId, quantity);
+        if (!grown.success) {
+          toast.error('Unable to add to cart', {
+            description: grown.error || 'This item may be reserved by another shopper.',
+          });
+          return false;
+        }
+        setItems(currentItems =>
+          currentItems.map(i =>
+            i.id === item.id ? { ...i, quantity: i.quantity + quantity } : i
+          )
+        );
+        return true;
+      }
+
+      // New item (or existing without a server reservation): reserve fresh
+      const reservation = await reserveInventory(item.id, quantity);
 
       if (!reservation.success) {
         toast.error('Unable to add to cart', {
@@ -135,24 +167,21 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       setItems(currentItems => {
         const existingIndex = currentItems.findIndex(i => i.id === item.id);
-
         if (existingIndex >= 0) {
-          // Update quantity of existing item
           const updated = [...currentItems];
           updated[existingIndex] = {
             ...updated[existingIndex],
             quantity: updated[existingIndex].quantity + quantity,
+            reservationId: reservation.reservation?.id,
           };
           return updated;
-        } else {
-          // Add new item with reservation ID
-          return [...currentItems, {
-            ...item,
-            quantity,
-            reservationId: reservation.reservation?.id,
-            deliveryOption,
-          }];
         }
+        return [...currentItems, {
+          ...item,
+          quantity,
+          reservationId: reservation.reservation?.id,
+          deliveryOption,
+        }];
       });
     } else {
       // Gift cards don't need inventory reservation
@@ -160,7 +189,7 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return true;
-  }, [user?.id, setPreferredDelivery]);
+  }, [items, setPreferredDelivery]);
 
   // Remove item from cart and release inventory
   const removeItem = useCallback((id: string) => {
@@ -175,19 +204,47 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
   }, []);
 
-  // Update item quantity
+  // Update item quantity, reserving or releasing the difference
   const updateQuantity = useCallback((id: string, quantity: number) => {
     if (quantity < 1) {
       removeItem(id);
       return;
     }
 
-    setItems(currentItems =>
-      currentItems.map(item =>
-        item.id === id ? { ...item, quantity } : item
-      )
-    );
-  }, [removeItem]);
+    const item = items.find(i => i.id === id);
+    if (!item) return;
+    const delta = quantity - item.quantity;
+    if (delta === 0) return;
+
+    const applyQuantity = () =>
+      setItems(currentItems =>
+        currentItems.map(i => (i.id === id ? { ...i, quantity } : i))
+      );
+
+    // Gift cards and items without server reservations: no stock to manage
+    if (item.id.startsWith('gc-') || !item.reservationId) {
+      applyQuantity();
+      return;
+    }
+
+    if (delta > 0) {
+      // Increasing: reserve the extra copies first, keep quantity on failure
+      growReservation(item.reservationId, delta).then(result => {
+        if (result.success) {
+          applyQuantity();
+        } else {
+          toast.error('Not enough copies available', {
+            description: result.error || 'The remaining copies are reserved by other shoppers.',
+          });
+        }
+      });
+    } else {
+      // Decreasing: release the difference (fire-and-forget)
+      releaseReservationQuantity(item.reservationId, -delta)
+        .catch(err => console.error('Failed to release reservation quantity:', err));
+      applyQuantity();
+    }
+  }, [items, removeItem]);
 
   // Clear entire cart and release all reservations
   const clearCart = useCallback(() => {
@@ -204,16 +261,19 @@ export const CartProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.removeItem(DELIVERY_STORAGE_KEY);
   }, [items]);
 
-  // Confirm purchase - convert all reservations to actual sales
+  // Confirm purchase - convert all reservations to actual sales.
+  // Clears the cart WITHOUT releasing reservations (they were consumed
+  // by confirmPurchase); calling clearCart() here would double-decrement.
   const confirmCartPurchase = useCallback(async () => {
     for (const item of items) {
       if (!item.id.startsWith('gc-')) {
         await confirmPurchase(item.id, item.quantity, item.reservationId);
       }
     }
-    // Clear cart after successful purchase
     setItems([]);
+    setPreferredDeliveryState(null);
     localStorage.removeItem(CART_STORAGE_KEY);
+    localStorage.removeItem(DELIVERY_STORAGE_KEY);
   }, [items]);
 
   // Generate Bookshop.org affiliate cart URL

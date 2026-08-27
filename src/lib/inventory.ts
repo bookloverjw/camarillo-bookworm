@@ -1,5 +1,10 @@
 // Inventory management for Camarillo Bookworm
-// Handles reservation of books when added to cart to prevent overselling
+// Handles reservation of books when added to cart to prevent overselling.
+//
+// All writes go through atomic SECURITY DEFINER functions defined in
+// supabase/rls-lockdown.sql (reserve_book, grow_reservation,
+// release_reservation, release_reservation_quantity, confirm_reservation).
+// The browser has no direct write access to books or inventory_reservations.
 
 import { supabase } from './supabase';
 
@@ -12,221 +17,184 @@ export interface InventoryReservation {
   createdAt: Date;
 }
 
-// Generate a session ID for anonymous users
+// Generate a session ID for anonymous users.
+// localStorage (not sessionStorage) so it matches the cart's persistence:
+// a cart that survives a browser restart keeps reservations addressable.
 export function getSessionId(): string {
-  let sessionId = sessionStorage.getItem('bookworm_session_id');
+  let sessionId = localStorage.getItem('bookworm_session_id');
   if (!sessionId) {
     sessionId = `session_${Date.now()}_${Math.random().toString(36).substring(2, 15)}`;
-    sessionStorage.setItem('bookworm_session_id', sessionId);
+    localStorage.setItem('bookworm_session_id', sessionId);
   }
   return sessionId;
 }
 
-// Reservation timeout in minutes
-const RESERVATION_TIMEOUT_MINUTES = 30;
+// PGRST202 = function not found: the rls-lockdown.sql migration hasn't been
+// applied yet. Degrade to allowing the action (old behavior) instead of
+// bricking the store, but say so in the console.
+function isMigrationMissing(error: { code?: string } | null): boolean {
+  return error?.code === 'PGRST202';
+}
+
+function localReservation(bookId: string, quantity: number): InventoryReservation {
+  return {
+    id: `res_${Date.now()}`,
+    bookId,
+    quantity,
+    sessionId: getSessionId(),
+    expiresAt: new Date(Date.now() + 30 * 60 * 1000),
+    createdAt: new Date(),
+  };
+}
 
 // Reserve inventory when adding to cart
 export async function reserveInventory(
   bookId: string,
-  quantity: number,
-  userId?: string
+  quantity: number
 ): Promise<{ success: boolean; error?: string; reservation?: InventoryReservation }> {
-  const sessionId = userId || getSessionId();
-  const expiresAt = new Date(Date.now() + RESERVATION_TIMEOUT_MINUTES * 60 * 1000);
-
   try {
-    // Check current available inventory
-    const { data: book, error: bookError } = await supabase
-      .from('books')
-      .select('id, title, inventory_count, reserved_count')
-      .eq('id', bookId)
-      .single();
+    const { data, error } = await supabase.rpc('reserve_book', {
+      p_book_id: bookId,
+      p_quantity: quantity,
+      p_session_id: getSessionId(),
+    });
 
-    if (bookError || !book) {
-      // For demo, allow reservation anyway
-      console.log('Book lookup failed, proceeding with demo mode');
-      return {
-        success: true,
-        reservation: {
-          id: `res_${Date.now()}`,
-          bookId,
-          quantity,
-          sessionId,
-          expiresAt,
-          createdAt: new Date(),
-        },
-      };
+    if (error) {
+      if (isMigrationMissing(error)) {
+        console.warn('reserve_book RPC missing - run supabase/rls-lockdown.sql. Allowing without reservation.');
+        return { success: true, reservation: localReservation(bookId, quantity) };
+      }
+      console.error('Reservation failed:', error);
+      return { success: false, error: 'Could not check availability. Please try again.' };
     }
 
-    const availableCount = (book.inventory_count || 0) - (book.reserved_count || 0);
-
-    if (availableCount < quantity) {
-      return {
-        success: false,
-        error: `Only ${availableCount} copies available. ${book.reserved_count || 0} are reserved by other shoppers.`,
-      };
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row || row.error) {
+      return { success: false, error: row?.error || 'This item is unavailable.' };
     }
-
-    // Create reservation
-    const { data: reservation, error: reserveError } = await supabase
-      .from('inventory_reservations')
-      .insert({
-        book_id: bookId,
-        quantity,
-        session_id: sessionId,
-        expires_at: expiresAt.toISOString(),
-        created_at: new Date().toISOString(),
-      })
-      .select()
-      .single();
-
-    if (reserveError) {
-      console.error('Reservation creation failed:', reserveError);
-      // Allow for demo
-      return {
-        success: true,
-        reservation: {
-          id: `res_${Date.now()}`,
-          bookId,
-          quantity,
-          sessionId,
-          expiresAt,
-          createdAt: new Date(),
-        },
-      };
-    }
-
-    // Update reserved count on book
-    await supabase
-      .from('books')
-      .update({
-        reserved_count: (book.reserved_count || 0) + quantity,
-      })
-      .eq('id', bookId);
 
     return {
       success: true,
       reservation: {
-        id: reservation.id,
+        id: row.reservation_id,
         bookId,
         quantity,
-        sessionId,
-        expiresAt,
+        sessionId: getSessionId(),
+        expiresAt: new Date(row.expires_at),
         createdAt: new Date(),
       },
     };
   } catch (error) {
     console.error('Inventory reservation error:', error);
-    // Allow for demo
-    return {
-      success: true,
-      reservation: {
-        id: `res_${Date.now()}`,
-        bookId,
-        quantity,
-        sessionId,
-        expiresAt,
-        createdAt: new Date(),
-      },
-    };
+    return { success: false, error: 'Could not check availability. Please try again.' };
   }
 }
 
-// Release inventory when removing from cart or reservation expires
-export async function releaseInventory(
-  bookId: string,
-  quantity: number,
-  reservationId?: string
+// Grow an existing reservation (cart quantity increase)
+export async function growReservation(
+  reservationId: string,
+  quantity: number
 ): Promise<{ success: boolean; error?: string }> {
-  // Skip if this is a demo/local reservation ID
-  if (reservationId?.startsWith('res_')) {
-    return { success: true };
+  if (reservationId.startsWith('res_')) {
+    return { success: true }; // local/demo reservation, nothing to grow
   }
-
-  const sessionId = getSessionId();
-
   try {
-    // Delete reservation (ignore errors - table may not exist)
-    if (reservationId) {
-      const { error } = await supabase
-        .from('inventory_reservations')
-        .delete()
-        .eq('id', reservationId);
-      if (error) {
-        // Table doesn't exist or other error - just continue
-        return { success: true };
-      }
-    } else {
-      // Delete by session and book
-      await supabase
-        .from('inventory_reservations')
-        .delete()
-        .eq('book_id', bookId)
-        .eq('session_id', sessionId);
+    const { data, error } = await supabase.rpc('grow_reservation', {
+      p_reservation_id: reservationId,
+      p_quantity: quantity,
+    });
+
+    if (error) {
+      if (isMigrationMissing(error)) return { success: true };
+      console.error('Grow reservation failed:', error);
+      return { success: false, error: 'Could not check availability. Please try again.' };
     }
 
-    // Update reserved count on book (ignore if books table doesn't have this column)
-    const { data: book, error: bookError } = await supabase
-      .from('books')
-      .select('reserved_count')
-      .eq('id', bookId)
-      .single();
-
-    if (!bookError && book) {
-      const newReservedCount = Math.max(0, (book.reserved_count || 0) - quantity);
-      await supabase
-        .from('books')
-        .update({ reserved_count: newReservedCount })
-        .eq('id', bookId);
+    const row = Array.isArray(data) ? data[0] : data;
+    if (row?.error) {
+      return { success: false, error: row.error };
     }
-
     return { success: true };
   } catch (error) {
-    // Silently succeed - don't block user for inventory issues
-    return { success: true };
+    console.error('Grow reservation error:', error);
+    return { success: false, error: 'Could not check availability. Please try again.' };
   }
 }
 
-// Confirm purchase - convert reservation to sale
+// Release an entire reservation (item removed from cart)
+export async function releaseInventory(
+  _bookId: string,
+  _quantity: number,
+  reservationId?: string
+): Promise<{ success: boolean }> {
+  if (!reservationId || reservationId.startsWith('res_')) {
+    return { success: true };
+  }
+  try {
+    const { error } = await supabase.rpc('release_reservation', {
+      p_reservation_id: reservationId,
+    });
+    if (error && !isMigrationMissing(error)) {
+      console.error('Release reservation failed:', error);
+    }
+  } catch (error) {
+    console.error('Release reservation error:', error);
+  }
+  return { success: true };
+}
+
+// Release part of a reservation (cart quantity decrease)
+export async function releaseReservationQuantity(
+  reservationId: string,
+  quantity: number
+): Promise<{ success: boolean }> {
+  if (reservationId.startsWith('res_')) {
+    return { success: true };
+  }
+  try {
+    const { error } = await supabase.rpc('release_reservation_quantity', {
+      p_reservation_id: reservationId,
+      p_quantity: quantity,
+    });
+    if (error && !isMigrationMissing(error)) {
+      console.error('Release quantity failed:', error);
+    }
+  } catch (error) {
+    console.error('Release quantity error:', error);
+  }
+  return { success: true };
+}
+
+// Confirm purchase - consume the reservation and decrement stock atomically.
+// Safe to call with a missing/local reservation id: stock is still
+// decremented, and reserved_count is only reduced by what the reservation
+// actually held (so it can never double-decrement).
 export async function confirmPurchase(
   bookId: string,
   quantity: number,
   reservationId?: string
 ): Promise<{ success: boolean; error?: string }> {
   try {
-    // Delete the reservation
-    if (reservationId) {
-      await supabase
-        .from('inventory_reservations')
-        .delete()
-        .eq('id', reservationId);
+    const serverReservationId =
+      reservationId && !reservationId.startsWith('res_') ? reservationId : '';
+    const { error } = await supabase.rpc('confirm_reservation', {
+      p_reservation_id: serverReservationId,
+      p_book_id: bookId,
+      p_quantity: quantity,
+    });
+    if (error && !isMigrationMissing(error)) {
+      console.error('Confirm purchase failed:', error);
+      return { success: false, error: 'Inventory update failed' };
     }
-
-    // Decrease actual inventory and reserved count
-    const { data: book } = await supabase
-      .from('books')
-      .select('inventory_count, reserved_count')
-      .eq('id', bookId)
-      .single();
-
-    if (book) {
-      await supabase
-        .from('books')
-        .update({
-          inventory_count: Math.max(0, (book.inventory_count || 0) - quantity),
-          reserved_count: Math.max(0, (book.reserved_count || 0) - quantity),
-        })
-        .eq('id', bookId);
-    }
-
     return { success: true };
   } catch (error) {
     console.error('Confirm purchase error:', error);
-    return { success: true }; // Don't block checkout
+    return { success: false, error: 'Inventory update failed' };
   }
 }
 
-// Check if a book is available
+// Check if a book is available (read-only; the reserve_book RPC is the
+// authoritative gate - this is just for UI display).
 export async function checkAvailability(
   bookId: string,
   requestedQuantity: number = 1
@@ -239,8 +207,8 @@ export async function checkAvailability(
       .single();
 
     if (error || !book) {
-      // For demo, assume available
-      return { available: true, inStock: 10, reserved: 0 };
+      // Display-only fallback; reserve_book still enforces the real limit
+      return { available: true, inStock: 0, reserved: 0 };
     }
 
     const inStock = book.inventory_count || 0;
@@ -262,26 +230,17 @@ export async function checkAvailability(
     return { available: true, inStock, reserved };
   } catch (error) {
     console.error('Check availability error:', error);
-    return { available: true, inStock: 10, reserved: 0 };
+    return { available: true, inStock: 0, reserved: 0 };
   }
 }
 
-// Clean up expired reservations (would run on server/cron)
+// Clean up expired reservations (also scheduled server-side via pg_cron;
+// see supabase/rls-lockdown.sql)
 export async function cleanupExpiredReservations(): Promise<void> {
   try {
-    const now = new Date().toISOString();
-
-    // Get expired reservations
-    const { data: expired } = await supabase
-      .from('inventory_reservations')
-      .select('*')
-      .lt('expires_at', now);
-
-    if (expired && expired.length > 0) {
-      // Release each reservation
-      for (const res of expired) {
-        await releaseInventory(res.book_id, res.quantity, res.id);
-      }
+    const { error } = await supabase.rpc('cleanup_expired_reservations');
+    if (error && !isMigrationMissing(error)) {
+      console.error('Cleanup expired reservations error:', error);
     }
   } catch (error) {
     console.error('Cleanup expired reservations error:', error);

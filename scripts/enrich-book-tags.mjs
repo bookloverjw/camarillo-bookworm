@@ -22,7 +22,16 @@
 
 // --- Configuration ---
 const SUPABASE_URL = 'https://lildbdxabljkoynvpflu.supabase.co';
-const SUPABASE_KEY = 'sb_publishable_h_B4nBpI9hTOycnv4Fj6Tw_epMD62aO';
+// Writing to books now requires the service-role key (rls-lockdown.sql
+// removed public UPDATE on books). Get it from the Supabase dashboard
+// (Settings > API) and pass it via env - NEVER commit it:
+//   SUPABASE_SERVICE_ROLE_KEY=... node scripts/enrich-book-tags.mjs ...
+const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+if (!SUPABASE_KEY) {
+  console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable.');
+  console.error('Book updates need the service-role key since RLS lockdown.');
+  process.exit(1);
+}
 const ISBNDB_API_KEY = process.env.ISBNDB_API_KEY;
 
 const useGoogleBooks = process.argv.includes('--google-books');
