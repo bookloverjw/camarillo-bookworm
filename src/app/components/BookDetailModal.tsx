@@ -149,7 +149,7 @@ export const BookDetailModal: React.FC = () => {
                         isbn={book.isbn}
                         title={book.title}
                         author={book.author}
-                        className="w-full h-full object-cover"
+                        className="w-full h-full object-contain"
                       />
                     </div>
                   </div>
@@ -321,7 +321,7 @@ export const BookDetailModal: React.FC = () => {
                               isbn={item.isbn}
                               title={item.title}
                               author={item.author}
-                              className="w-full h-full object-cover"
+                              className="w-full h-full object-contain"
                             />
                           </div>
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-1 group-hover:text-accent transition-colors">

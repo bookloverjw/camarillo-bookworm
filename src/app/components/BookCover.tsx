@@ -20,9 +20,29 @@ interface BookCoverProps {
   title: string;
   author?: string;
   className?: string;
+  /**
+   * Classes for the drawn placeholder. It is a div, not an img, so where the
+   * caller lets the image size itself (the book page) the placeholder still
+   * needs a box of its own or it collapses to nothing.
+   */
+  placeholderClassName?: string;
+  /**
+   * Load immediately instead of lazily. Needed wherever the image sizes
+   * itself (the book page): an unloaded h-auto image is zero pixels tall,
+   * and a lazy image in a zero-height box never comes into view to load.
+   */
+  eager?: boolean;
 }
 
-export const BookCover = ({ src, isbn, title, author, className }: BookCoverProps) => {
+export const BookCover = ({
+  src,
+  isbn,
+  title,
+  author,
+  className,
+  placeholderClassName,
+  eager = false,
+}: BookCoverProps) => {
   const sources = [src, isbn ? openLibraryCover(isbn) : null].filter(
     (url): url is string => Boolean(url && url.trim()),
   );
@@ -34,7 +54,13 @@ export const BookCover = ({ src, isbn, title, author, className }: BookCoverProp
   const index = attempt.identity === identity ? attempt.index : 0;
 
   if (index >= sources.length) {
-    return <PlaceholderCover title={title} author={author} className={className} />;
+    return (
+      <PlaceholderCover
+        title={title}
+        author={author}
+        className={placeholderClassName ?? className}
+      />
+    );
   }
 
   return (
@@ -42,7 +68,7 @@ export const BookCover = ({ src, isbn, title, author, className }: BookCoverProp
       src={sources[index]}
       alt={title}
       className={className}
-      loading="lazy"
+      loading={eager ? 'eager' : 'lazy'}
       onError={() => setAttempt({ identity, index: index + 1 })}
     />
   );

@@ -61,7 +61,7 @@ export const WishlistPage = () => {
               className={`group bg-white rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all ${viewMode === 'list' ? 'flex items-center p-4' : ''}`}
             >
               <div className={`relative ${viewMode === 'list' ? 'w-24 h-32 shrink-0' : 'aspect-[2/3]'}`}>
-                <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-cover" />
+                <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
                 <button 
                   onClick={() => removeItem(book.id)}
                   className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"

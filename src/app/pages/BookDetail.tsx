@@ -259,7 +259,8 @@ export const BookDetail = () => {
               animate={{ opacity: 1, x: 0 }}
               className="max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28"
             >
-              <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-auto aspect-[2/3] object-cover" />
+              <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author}
+                className="w-full h-auto rounded" placeholderClassName="w-full aspect-[2/3] rounded" eager />
               {book.isStaffPick && (
                 <div className="absolute top-4 left-4 bg-accent text-white font-bold px-3 py-1.5 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
                   <Quote size={12} className="mr-1.5 fill-white" /> Staff Pick
@@ -504,7 +505,7 @@ export const BookDetail = () => {
             {recommendations.map(item => (
               <Link key={item.id} to={`/book/${item.id}`} className="group">
                 <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2">
-                  <BookCover src={item.cover} isbn={item.isbn} title={item.title} author={item.author} className="w-full h-full object-cover" />
+                  <BookCover src={item.cover} isbn={item.isbn} title={item.title} author={item.author} className="w-full h-full object-contain" />
                 </div>
                 <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>

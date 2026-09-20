@@ -114,7 +114,7 @@ export const StaffPicks = () => {
                       </div>
                       <div className="w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-2">
                         <Link to={`/book/${book.id}`}>
-                          <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-cover" />
+                          <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
                         </Link>
                       </div>
                       <div className="flex-1 py-2">

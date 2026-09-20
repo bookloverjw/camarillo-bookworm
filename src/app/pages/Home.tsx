@@ -60,7 +60,7 @@ const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
                 isbn={book.isbn}
                 title={book.title}
                 author={book.author}
-                className="w-full h-full object-cover"
+                className="w-full h-full object-contain"
               />
             </div>
             <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">

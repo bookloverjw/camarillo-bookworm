@@ -340,7 +340,7 @@ const EventDetailPanel: React.FC<{
             </div>
             <div className="flex items-start gap-3">
               <div className="w-12 aspect-[2/3] shrink-0 rounded shadow-sm overflow-hidden">
-                <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-cover" />
+                <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-contain" />
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-serif font-bold text-sm text-primary line-clamp-2 leading-tight mb-0.5">{featuredBook.title}</h4>
@@ -874,7 +874,7 @@ END:VCALENDAR`;
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Featured Book</p>
                       <div className="flex items-start gap-3">
                         <div className="w-14 aspect-[2/3] shrink-0 rounded shadow-sm overflow-hidden">
-                          <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-cover" />
+                          <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-contain" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-2 leading-tight mb-0.5">{featuredBook.title}</h4>
