@@ -1,11 +1,12 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar as CalendarIcon, List as ListIcon, MapPin, Clock, ChevronLeft, ChevronRight, Share2, Plus, ArrowRight, X, User, Mail, Phone, Users, Loader2, CheckCircle, BookOpen } from 'lucide-react';
-import { EVENTS as MOCK_EVENTS, BOOKS } from '@/app/utils/data';
+import { BOOKS } from '@/app/utils/data';
 import type { Event } from '@/app/utils/data';
-import { fetchGoogleCalendarEvents } from '@/lib/googleCalendar';
+import { getEventsByMonth } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
@@ -84,7 +85,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ event, onClose })
           </div>
           <h2 className="text-2xl font-serif font-bold text-primary mb-2">You're Registered!</h2>
           <p className="text-muted-foreground mb-6">
-            We've sent a confirmation email to {formData.email}. We look forward to seeing you!
+            You're on the list — we look forward to seeing you! Questions? Call us at (805) 482-1384.
           </p>
           <div className="bg-muted p-4 rounded-xl mb-6">
             <p className="text-sm font-bold text-primary">{event.title}</p>
@@ -339,7 +340,7 @@ const EventDetailPanel: React.FC<{
             </div>
             <div className="flex items-start gap-3">
               <div className="w-12 aspect-[2/3] shrink-0 rounded shadow-sm overflow-hidden">
-                <ImageWithFallback src={featuredBook.cover} alt={featuredBook.title} className="w-full h-full object-cover" />
+                <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-cover" />
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="font-serif font-bold text-sm text-primary line-clamp-2 leading-tight mb-0.5">{featuredBook.title}</h4>
@@ -384,30 +385,30 @@ const EventDetailPanel: React.FC<{
 
 export const Events = () => {
   const [viewMode, setViewMode] = useState<'list' | 'calendar'>('calendar');
-  const [currentMonth, setCurrentMonth] = useState(new Date(2026, 1, 1)); // Feb 2026
+  const [currentMonth, setCurrentMonth] = useState(() => {
+    const now = new Date();
+    return new Date(now.getFullYear(), now.getMonth(), 1);
+  });
   const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
   const [registerEvent, setRegisterEvent] = useState<Event | null>(null);
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
-  const [isLoadingEvents, setIsLoadingEvents] = useState(false);
+  const [events, setEvents] = useState<Event[]>([]);
+  const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const today = new Date();
 
-  // Fetch events from Google Calendar when month changes
+  // Fetch events from Supabase when the month changes. Months with no
+  // events show an honest empty state - never placeholder events.
   useEffect(() => {
     let cancelled = false;
     const loadEvents = async () => {
       setIsLoadingEvents(true);
       try {
-        const y = currentMonth.getFullYear();
-        const m = currentMonth.getMonth();
-        const timeMin = new Date(y, m, 1).toISOString();
-        const timeMax = new Date(y, m + 1, 0, 23, 59, 59).toISOString();
-        const gcalEvents = await fetchGoogleCalendarEvents(timeMin, timeMax);
+        const monthEvents = await getEventsByMonth(currentMonth.getFullYear(), currentMonth.getMonth());
         if (!cancelled) {
-          setEvents(gcalEvents.length > 0 ? gcalEvents : MOCK_EVENTS);
+          setEvents(monthEvents);
         }
       } catch {
         if (!cancelled) {
-          setEvents(MOCK_EVENTS);
+          setEvents([]);
         }
       } finally {
         if (!cancelled) {
@@ -442,14 +443,30 @@ export const Events = () => {
   };
 
   const handleAddToCalendar = (event: Event) => {
-    const startDate = new Date(`${event.date}T${event.time.replace(' PM', ':00').replace(' AM', ':00')}`);
+    // Parse "7:00 PM" properly - the old string surgery dropped the meridiem,
+    // filing every evening event at 7 AM (and crashing Safari's date parser)
+    const timeMatch = event.time.match(/(\d{1,2}):(\d{2})\s*(AM|PM)?/i);
+    let hours = timeMatch ? parseInt(timeMatch[1], 10) : 12;
+    const minutes = timeMatch ? parseInt(timeMatch[2], 10) : 0;
+    const meridiem = timeMatch?.[3]?.toUpperCase();
+    if (meridiem === 'PM' && hours < 12) hours += 12;
+    if (meridiem === 'AM' && hours === 12) hours = 0;
+
+    const [y, mo, d] = event.date.split('-').map(Number);
+    const startDate = new Date(y, mo - 1, d, hours, minutes);
     const endDate = new Date(startDate.getTime() + 2 * 60 * 60 * 1000);
+
+    // Floating local time (no trailing Z): the event is at the store,
+    // so calendars should show its local wall-clock time
+    const toIcs = (dt: Date) =>
+      `${dt.getFullYear()}${String(dt.getMonth() + 1).padStart(2, '0')}${String(dt.getDate()).padStart(2, '0')}` +
+      `T${String(dt.getHours()).padStart(2, '0')}${String(dt.getMinutes()).padStart(2, '0')}00`;
 
     const icsContent = `BEGIN:VCALENDAR
 VERSION:2.0
 BEGIN:VEVENT
-DTSTART:${startDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
-DTEND:${endDate.toISOString().replace(/[-:]/g, '').split('.')[0]}Z
+DTSTART:${toIcs(startDate)}
+DTEND:${toIcs(endDate)}
 SUMMARY:${event.title}
 DESCRIPTION:${event.description}
 LOCATION:Camarillo Bookworm - 93 E Daily Dr, Camarillo, CA 93010
@@ -722,6 +739,14 @@ END:VCALENDAR`;
             </div>
 
             {/* Upcoming events list below calendar */}
+            {!isLoadingEvents && eventsThisMonth.length === 0 && (
+              <div className="mt-10 text-center py-10 bg-white rounded-2xl border border-border">
+                <p className="text-muted-foreground">
+                  No events scheduled for {currentMonth.toLocaleDateString('en-US', { month: 'long' })} —
+                  check another month, or call us at (805) 482-1384.
+                </p>
+              </div>
+            )}
             {eventsThisMonth.length > 0 && (
               <div className="mt-10">
                 <h3 className="text-lg font-serif font-bold text-primary mb-4">
@@ -773,6 +798,18 @@ END:VCALENDAR`;
             exit={{ opacity: 0, y: -20 }}
             className="space-y-6"
           >
+            {!isLoadingEvents && events.length === 0 && (
+              <div className="text-center py-16 bg-white rounded-2xl border border-border">
+                <CalendarIcon size={40} className="mx-auto text-muted-foreground mb-4" />
+                <h3 className="text-xl font-serif font-bold text-primary mb-2">
+                  No events scheduled for {currentMonth.toLocaleDateString('en-US', { month: 'long' })}
+                </h3>
+                <p className="text-muted-foreground max-w-md mx-auto">
+                  Check another month, or call us at (805) 482-1384 — we're always
+                  planning author readings, story times, and book clubs.
+                </p>
+              </div>
+            )}
             {events.map((event) => {
               const featuredBook = BOOKS.find(b => b.id === event.featuredBookId);
               const eventDate = new Date(event.date + 'T00:00:00');
@@ -837,7 +874,7 @@ END:VCALENDAR`;
                       <p className="text-[10px] font-bold uppercase tracking-widest text-muted-foreground mb-3">Featured Book</p>
                       <div className="flex items-start gap-3">
                         <div className="w-14 aspect-[2/3] shrink-0 rounded shadow-sm overflow-hidden">
-                          <ImageWithFallback src={featuredBook.cover} alt={featuredBook.title} className="w-full h-full object-cover" />
+                          <BookCover src={featuredBook.cover} isbn={featuredBook.isbn} title={featuredBook.title} author={featuredBook.author} className="w-full h-full object-cover" />
                         </div>
                         <div className="flex-1 min-w-0">
                           <h4 className="font-serif font-bold text-sm text-primary line-clamp-2 leading-tight mb-0.5">{featuredBook.title}</h4>

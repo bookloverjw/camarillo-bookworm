@@ -55,6 +55,11 @@ export interface SupabaseBook {
   is_limited_preorder: boolean;
   preorder_cutoff_date: string | null;
   total_sold: number;
+  // Sales counters kept up to date by the POS sync. total_sold above is not
+  // one of them - it isn't a column on the table - so ranking reads these.
+  sales_mtd: number | null;
+  sales_ytd: number | null;
+  sales_past12: number | null;
   tags: string[] | null;
   created_at: string;
   updated_at: string;
@@ -72,7 +77,9 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     subtitle,
     author: sb.author_last ? sb.author : '',
     price: sb.price || 0,
-    cover: sb.cover_url || 'https://images.unsplash.com/photo-1538981457319-5e459479f9d0?auto=format&fit=crop&q=80&w=600',
+    // No stock photo stand-in: BookCover falls back to Open Library by ISBN,
+    // then to a drawn placeholder carrying the book's own title.
+    cover: sb.cover_url || '',
     category: (sb.category as Book['category']) || 'Fiction',
     genre: sb.genre || 'Literary',
     type: (sb.book_type as Book['type']) || 'Paperback',
@@ -457,6 +464,7 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
 
     let books = data.map(mapSupabaseBookToBook);
     books = books.filter(b => b.status !== 'Unavailable');
+    books = books.filter(b => isRealBook(b.isbn));
     books = filterExpiredLimitedPreorders(books);
     books = applyBestsellerCategoryFilter(books, options?.bestsellerCategory);
 
@@ -487,6 +495,25 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
  *   3. books.total_sold column (static counter from POS sync)
  *   4. Alphabetical fallback
  */
+/**
+ * Sidelines - stickers, totes, bookmarks, "Misc Charge" - live in the books
+ * table too, carrying UPCs or internal SKUs rather than ISBNs. They outsell
+ * most actual books, so a bestseller list has to leave them out.
+ */
+function isRealBook(isbn?: string) {
+  return !!isbn && /^97[89]\d{10}$/.test(isbn);
+}
+
+/** The POS counter that best matches the period being asked for. */
+function salesColumnForPeriod(period?: BestsellerPeriod): 'sales_mtd' | 'sales_ytd' | 'sales_past12' {
+  switch (period) {
+    case 'month': return 'sales_mtd';
+    case 'year': return 'sales_ytd';
+    // No quarterly counter is synced; trailing twelve months is the closest.
+    default: return 'sales_past12';
+  }
+}
+
 async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
     const days = periodToDays(options?.bestsellerPeriod);
@@ -501,38 +528,42 @@ async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book
 
     let books = data.map(mapSupabaseBookToBook);
     books = books.filter(b => b.status !== 'Unavailable');
+    books = books.filter(b => isRealBook(b.isbn));
     books = filterExpiredLimitedPreorders(books);
     books = applyBestsellerCategoryFilter(books, options?.bestsellerCategory);
 
-    // Try ranking from transaction_items (book_id)
+    // Rank on the most specific signal we have, then break ties with the
+    // POS counters, then by title. Only a handful of titles sell inside any
+    // given period window, so without the counters as a tiebreaker the list
+    // is a few real bestsellers followed by everything else alphabetically.
+    const salesColumn = salesColumnForPeriod(options?.bestsellerPeriod);
+    const posSales = new Map(data.map((d: SupabaseBook) => [d.id, Number(d[salesColumn]) || 0]));
+    // Month-to-date is thin - only a few hundred titles sell in any given
+    // month - so trailing-twelve-month sales break the remaining ties. Without
+    // it a "bestsellers this month" list is four books and then the alphabet.
+    const trailingSales = new Map(data.map((d: SupabaseBook) => [d.id, Number(d.sales_past12) || 0]));
+
     const txSales = await getSalesFromTransactions(days);
-    if (txSales) {
-      books.sort((a, b) => {
-        const diff = (txSales[b.id] || 0) - (txSales[a.id] || 0);
-        return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
-      });
-    } else {
-      // Try ranking from order_items (isbn)
-      const orderSales = await getSalesFromOrders(days);
-      if (orderSales) {
-        books.sort((a, b) => {
-          const diff = (orderSales[b.isbn || ''] || 0) - (orderSales[a.isbn || ''] || 0);
-          return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
-        });
-      } else {
-        // Fall back to total_sold column (may be all zeros)
-        const rawById = new Map(data.map((d: SupabaseBook) => [d.id, d.total_sold || 0]));
-        const hasAnySales = [...rawById.values()].some(v => v > 0);
-        if (hasAnySales) {
-          books.sort((a, b) => {
-            const diff = (rawById.get(b.id) || 0) - (rawById.get(a.id) || 0);
-            return diff !== 0 ? diff : sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
-          });
-        } else {
-          books.sort((a, b) => sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title)));
-        }
-      }
-    }
+    const orderSales = txSales ? null : await getSalesFromOrders(days);
+
+    const periodSales = (book: Book) => {
+      if (txSales) return txSales[book.id] || 0;
+      if (orderSales) return orderSales[book.isbn || ''] || 0;
+      return 0;
+    };
+
+    books.sort((a, b) => {
+      const byPeriod = periodSales(b) - periodSales(a);
+      if (byPeriod !== 0) return byPeriod;
+
+      const byCounter = (posSales.get(b.id) || 0) - (posSales.get(a.id) || 0);
+      if (byCounter !== 0) return byCounter;
+
+      const byTrailingYear = (trailingSales.get(b.id) || 0) - (trailingSales.get(a.id) || 0);
+      if (byTrailingYear !== 0) return byTrailingYear;
+
+      return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
+    });
 
     if (options?.hideStaleHardcovers) {
       books = await filterStaleHardcovers(books);

@@ -5,6 +5,7 @@ import { STAFF, BOOKS, type StaffMember } from '@/app/utils/data';
 import { getStaffMembersWithPicks, type StaffMemberWithPicks } from '@/lib/staffService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
 
 export const StaffPicks = () => {
   const [staffWithPicks, setStaffWithPicks] = useState<StaffMemberWithPicks[] | null>(null);
@@ -113,7 +114,7 @@ export const StaffPicks = () => {
                       </div>
                       <div className="w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-2">
                         <Link to={`/book/${book.id}`}>
-                          <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                          <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-cover" />
                         </Link>
                       </div>
                       <div className="flex-1 py-2">

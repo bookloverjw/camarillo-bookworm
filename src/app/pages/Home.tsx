@@ -2,16 +2,17 @@ import React, { useRef, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router';
-import { BOOKS, EVENTS as MOCK_EVENTS, MERCH, STAFF as MOCK_STAFF, type Book, type Event, type StaffMember } from '@/app/utils/data';
+import { BookCover } from '@/app/components/BookCover';
+import { type Book, type Event } from '@/app/utils/data';
 import { getBooks, getStaffPicks, getBestsellers } from '@/lib/bookService';
-import { getStaffMembers } from '@/lib/staffService';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
+import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 
 // Horizontal scrolling book carousel component - Elliott Bay style
-const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) => {
+const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { openModal } = useBookModal();
 
@@ -54,9 +55,11 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
             className="flex-shrink-0 w-[140px] group/book text-left cursor-pointer"
           >
             <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md">
-              <ImageWithFallback
+              <BookCover
                 src={book.cover}
-                alt={book.title}
+                isbn={book.isbn}
+                title={book.title}
+                author={book.author}
                 className="w-full h-full object-cover"
               />
             </div>
@@ -79,10 +82,11 @@ const BookCarousel = ({ books, title }: { books: typeof BOOKS; title: string }) 
 
 export const Home = () => {
   const [activeFilter, setActiveFilter] = useState('Fiction');
-  const [books, setBooks] = useState<Book[]>(BOOKS);
+  const { email, setEmail, isSubscribing, subscribe } = useNewsletterSignup('home');
+  // Start empty and fill from Supabase - never show placeholder content
+  const [books, setBooks] = useState<Book[]>([]);
   const [bestsellers, setBestsellers] = useState<Book[]>([]);
-  const [events, setEvents] = useState<Event[]>(MOCK_EVENTS);
-  const [staff, setStaff] = useState<StaffMember[]>(MOCK_STAFF);
+  const [events, setEvents] = useState<Event[]>([]);
 
   // Load data from Supabase on mount
   useEffect(() => {
@@ -119,29 +123,14 @@ export const Home = () => {
       }
     }
 
-    async function loadStaff() {
-      try {
-        const data = await getStaffMembers();
-        if (data.length > 0) {
-          setStaff(data);
-        }
-      } catch (error) {
-        console.error('Failed to fetch staff:', error);
-      }
-    }
-
     loadBooks();
     loadBestsellers();
     loadEvents();
-    loadStaff();
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
-  const newReleases = books.filter(b => b.status !== 'Preorder').slice(0, 10);
   const preorders = books.filter(b => b.status === 'Preorder');
   const staffPicks = books.filter(b => b.isStaffPick);
-  const staffPick = books.find(b => b.isStaffPick);
-  const featuredStaff = staff.find(s => s.topPicks.includes(staffPick?.id || ''));
 
   return (
     <div className="pb-16">
@@ -247,14 +236,15 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Staff Picks Section */}
+      {/* Staff Picks Section - hidden until real picks load */}
+      {staffPicks.length > 0 && (
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
         <div className="text-center mb-10">
           <h2 className="section-title">Staff Picks</h2>
           <p className="text-muted-foreground mt-4">Hand-selected favorites from our team</p>
         </div>
 
-        <BookCarousel books={staffPicks.length > 0 ? staffPicks : BOOKS.slice(0, 8)} title="Staff Picks" />
+        <BookCarousel books={staffPicks} title="Staff Picks" />
 
         <div className="mt-8 text-center">
           <Link to="/staff-picks" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
@@ -262,8 +252,10 @@ export const Home = () => {
           </Link>
         </div>
       </section>
+      )}
 
-      {/* Events Calendar Preview - Clean white cards */}
+      {/* Events Calendar Preview - hidden until real events load */}
+      {events.length > 0 && (
       <section className="bg-primary py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
@@ -282,12 +274,13 @@ export const Home = () => {
                 <div className="flex-shrink-0 w-16 text-center">
                   <div className="bg-primary text-white rounded-t px-2 py-1">
                     <span className="text-xs font-medium uppercase">
-                      {new Date(event.date).toLocaleDateString('en-US', { month: 'short' })}
+                      {/* T00:00:00 forces local parsing - bare dates parse as UTC and show the previous day */}
+                      {new Date(event.date + 'T00:00:00').toLocaleDateString('en-US', { month: 'short' })}
                     </span>
                   </div>
                   <div className="bg-muted rounded-b px-2 py-2">
                     <span className="text-2xl font-serif text-primary">
-                      {new Date(event.date).getDate()}
+                      {new Date(event.date + 'T00:00:00').getDate()}
                     </span>
                   </div>
                 </div>
@@ -313,6 +306,7 @@ export const Home = () => {
           </div>
         </div>
       </section>
+      )}
 
       {/* Bookshop.org & Libro.fm Integration Banner */}
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
@@ -359,17 +353,22 @@ export const Home = () => {
             <p className="text-muted-foreground mb-6">
               Get monthly book recommendations, event invites, and exclusive offers.
             </p>
-            <form className="flex gap-2 max-w-md mx-auto">
+            <form onSubmit={subscribe} className="flex gap-2 max-w-md mx-auto">
               <input
                 type="email"
+                required
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
                 placeholder="Your email address"
+                aria-label="Email address"
                 className="flex-1 px-4 py-3 rounded border border-border bg-white text-sm outline-none focus:border-primary"
               />
               <button
                 type="submit"
-                className="bg-primary text-white px-6 py-3 rounded text-sm font-medium hover:bg-primary/90 transition-colors"
+                disabled={isSubscribing}
+                className="bg-primary text-white px-6 py-3 rounded text-sm font-medium hover:bg-primary/90 transition-colors disabled:opacity-50"
               >
-                Subscribe
+                {isSubscribing ? 'Subscribing…' : 'Subscribe'}
               </button>
             </form>
           </div>
