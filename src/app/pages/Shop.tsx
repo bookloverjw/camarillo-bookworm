@@ -8,7 +8,7 @@ import { getBooks, getBooksCount, type SortOption, type BestsellerPeriod, type B
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
-import { buysThroughBookshop } from '@/lib/features';
+import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { toast } from 'sonner';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 
@@ -314,15 +314,18 @@ const FilterContent = ({
         <div>
           <p className="text-xs font-bold uppercase tracking-[0.2em] text-muted-foreground mb-4">Availability</p>
           <div className="space-y-3">
-            <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
-                checked={availabilityFilters.inStock}
-                onChange={(e) => setAvailabilityFilters({ ...availabilityFilters, inStock: e.target.checked })}
-              />
-              <span className="group-hover:text-primary transition-colors">In Stock at Store</span>
-            </label>
+            {/* Filtering by shelf stock needs stock figures we can trust. */}
+            {INVENTORY_STATUS_IS_LIVE && (
+              <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
+                <input
+                  type="checkbox"
+                  className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
+                  checked={availabilityFilters.inStock}
+                  onChange={(e) => setAvailabilityFilters({ ...availabilityFilters, inStock: e.target.checked })}
+                />
+                <span className="group-hover:text-primary transition-colors">In Stock at Store</span>
+              </label>
+            )}
             <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
               <input
                 type="checkbox"
@@ -801,9 +804,11 @@ export const Shop = () => {
                 <Link to={`/book/${book.id}`} className={viewMode === 'list' ? 'w-full sm:w-28 shrink-0' : 'block'}>
                   <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
                     <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
-                    <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
-                      {book.status}
-                    </div>
+                    {INVENTORY_STATUS_IS_LIVE && (
+                      <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
+                        {book.status}
+                      </div>
+                    )}
                   </div>
                 </Link>
 

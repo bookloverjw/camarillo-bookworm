@@ -1,4 +1,5 @@
 import React, { useRef, useState, useEffect } from 'react';
+import { INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { motion } from 'framer-motion';
 import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, ExternalLink, Headphones, TrendingUp } from 'lucide-react';
 import { Link } from 'react-router';
@@ -68,7 +69,7 @@ const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
             </h3>
             {book.author && <p className="text-xs text-muted-foreground mb-1">{book.author}</p>}
             <p className="text-sm font-medium text-primary">${book.price.toFixed(2)}</p>
-            {(book.status === 'In Store' || book.status === 'Only 1 Left') && (
+            {INVENTORY_STATUS_IS_LIVE && (book.status === 'In Store' || book.status === 'Only 1 Left') && (
               <p className={`text-xs font-medium mt-1 ${book.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
                 {book.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
               </p>

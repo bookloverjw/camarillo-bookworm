@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
-import { buysThroughBookshop, bookshopBuyNote } from '@/lib/features';
+import { buysThroughBookshop, bookshopBuyNote, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
@@ -288,12 +288,14 @@ export const BookDetail = () => {
             </div>
 
             <div className="p-6 bg-muted/50 rounded-xl border border-border space-y-6">
-              <div className="flex items-center space-x-3">
-                {getStatusIcon(book.status)}
-                <span className={`font-bold text-sm ${book.status === 'In Store' ? 'text-green-700' : book.status === 'Only 1 Left' ? 'text-amber-700' : 'text-primary'}`}>
-                  {getStatusMessage(book.status)}
-                </span>
-              </div>
+              {INVENTORY_STATUS_IS_LIVE && (
+                <div className="flex items-center space-x-3">
+                  {getStatusIcon(book.status)}
+                  <span className={`font-bold text-sm ${book.status === 'In Store' ? 'text-green-700' : book.status === 'Only 1 Left' ? 'text-amber-700' : 'text-primary'}`}>
+                    {getStatusMessage(book.status)}
+                  </span>
+                </div>
+              )}
 
               {/* Purchase buttons — priority: pickup > ship > bookshop */}
               {book.status === 'Preorder Closed' || book.status === 'Unavailable' ? (

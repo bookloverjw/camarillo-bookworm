@@ -5,7 +5,7 @@ import { BOOKS } from '@/app/utils/data';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
-import { STORE_ORDERING_ENABLED } from '@/lib/features';
+import { STORE_ORDERING_ENABLED, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
 
 export const WishlistPage = () => {
@@ -79,17 +79,19 @@ export const WishlistPage = () => {
                   
                   <div className="flex items-center space-x-2 mb-4">
                     <span className="text-lg font-bold text-primary">${book.price.toFixed(2)}</span>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest ${
-                      book.status === 'In Store' ? 'text-green-600' :
-                      book.status === 'Only 1 Left' ? 'text-amber-600' :
-                      book.status === 'Available to Order' ? 'text-blue-600' :
-                      'text-muted-foreground'
-                    }`}>
-                      {book.status === 'In Store' ? 'In Store' :
-                       book.status === 'Only 1 Left' ? 'Only 1 Left' :
-                       book.status === 'Available to Order' ? 'Available to Order' :
-                       book.status}
-                    </span>
+                    {INVENTORY_STATUS_IS_LIVE && (
+                      <span className={`text-[10px] font-bold uppercase tracking-widest ${
+                        book.status === 'In Store' ? 'text-green-600' :
+                        book.status === 'Only 1 Left' ? 'text-amber-600' :
+                        book.status === 'Available to Order' ? 'text-blue-600' :
+                        'text-muted-foreground'
+                      }`}>
+                        {book.status === 'In Store' ? 'In Store' :
+                         book.status === 'Only 1 Left' ? 'Only 1 Left' :
+                         book.status === 'Available to Order' ? 'Available to Order' :
+                         book.status}
+                      </span>
+                    )}
                   </div>
                 </div>
 
