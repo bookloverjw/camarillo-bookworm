@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
+import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
@@ -22,6 +23,8 @@ export const BookDetail = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
+
+  useDocumentTitle(book ? `${book.title} by ${book.author}` : null);
 
   // Load book from database
   useEffect(() => {

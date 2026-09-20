@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
 import { STORE } from '@/lib/storeConfig';
+import { usePageTracking } from '@/app/hooks/usePageTracking';
 
 // Context & Auth
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
@@ -522,6 +523,13 @@ const ScrollToTop = () => {
   return null;
 };
 
+// Report route changes to Google Analytics (see src/lib/analytics.ts)
+const AnalyticsTracker = () => {
+  usePageTracking();
+
+  return null;
+};
+
 export default function App() {
   return (
     <ThemeProvider>
@@ -530,6 +538,7 @@ export default function App() {
         <BookModalProvider>
         <HashRouter>
           <ScrollToTop />
+          <AnalyticsTracker />
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
             <AnnouncementBar />
 
