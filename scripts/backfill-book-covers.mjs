@@ -44,6 +44,18 @@ if (!SUPABASE_KEY) {
   process.exit(1);
 }
 
+// The publishable key reads fine, so the run gets all the way to the first
+// upload before storage RLS rejects it - once per book. Catch it up front.
+if (SUPABASE_KEY.startsWith('sb_publishable_')) {
+  console.error('That is the publishable key - the one already in the browser');
+  console.error('bundle. It can read the catalogue but cannot write to the');
+  console.error('book-covers bucket.');
+  console.error('');
+  console.error('Use the secret key instead: Supabase dashboard > Settings >');
+  console.error('API. It starts with sb_secret_ (or is a JWT, on older projects).');
+  process.exit(1);
+}
+
 const args = process.argv.slice(2);
 const dryRun = args.includes('--dry-run');
 const overwrite = args.includes('--overwrite');
