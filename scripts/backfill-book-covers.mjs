@@ -120,7 +120,17 @@ async function fetchBooksNeedingCovers() {
 /** Pull one cover. Returns bytes, or null when there isn't a usable one. */
 async function fetchCover(isbn) {
   const res = await fetch(coverUrlFor(isbn), { redirect: 'follow' });
-  if (!res.ok) return null;
+
+  // 404 is Open Library answering honestly: it has no cover for this ISBN.
+  if (res.status === 404) return null;
+
+  // Anything else non-OK is a rate limit or an outage, not an answer about
+  // the book. Reporting it as "no cover" would quietly write the title off
+  // when a later run would have found one, so surface it as a failure.
+  if (!res.ok) {
+    if (res.status === 429) await sleep(30000);
+    throw new Error(`Open Library returned ${res.status}`);
+  }
 
   const bytes = Buffer.from(await res.arrayBuffer());
   if (bytes.length < MIN_COVER_BYTES) return null;
