@@ -29,7 +29,21 @@
 -- ============================================================
 
 -- ------------------------------------------------------------
--- 0. Drop every existing policy in public schema (clean slate)
+-- 0. Run as one transaction
+-- ------------------------------------------------------------
+-- Section 0 drops every policy before section 1 recreates them. If the
+-- script fails in between, RLS is on with nothing allowed and the site
+-- goes dark - so either all of this lands or none of it does.
+BEGIN;
+
+-- confirm_reservation() below writes books.total_sold. The column is
+-- missing on this database (add-total-sold.sql added tags but not this),
+-- so checkout would fail at runtime without it.
+ALTER TABLE books ADD COLUMN IF NOT EXISTS total_sold INTEGER DEFAULT 0;
+CREATE INDEX IF NOT EXISTS idx_books_total_sold ON books(total_sold DESC);
+
+-- ------------------------------------------------------------
+-- 0b. Drop every existing policy in public schema (clean slate)
 -- ------------------------------------------------------------
 DO $$
 DECLARE
@@ -170,9 +184,16 @@ CREATE POLICY "public insert newsletter" ON newsletter_subscribers FOR INSERT
 CREATE POLICY "public insert contact" ON contact_submissions FOR INSERT
   WITH CHECK (true);
 -- Duplicate newsletter emails raise 23505 (already handled in the app);
--- keep a unique index on the email column:
-CREATE UNIQUE INDEX IF NOT EXISTS uq_newsletter_email
-  ON newsletter_subscribers (lower(email));
+-- keep a unique index on the email column. If the table already holds
+-- duplicates the index cannot be built - warn and carry on rather than
+-- aborting the whole lockdown over a mailing list.
+DO $$
+BEGIN
+  CREATE UNIQUE INDEX IF NOT EXISTS uq_newsletter_email
+    ON newsletter_subscribers (lower(email));
+EXCEPTION WHEN unique_violation THEN
+  RAISE WARNING 'uq_newsletter_email not created: newsletter_subscribers already contains duplicate emails. De-duplicate, then create the index separately.';
+END $$;
 
 -- ------------------------------------------------------------
 -- 7. Gift cards - no direct client access at all
@@ -430,9 +451,36 @@ GRANT EXECUTE ON FUNCTION cleanup_expired_reservations() TO anon, authenticated;
 --                      $$SELECT cleanup_expired_reservations()$$);
 
 -- ------------------------------------------------------------
--- 9. Verify
+-- 9. Verify, then commit
 -- ------------------------------------------------------------
+-- Every function the browser calls must exist, or the feature that calls
+-- it 404s. This is what went wrong before: the app shipped expecting
+-- these, the SQL was never run, and the gift card balance check has been
+-- broken ever since.
+DO $$
+DECLARE
+  missing text[];
+BEGIN
+  SELECT array_agg(f) INTO missing
+  FROM unnest(ARRAY[
+    'check_gift_card_balance', 'reserve_book', 'grow_reservation',
+    'release_reservation', 'release_reservation_quantity',
+    'confirm_reservation', 'cleanup_expired_reservations'
+  ]) AS f
+  WHERE NOT EXISTS (
+    SELECT 1 FROM pg_proc p
+    JOIN pg_namespace n ON n.oid = p.pronamespace
+    WHERE n.nspname = 'public' AND p.proname = f
+  );
+
+  IF missing IS NOT NULL THEN
+    RAISE EXCEPTION 'Functions missing after lockdown: %', missing;
+  END IF;
+END $$;
+
 SELECT tablename, policyname, cmd
 FROM pg_policies
 WHERE schemaname = 'public'
 ORDER BY tablename, policyname;
+
+COMMIT;
