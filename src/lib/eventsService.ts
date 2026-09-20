@@ -40,13 +40,19 @@ const LOCATION_MAP: Record<string, Event['location']> = {
   offsite: 'In-store',
 };
 
+// All event times are formatted in the store's timezone, for every visitor.
+// (toISOString() is always UTC, so a 7pm Pacific event would have shown the
+// next day's date; viewer-local formatting would shift it for travelers.)
+const STORE_TIMEZONE = 'America/Los_Angeles';
+
 function mapSupabaseEvent(sb: SupabaseEvent): Event {
   const start = new Date(sb.start_time);
   return {
     id: sb.id,
     title: sb.title,
-    date: start.toISOString().split('T')[0],
-    time: start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true }),
+    // en-CA locale formats as YYYY-MM-DD
+    date: start.toLocaleDateString('en-CA', { timeZone: STORE_TIMEZONE }),
+    time: start.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: STORE_TIMEZONE }),
     type: EVENT_TYPE_MAP[sb.event_type] || 'Author Reading',
     location: LOCATION_MAP[sb.location] || 'In-store',
     description: sb.description || '',
