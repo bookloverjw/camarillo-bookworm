@@ -6,6 +6,7 @@ import type { Event } from '@/app/utils/data';
 import { getEventsByMonth } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
+import { PhoneLink } from '@/app/components/PhoneLink';
 import { BookCover } from '@/app/components/BookCover';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
@@ -85,7 +86,7 @@ const RegistrationModal: React.FC<RegistrationModalProps> = ({ event, onClose })
           </div>
           <h2 className="text-2xl font-serif font-bold text-primary mb-2">You're Registered!</h2>
           <p className="text-muted-foreground mb-6">
-            You're on the list — we look forward to seeing you! Questions? Call us at (805) 482-1384.
+            You're on the list — we look forward to seeing you! Questions? Call us at <PhoneLink />.
           </p>
           <div className="bg-muted p-4 rounded-xl mb-6">
             <p className="text-sm font-bold text-primary">{event.title}</p>
@@ -743,7 +744,7 @@ END:VCALENDAR`;
               <div className="mt-10 text-center py-10 bg-white rounded-2xl border border-border">
                 <p className="text-muted-foreground">
                   No events scheduled for {currentMonth.toLocaleDateString('en-US', { month: 'long' })} —
-                  check another month, or call us at (805) 482-1384.
+                  check another month, or call us at <PhoneLink />.
                 </p>
               </div>
             )}
@@ -805,7 +806,7 @@ END:VCALENDAR`;
                   No events scheduled for {currentMonth.toLocaleDateString('en-US', { month: 'long' })}
                 </h3>
                 <p className="text-muted-foreground max-w-md mx-auto">
-                  Check another month, or call us at (805) 482-1384 — we're always
+                  Check another month, or call us at <PhoneLink /> — we're always
                   planning author readings, story times, and book clubs.
                 </p>
               </div>

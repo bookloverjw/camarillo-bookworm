@@ -1,5 +1,3 @@
-import { STORE } from '@/lib/storeConfig';
-
 /**
  * Ordering directly from the store - the cart, the checkout and the Square
  * payment flow - is built but not switched on. Payments aren't connected yet,
@@ -30,27 +28,4 @@ export const INVENTORY_STATUS_IS_LIVE = false;
  */
 export function buysThroughBookshop(status: string) {
   return !STORE_ORDERING_ENABLED || status === 'Available to Order';
-}
-
-/**
- * What to tell someone under a Bookshop.org button. A title sitting on our
- * shelves shouldn't be described as shipping from a warehouse.
- */
-export function bookshopBuyNote(status: string) {
-  // With no trustworthy stock figures, every title gets the same offer: order
-  // online, or ring the shop and let a person look. That is useful whatever
-  // the shelf actually holds, and it never promises a copy that isn't there.
-  if (!INVENTORY_STATUS_IS_LIVE) {
-    return status === 'Preorder'
-      ? `Preorder through Bookshop.org, or call ${STORE.phone} to reserve a copy with us.`
-      : `Order through Bookshop.org, or call ${STORE.phone} to see if it's on our shelves.`;
-  }
-
-  if (status === 'In Store' || status === 'Only 1 Left') {
-    return `On our shelves now — call ${STORE.phone} to hold a copy, or order online through Bookshop.org.`;
-  }
-  if (status === 'Preorder') {
-    return 'Preorder through Bookshop.org — your order still supports our store.';
-  }
-  return 'Ships faster via Bookshop.org — and still supports our store!';
 }

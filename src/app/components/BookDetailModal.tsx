@@ -5,7 +5,8 @@ import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
-import { buysThroughBookshop, bookshopBuyNote } from '@/lib/features';
+import { buysThroughBookshop } from '@/lib/features';
+import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -220,7 +221,7 @@ export const BookDetailModal: React.FC = () => {
                         >
                           <ExternalLink size={16} /> Order on Bookshop.org
                         </a>
-                        <p className="text-xs text-muted-foreground text-center">{bookshopBuyNote(book.status)}</p>
+                        <p className="text-xs text-muted-foreground text-center"><BookshopBuyNote status={book.status} /></p>
                         <div className="flex items-center justify-center gap-4">
                           <a
                             href={getLibroFmUrl(book.title)}

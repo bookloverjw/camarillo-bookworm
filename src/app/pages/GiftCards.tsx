@@ -7,6 +7,7 @@ import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
 import { STORE_ORDERING_ENABLED } from '@/lib/features';
 import { STORE } from '@/lib/storeConfig';
+import { PhoneLink } from '@/app/components/PhoneLink';
 import {
   formatCardNumberForDisplay,
   generateBarcodeSVG,
@@ -67,7 +68,7 @@ export const GiftCards = () => {
   const [pin, setPin] = useState('');
   const [isCheckingBalance, setIsCheckingBalance] = useState(false);
   const [balanceResult, setBalanceResult] = useState<number | null>(null);
-  const [balanceError, setBalanceError] = useState<string | null>(null);
+  const [balanceError, setBalanceError] = useState<React.ReactNode>(null);
 
   // Purchased card modal
   const [purchasedCard, setPurchasedCard] = useState<GiftCardPassData | null>(null);
@@ -170,7 +171,7 @@ export const GiftCards = () => {
 
       if (error) {
         console.error('Balance check error:', error);
-        setBalanceError("We couldn't check your balance right now. Please try again, or call us at (805) 482-1384.");
+        setBalanceError(<>We couldn't check your balance right now. Please try again, or call us at <PhoneLink />.</>);
         return;
       }
 
@@ -195,7 +196,7 @@ export const GiftCards = () => {
 
     } catch (err) {
       console.error('Balance check error:', err);
-      setBalanceError("We couldn't check your balance right now. Please try again, or call us at (805) 482-1384.");
+      setBalanceError(<>We couldn't check your balance right now. Please try again, or call us at <PhoneLink />.</>);
     } finally {
       setIsCheckingBalance(false);
     }

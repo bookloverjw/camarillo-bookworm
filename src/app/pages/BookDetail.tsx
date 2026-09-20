@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
-import { buysThroughBookshop, bookshopBuyNote, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
+import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
+import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
@@ -329,7 +330,7 @@ export const BookDetail = () => {
                     <ExternalLink size={20} />
                     <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
                   </a>
-                  <p className="text-xs text-muted-foreground text-center">{bookshopBuyNote(book.status)}</p>
+                  <p className="text-xs text-muted-foreground text-center"><BookshopBuyNote status={book.status} /></p>
                   <a
                     href={getLibroFmUrl(book.title)}
                     target="_blank"
