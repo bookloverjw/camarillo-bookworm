@@ -29,8 +29,14 @@
  * Options:
  *   --dry-run        Report what would be fetched and stored; write nothing.
  *   --limit=N        Stop after N books (default: no limit).
- *   --delay=MS       Pause between books (default: 250ms).
+ *   --delay=MS       Pause between books (default: 250ms, 1000ms for search).
  *   --overwrite      Re-fetch books that already have a cover_url.
+ *   --via=search     Use the search index instead of the covers endpoint. It
+ *                    finds covers on other editions of the same work, which
+ *                    recovers a good share of what --via=isbn reports as
+ *                    missing. Slower, so run it as a second pass.
+ *   --order=desc     Walk the catalogue backwards. Lets a search pass run
+ *                    beside an isbn pass without the two fighting over rows.
  *
  * Safe to stop and re-run: without --overwrite it only looks at rows whose
  * cover_url is still null, so a second run picks up where the first left off.
@@ -51,9 +57,34 @@ if (!SUPABASE_KEY) {
   process.exit(1);
 }
 
-// The publishable key reads fine, so the run gets all the way to the first
-// upload before storage RLS rejects it - once per book. Catch it up front.
-if (SUPABASE_KEY.startsWith('sb_publishable_')) {
+
+const args = process.argv.slice(2);
+const dryRun = args.includes('--dry-run');
+const overwrite = args.includes('--overwrite');
+const limit = Number(args.find(a => a.startsWith('--limit='))?.split('=')[1]) || null;
+
+// 'isbn' asks the covers endpoint for this exact edition. 'search' asks the
+// search index, which knows about other editions of the same work and so
+// finds covers the first route misses - roughly three in four, by sampling.
+const via = args.find(a => a.startsWith('--via='))?.split('=')[1] || 'isbn';
+if (!['isbn', 'search'].includes(via)) {
+  console.error(`Unknown --via=${via}. Use 'isbn' or 'search'.`);
+  process.exit(1);
+}
+
+// Descending order lets a search pass run alongside an isbn pass without the
+// two racing for the same rows until they meet in the middle.
+const descending = args.includes('--order=desc');
+
+// The search index is a heavier endpoint than the cover CDN; go slower on it.
+const delayMs =
+  Number(args.find(a => a.startsWith('--delay='))?.split('=')[1]) ||
+  (via === 'search' ? 1000 : 250);
+
+// The publishable key reads fine, so a real run gets all the way to the first
+// upload before storage RLS rejects it - once per book. Catch it up front. A
+// dry run only reads, so let that through.
+if (!dryRun && SUPABASE_KEY.startsWith('sb_publishable_')) {
   console.error('That is the publishable key - the one already in the browser');
   console.error('bundle. It can read the catalogue but cannot write to the');
   console.error('book-covers bucket.');
@@ -63,12 +94,6 @@ if (SUPABASE_KEY.startsWith('sb_publishable_')) {
   console.error('starts with sb_secret_ and replaced the old service_role key.');
   process.exit(1);
 }
-
-const args = process.argv.slice(2);
-const dryRun = args.includes('--dry-run');
-const overwrite = args.includes('--overwrite');
-const limit = Number(args.find(a => a.startsWith('--limit='))?.split('=')[1]) || null;
-const delayMs = Number(args.find(a => a.startsWith('--delay='))?.split('=')[1]) || 250;
 
 // Open Library is a nonprofit serving these for free. default=false makes it
 // 404 rather than hand back a blank placeholder we'd otherwise store.
@@ -98,7 +123,7 @@ async function fetchBooksNeedingCovers() {
     const filter = overwrite ? '' : '&cover_url=is.null';
     const res = await fetch(
       `${SUPABASE_URL}/rest/v1/books?select=id,isbn,title${filter}` +
-        `&order=id.asc&offset=${offset}&limit=${pageSize}`,
+        `&order=id.${descending ? 'desc' : 'asc'}&offset=${offset}&limit=${pageSize}`,
       { headers: supabaseHeaders },
     );
 
@@ -117,9 +142,42 @@ async function fetchBooksNeedingCovers() {
   return limit ? usable.slice(0, limit) : usable;
 }
 
+/**
+ * Find a cover through the search index. The covers endpoint only knows the
+ * exact edition we ask about; search knows the whole work, so a title whose
+ * own printing was never scanned can still borrow another edition's jacket.
+ */
+async function findCoverIdViaSearch(isbn) {
+  const res = await fetch(
+    `https://openlibrary.org/search.json?q=${isbn}&fields=title,cover_i,isbn&limit=1`,
+  );
+
+  if (!res.ok) {
+    if (res.status === 429) await sleep(30000);
+    throw new Error(`Open Library search returned ${res.status}`);
+  }
+
+  const doc = (await res.json()).docs?.[0];
+  if (!doc?.cover_i) return null;
+
+  // Search is fuzzy and will happily return a neighbouring book. Only trust a
+  // result that actually lists the ISBN we asked about.
+  if (!(doc.isbn || []).includes(isbn)) return null;
+
+  return doc.cover_i;
+}
+
 /** Pull one cover. Returns bytes, or null when there isn't a usable one. */
 async function fetchCover(isbn) {
-  const res = await fetch(coverUrlFor(isbn), { redirect: 'follow' });
+  let url = coverUrlFor(isbn);
+
+  if (via === 'search') {
+    const coverId = await findCoverIdViaSearch(isbn);
+    if (!coverId) return null;
+    url = `https://covers.openlibrary.org/b/id/${coverId}-L.jpg?default=false`;
+  }
+
+  const res = await fetch(url, { redirect: 'follow' });
 
   // 404 is Open Library answering honestly: it has no cover for this ISBN.
   if (res.status === 404) return null;
@@ -169,7 +227,10 @@ async function setCoverUrl(id, url) {
 }
 
 async function main() {
-  console.log(dryRun ? 'Dry run - nothing will be written.\n' : 'Backfilling covers.\n');
+  console.log(
+    `${dryRun ? 'Dry run - nothing will be written.' : 'Backfilling covers.'}` +
+      ` (via ${via}, ${descending ? 'newest' : 'oldest'} first)\n`,
+  );
 
   const books = await fetchBooksNeedingCovers();
   console.log(`${books.length} books to try${limit ? ` (limited to ${limit})` : ''}.\n`);
