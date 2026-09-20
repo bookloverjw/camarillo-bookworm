@@ -37,7 +37,7 @@ export const Checkout = () => (
 );
 
 const CheckoutFlow = () => {
-  const { items, subtotal, tax, shipping, total, clearCart, confirmCartPurchase, preferredDelivery, setPreferredDelivery } = useCart();
+  const { items, subtotal, tax, shipping, total, clearCart, confirmCartPurchase, preferredDelivery, setPreferredDelivery, isLoading: isCartLoading } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -70,12 +70,14 @@ const CheckoutFlow = () => {
   const [orderComplete, setOrderComplete] = useState(false);
   const [orderNumber, setOrderNumber] = useState('');
 
-  // Redirect if cart is empty
+  // Redirect if cart is empty - but not until the cart has been read back from
+  // localStorage, or loading /checkout directly would bounce to /cart even with
+  // items in the bag.
   useEffect(() => {
-    if (items.length === 0 && !orderComplete) {
+    if (!isCartLoading && items.length === 0 && !orderComplete) {
       navigate('/cart');
     }
-  }, [items, navigate, orderComplete]);
+  }, [isCartLoading, items, navigate, orderComplete]);
 
   // Initialize Square card form when on payment step
   useEffect(() => {
@@ -499,6 +501,16 @@ const CheckoutFlow = () => {
   );
 
   // Confirmation screen
+  // Hold the page until the cart is loaded, so an empty order summary never
+  // flashes up on a direct visit.
+  if (isCartLoading) {
+    return (
+      <div className="py-24 flex justify-center">
+        <Loader2 size={32} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
+
   if (step === 'confirmation' && orderComplete) {
     return (
       <div className="min-h-[70vh] flex items-center justify-center p-4">
