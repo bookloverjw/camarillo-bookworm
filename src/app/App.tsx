@@ -1,11 +1,12 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Link, useLocation, HashRouter } from 'react-router';
+import { Routes, Route, Link, Navigate, useLocation, HashRouter } from 'react-router';
 import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
 import { STORE } from '@/lib/storeConfig';
 import { usePageTracking } from '@/app/hooks/usePageTracking';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
 
 // Context & Auth
 import { AuthProvider, useAuth } from '@/app/context/AuthContext';
@@ -115,7 +116,8 @@ const Navbar = () => {
                 <span className="text-sm">{user ? user.firstName : 'Sign In'}</span>
               </Link>
 
-              {/* Cart */}
+              {/* Cart - hidden while purchases go through Bookshop.org */}
+              {STORE_ORDERING_ENABLED && (
               <Link to="/cart" className="flex items-center space-x-2 text-white/90 hover:text-white transition-colors relative">
                 <ShoppingBag size={20} />
                 <span className="text-sm">Cart</span>
@@ -130,18 +132,21 @@ const Navbar = () => {
                   </motion.span>
                 )}
               </Link>
+              )}
             </div>
 
             {/* Mobile menu button */}
             <div className="md:hidden flex items-center space-x-4">
-              <Link to="/cart" className="p-2 text-white relative">
-                <ShoppingBag size={20} />
-                {itemCount > 0 && (
-                  <span className="absolute top-0 right-0 bg-secondary text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
-                    {itemCount}
-                  </span>
-                )}
-              </Link>
+              {STORE_ORDERING_ENABLED && (
+                <Link to="/cart" className="p-2 text-white relative">
+                  <ShoppingBag size={20} />
+                  {itemCount > 0 && (
+                    <span className="absolute top-0 right-0 bg-secondary text-white text-[8px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                      {itemCount}
+                    </span>
+                  )}
+                </Link>
+              )}
               <button onClick={() => setIsOpen(!isOpen)} className="p-2 text-white">
                 {isOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
@@ -555,8 +560,10 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/read-alikes" element={<ReadAlikes />} />
                 <Route path="/contact" element={<Contact />} />
-                <Route path="/cart" element={<Cart />} />
-                <Route path="/checkout" element={<Checkout />} />
+                {/* Store ordering is built but switched off - send anyone with an
+                    old link back to the shop rather than a dead end. */}
+                <Route path="/cart" element={STORE_ORDERING_ENABLED ? <Cart /> : <Navigate to="/shop" replace />} />
+                <Route path="/checkout" element={STORE_ORDERING_ENABLED ? <Checkout /> : <Navigate to="/shop" replace />} />
                 <Route path="/login" element={<AuthPage />} />
 
                 {/* Account Routes */}

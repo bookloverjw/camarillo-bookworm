@@ -2,12 +2,15 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, Grid, List as ListIcon, X, Loader2, Headphones, Calendar } from 'lucide-react';
 import { Link, useSearchParams } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
 import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
+import { buysThroughBookshop } from '@/lib/features';
 import { toast } from 'sonner';
+import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 
 const BISAC_GENRES: Record<string, string[]> = {
   'Fiction': ['All Fiction', 'Literary', 'Graphic Novels', 'Mystery', 'Thriller', 'Romance', 'Sci-Fi', 'Fantasy', 'Historical', 'Contemporary'],
@@ -36,6 +39,34 @@ const KIDS_TOPICS: KidsTopic[] = [
   { label: 'Sports & Games', emoji: '⚽', keywords: ['sport', 'soccer', 'baseball', 'basketball', 'football', 'game'] },
   { label: 'Art & Creativity', emoji: '🎨', keywords: ['art', 'draw', 'paint', 'color', 'craft', 'creative', 'music'] },
 ];
+
+const ShopNewsletterBox = () => {
+  const { email, setEmail, isSubscribing, subscribe } = useNewsletterSignup('shop');
+  return (
+    <div className="bg-muted p-6 rounded-2xl border border-border">
+      <h4 className="font-bold text-primary mb-2">Staff Recommendations</h4>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Sign up for our monthly "Bookworm Buzz" newsletter for hand-picked gems.</p>
+      <form onSubmit={subscribe}>
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="Email address"
+          aria-label="Email address"
+          className="w-full px-4 py-2 text-sm bg-white border border-border rounded-lg mb-2 outline-none focus:ring-1 focus:ring-accent"
+        />
+        <button
+          type="submit"
+          disabled={isSubscribing}
+          className="w-full bg-accent text-white py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors disabled:opacity-50"
+        >
+          {isSubscribing ? 'Subscribing…' : 'Subscribe'}
+        </button>
+      </form>
+    </div>
+  );
+};
 
 const FilterContent = ({
   activeCategory,
@@ -306,12 +337,7 @@ const FilterContent = ({
       </div>
     </div>
 
-    <div className="bg-muted p-6 rounded-2xl border border-border">
-      <h4 className="font-bold text-primary mb-2">Staff Recommendations</h4>
-      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Sign up for our monthly "Bookworm Buzz" newsletter for hand-picked gems.</p>
-      <input type="email" placeholder="Email address" className="w-full px-4 py-2 text-sm bg-white border border-border rounded-lg mb-2 outline-none focus:ring-1 focus:ring-accent" />
-      <button className="w-full bg-accent text-white py-2 rounded-lg text-xs font-bold uppercase tracking-widest hover:bg-accent/90 transition-colors">Subscribe</button>
-    </div>
+    <ShopNewsletterBox />
   </div>
 );
 
@@ -774,7 +800,7 @@ export const Shop = () => {
               >
                 <Link to={`/book/${book.id}`} className={viewMode === 'list' ? 'w-full sm:w-28 shrink-0' : 'block'}>
                   <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
-                    <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                    <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-cover" />
                     <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
                       {book.status}
                     </div>
@@ -810,7 +836,7 @@ export const Shop = () => {
                         </p>
                       )}
                     </div>
-                  ) : book.status === 'Available to Order' ? (
+                  ) : buysThroughBookshop(book.status) ? (
                     /* Not in store — promote Bookshop as faster option */
                     <div className={`flex flex-col gap-1.5`}>
                       <a

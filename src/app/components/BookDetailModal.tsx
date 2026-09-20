@@ -2,8 +2,10 @@ import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, Star, ShoppingBag, Store, Truck, ExternalLink, Headphones, Calendar } from 'lucide-react';
 import { Link } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
+import { buysThroughBookshop, bookshopBuyNote } from '@/lib/features';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -11,44 +13,6 @@ import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
-
-// Static review data for the modal (adapted from the source improvements)
-const BOOK_REVIEWS: Record<string, Array<{ name: string; rating: number; text: string }>> = {
-  '1': [
-    { name: 'Sarah M.', rating: 5, text: 'A beautiful exploration of the roads not taken. This book changed how I think about regret.' },
-    { name: 'James R.', rating: 4, text: 'Heartwarming and thought-provoking. A quick read that stays with you long after.' },
-  ],
-  '2': [
-    { name: 'Alex K.', rating: 5, text: 'Practical and actionable. I have already started implementing the habit stacking technique.' },
-    { name: 'Maria L.', rating: 5, text: 'The best book on building better habits. Clear writing and compelling research.' },
-  ],
-  '5': [
-    { name: 'Jenny T.', rating: 5, text: 'Raw, beautiful, and deeply personal. Zauner writes about grief and identity with incredible grace.' },
-    { name: 'David P.', rating: 4, text: 'A moving memoir that connects food, culture, and loss in unexpected ways.' },
-  ],
-  '6': [
-    { name: 'Chris W.', rating: 5, text: 'Doerr weaves timelines together masterfully. Each storyline is compelling on its own.' },
-    { name: 'Nina S.', rating: 4, text: 'Ambitious and beautifully written. The connections between characters across centuries are stunning.' },
-  ],
-  '7': [
-    { name: 'Tom B.', rating: 5, text: 'Even better than The Martian. The friendship that develops is pure joy to read.' },
-    { name: 'Rachel H.', rating: 5, text: 'Gripping sci-fi with heart and humor. I could not put this book down.' },
-  ],
-  '10': [
-    { name: 'Patricia G.', rating: 5, text: 'Witty, empowering, and brilliantly written. Elizabeth Zott is my new favorite character.' },
-    { name: 'Mark D.', rating: 4, text: 'A delightful read about breaking barriers in science and society.' },
-  ],
-  '12': [
-    { name: 'Linda F.', rating: 5, text: 'Kingsolver at her finest. A modern Dickens tale set in Appalachia that feels urgent and real.' },
-    { name: 'Steve N.', rating: 5, text: 'Devastating and beautiful. The voice of Demon will stay with me forever.' },
-  ],
-};
-
-// Default reviews for books without specific ones
-const DEFAULT_REVIEWS = [
-  { name: 'A Bookworm Reader', rating: 4, text: 'A wonderful read! Highly recommended for anyone looking for their next great book.' },
-  { name: 'Local Book Club', rating: 5, text: 'Our book club loved discussing this one. Rich characters and compelling narrative.' },
-];
 
 const StarRating = ({ rating }: { rating: number }) => (
   <div className="flex items-center gap-0.5">
@@ -108,7 +72,6 @@ export const BookDetailModal: React.FC = () => {
     return () => document.removeEventListener('keydown', handleEscape);
   }, [isOpen, closeModal]);
 
-  const reviews = bookId ? (BOOK_REVIEWS[bookId] || DEFAULT_REVIEWS) : [];
 
   const handleAddToCart = async (deliveryOption: 'pickup' | 'ship') => {
     if (!book) return;
@@ -181,9 +144,11 @@ export const BookDetailModal: React.FC = () => {
                   {/* Cover */}
                   <div className="w-full md:w-48 lg:w-56 shrink-0">
                     <div className="aspect-[2/3] rounded-xl overflow-hidden shadow-lg border border-border">
-                      <ImageWithFallback
+                      <BookCover
                         src={book.cover}
-                        alt={book.title}
+                        isbn={book.isbn}
+                        title={book.title}
+                        author={book.author}
                         className="w-full h-full object-cover"
                       />
                     </div>
@@ -205,10 +170,6 @@ export const BookDetailModal: React.FC = () => {
                     {book.author && <p className="text-lg text-muted-foreground font-serif italic">
                       by {book.author}
                     </p>}
-                    <div className="flex items-center gap-3">
-                      <StarRating rating={4} />
-                      <span className="text-sm text-muted-foreground">(42 reviews)</span>
-                    </div>
                     <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
                     <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
 
@@ -249,7 +210,7 @@ export const BookDetailModal: React.FC = () => {
                           </Link>
                         </div>
                       </div>
-                    ) : book.status === 'Available to Order' ? (
+                    ) : buysThroughBookshop(book.status) ? (
                       <div className="space-y-3 pt-4">
                         <a
                           href={getBookshopAffiliateUrl(book.isbn || `978${book.id.padStart(10, '0')}`)}
@@ -259,7 +220,7 @@ export const BookDetailModal: React.FC = () => {
                         >
                           <ExternalLink size={16} /> Order on Bookshop.org
                         </a>
-                        <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — still supports our store!</p>
+                        <p className="text-xs text-muted-foreground text-center">{bookshopBuyNote(book.status)}</p>
                         <div className="flex items-center justify-center gap-4">
                           <a
                             href={getLibroFmUrl(book.title)}
@@ -331,29 +292,6 @@ export const BookDetailModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Reviews section */}
-                <div className="mb-10">
-                  <h3 className="text-xl font-serif font-bold text-primary mb-6 pb-2 border-b border-border">
-                    Reader Reviews
-                  </h3>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                    {reviews.map((review, i) => (
-                      <div
-                        key={i}
-                        className="p-5 bg-muted/50 rounded-xl border border-border"
-                      >
-                        <div className="flex items-center justify-between mb-3">
-                          <span className="font-bold text-sm text-foreground">{review.name}</span>
-                          <StarRating rating={review.rating} />
-                        </div>
-                        <p className="text-sm text-muted-foreground leading-relaxed">
-                          "{review.text}"
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-
                 {/* Bookmarks.reviews critic reviews */}
                 {book.isbn && (
                   <div className="mb-10">
@@ -378,9 +316,11 @@ export const BookDetailModal: React.FC = () => {
                           className="group text-left"
                         >
                           <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-3 transition-transform group-hover:-translate-y-1">
-                            <ImageWithFallback
+                            <BookCover
                               src={item.cover}
-                              alt={item.title}
+                              isbn={item.isbn}
+                              title={item.title}
+                              author={item.author}
                               className="w-full h-full object-cover"
                             />
                           </div>

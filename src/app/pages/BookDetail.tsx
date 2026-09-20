@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
+import { buysThroughBookshop, bookshopBuyNote } from '@/lib/features';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
@@ -257,7 +259,7 @@ export const BookDetail = () => {
               animate={{ opacity: 1, x: 0 }}
               className="max-w-[320px] mx-auto lg:mx-0 rounded-xl overflow-hidden shadow-xl border border-border sticky top-28"
             >
-              <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-auto" />
+              <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-auto aspect-[2/3] object-cover" />
               {book.isStaffPick && (
                 <div className="absolute top-4 left-4 bg-accent text-white font-bold px-3 py-1.5 rounded shadow-lg flex items-center uppercase tracking-widest text-xs">
                   <Quote size={12} className="mr-1.5 fill-white" /> Staff Pick
@@ -312,7 +314,7 @@ export const BookDetail = () => {
                     </p>
                   )}
                 </div>
-              ) : book.status === 'Available to Order' ? (
+              ) : buysThroughBookshop(book.status) ? (
                 /* Not in store — promote Bookshop as the fastest option */
                 <div className="space-y-3">
                   <a
@@ -324,7 +326,7 @@ export const BookDetail = () => {
                     <ExternalLink size={20} />
                     <span className="text-sm uppercase tracking-widest">Order on Bookshop.org</span>
                   </a>
-                  <p className="text-xs text-muted-foreground text-center">Ships faster via Bookshop.org — and still supports our store!</p>
+                  <p className="text-xs text-muted-foreground text-center">{bookshopBuyNote(book.status)}</p>
                   <a
                     href={getLibroFmUrl(book.title)}
                     target="_blank"
@@ -502,7 +504,7 @@ export const BookDetail = () => {
             {recommendations.map(item => (
               <Link key={item.id} to={`/book/${item.id}`} className="group">
                 <div className="aspect-[2/3] rounded-lg overflow-hidden shadow-md mb-4 transition-transform group-hover:-translate-y-2">
-                  <ImageWithFallback src={item.cover} alt={item.title} className="w-full h-full object-cover" />
+                  <BookCover src={item.cover} isbn={item.isbn} title={item.title} author={item.author} className="w-full h-full object-cover" />
                 </div>
                 <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>

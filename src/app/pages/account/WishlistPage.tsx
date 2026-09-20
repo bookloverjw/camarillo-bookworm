@@ -1,9 +1,12 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { ShoppingBag, X, Share2, Grid, List as ListIcon, Search, BellRing, BellOff } from 'lucide-react';
+import { ShoppingBag, X, Share2, Grid, List as ListIcon, Search, BellRing, BellOff, ExternalLink } from 'lucide-react';
 import { BOOKS } from '@/app/utils/data';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
+import { BookCover } from '@/app/components/BookCover';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
+import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
 
 export const WishlistPage = () => {
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
@@ -58,7 +61,7 @@ export const WishlistPage = () => {
               className={`group bg-white rounded-2xl border border-border overflow-hidden hover:shadow-xl transition-all ${viewMode === 'list' ? 'flex items-center p-4' : ''}`}
             >
               <div className={`relative ${viewMode === 'list' ? 'w-24 h-32 shrink-0' : 'aspect-[2/3]'}`}>
-                <ImageWithFallback src={book.cover} alt={book.title} className="w-full h-full object-cover" />
+                <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-cover" />
                 <button 
                   onClick={() => removeItem(book.id)}
                   className="absolute top-2 right-2 p-1.5 bg-black/50 text-white rounded-full opacity-0 group-hover:opacity-100 transition-opacity hover:bg-red-500"
@@ -91,10 +94,22 @@ export const WishlistPage = () => {
                 </div>
 
                 <div className="flex flex-col gap-2">
-                  <button className="flex items-center justify-center space-x-2 bg-primary text-white py-2.5 rounded-xl text-xs font-bold hover:bg-primary/90 transition-all">
-                    <ShoppingBag size={14} />
-                    <span>Add to Bag</span>
-                  </button>
+                  {STORE_ORDERING_ENABLED ? (
+                    <button className="flex items-center justify-center space-x-2 bg-primary text-white py-2.5 rounded-xl text-xs font-bold hover:bg-primary/90 transition-all">
+                      <ShoppingBag size={14} />
+                      <span>Add to Bag</span>
+                    </button>
+                  ) : (
+                    <a
+                      href={getBookshopAffiliateUrl(book.isbn)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="flex items-center justify-center space-x-2 bg-primary text-white py-2.5 rounded-xl text-xs font-bold hover:bg-primary/90 transition-all"
+                    >
+                      <ExternalLink size={14} />
+                      <span>Buy on Bookshop</span>
+                    </a>
+                  )}
                   <button 
                     onClick={() => toggleNotify(book.id)}
                     className={`flex items-center justify-center space-x-2 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-widest border transition-all ${

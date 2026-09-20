@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Gift, CreditCard, Mail, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy } from 'lucide-react';
+import { Gift, CreditCard, Mail, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
+import { STORE } from '@/lib/storeConfig';
 import {
   formatCardNumberForDisplay,
   generateBarcodeSVG,
@@ -14,6 +16,40 @@ import {
   GiftCardPassData,
 } from '@/lib/appleWallet';
 import { storePendingGiftCard } from '@/lib/giftCardService';
+
+// Gift cards are sold at the counter until online ordering is switched on.
+// The configurator this replaces is intact - see STORE_ORDERING_ENABLED.
+const GiftCardInStoreNotice = () => (
+  <div className="bg-card rounded-3xl border border-border p-8 sm:p-10 shadow-xl">
+    <div className="w-14 h-14 rounded-2xl bg-primary/10 flex items-center justify-center mb-6">
+      <Gift size={26} className="text-primary" />
+    </div>
+
+    <h3 className="text-2xl font-serif font-bold text-primary mb-3">
+      Gift cards are sold in the store
+    </h3>
+
+    <p className="text-muted-foreground mb-6">
+      We haven't switched on online gift card orders yet. Come by the shop or give us a ring and
+      we'll set one up in any amount — we can write a note on it for you too.
+    </p>
+
+    <div className="space-y-3 border-t border-border pt-6">
+      <a href={STORE.phoneTel} className="flex items-center gap-3 text-primary font-bold hover:underline">
+        <Phone size={18} />
+        {STORE.phone}
+      </a>
+      <p className="flex items-center gap-3 text-muted-foreground">
+        <MapPin size={18} className="shrink-0" />
+        {STORE.address.full}
+      </p>
+    </div>
+
+    <p className="text-sm text-muted-foreground mt-6">
+      Already have a card? Check its balance on the right — that works today.
+    </p>
+  </div>
+);
 
 export const GiftCards = () => {
   const { user } = useAuth();
@@ -192,6 +228,7 @@ export const GiftCards = () => {
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
           {/* Configurator */}
           <div className="lg:col-span-7 space-y-12">
+            {!STORE_ORDERING_ENABLED ? <GiftCardInStoreNotice /> : (
             <div className="space-y-8">
               <div>
                 <h3 className="text-lg font-bold text-primary mb-4">1. Choose Card Type</h3>
@@ -311,6 +348,7 @@ export const GiftCards = () => {
                 Gift card code will be generated after checkout is complete
               </p>
             </div>
+            )}
           </div>
 
           {/* Balance Checker & Preview */}
