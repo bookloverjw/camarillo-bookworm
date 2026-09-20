@@ -9,19 +9,22 @@
  * stores them in our own bucket, and points cover_url at them - the same
  * place and naming the existing covers already use.
  *
- * Writing to books and to storage both need the service-role key. Get it
- * from the Supabase dashboard (Settings > API) and pass it via env -
- * NEVER commit it:
+ * Writing to books and to storage both need the SECRET key - the one under
+ * "Secret keys" in the Supabase dashboard (Settings > API), which replaced
+ * the old service_role key. The publishable key cannot do this. Pass it via
+ * env and NEVER commit it:
+ *
+ *   read -rs "SUPABASE_SECRET_KEY?secret key: "; export SUPABASE_SECRET_KEY
  *
  * Usage:
  *   # See what would happen, touching nothing (do this first):
- *   SUPABASE_SERVICE_ROLE_KEY=... node scripts/backfill-book-covers.mjs --dry-run
+ *   node scripts/backfill-book-covers.mjs --dry-run
  *
  *   # Try a small batch for real:
- *   SUPABASE_SERVICE_ROLE_KEY=... node scripts/backfill-book-covers.mjs --limit=50
+ *   node scripts/backfill-book-covers.mjs --limit=50
  *
- *   # The whole catalogue (expect a few hours at the default pacing):
- *   SUPABASE_SERVICE_ROLE_KEY=... node scripts/backfill-book-covers.mjs
+ *   # The whole catalogue (expect a couple of hours at the default pacing):
+ *   node scripts/backfill-book-covers.mjs
  *
  * Options:
  *   --dry-run        Report what would be fetched and stored; write nothing.
@@ -36,11 +39,15 @@
 const SUPABASE_URL = 'https://lildbdxabljkoynvpflu.supabase.co';
 const BUCKET = 'book-covers';
 
-const SUPABASE_KEY = process.env.SUPABASE_SERVICE_ROLE_KEY;
+// SUPABASE_SERVICE_ROLE_KEY still works for anyone on a legacy key.
+const SUPABASE_KEY =
+  process.env.SUPABASE_SECRET_KEY || process.env.SUPABASE_SERVICE_ROLE_KEY;
 if (!SUPABASE_KEY) {
-  console.error('Missing SUPABASE_SERVICE_ROLE_KEY environment variable.');
+  console.error('Missing SUPABASE_SECRET_KEY environment variable.');
   console.error('Both the books update and the storage upload need it.');
-  console.error('Supabase dashboard > Settings > API > service_role.');
+  console.error('');
+  console.error('Supabase dashboard > Settings > API > Secret keys > default');
+  console.error('(click the eye to reveal). It starts with sb_secret_.');
   process.exit(1);
 }
 
@@ -52,7 +59,8 @@ if (SUPABASE_KEY.startsWith('sb_publishable_')) {
   console.error('book-covers bucket.');
   console.error('');
   console.error('Use the secret key instead: Supabase dashboard > Settings >');
-  console.error('API. It starts with sb_secret_ (or is a JWT, on older projects).');
+  console.error('API > Secret keys > default (click the eye to reveal). It');
+  console.error('starts with sb_secret_ and replaced the old service_role key.');
   process.exit(1);
 }
 
