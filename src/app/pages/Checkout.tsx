@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, CreditCard, Truck, MapPin, User, Mail, Phone, Lock, CheckCircle2, Loader2, AlertCircle, ShoppingBag, ExternalLink } from 'lucide-react';
+import { CheckoutGate } from '@/app/components/CheckoutGate';
 import { Link, useNavigate } from 'react-router';
 import { toast } from 'sonner';
 import { useCart, BOOKSHOP_AFFILIATE_ID, SHIPPING_THRESHOLD, STANDARD_SHIPPING } from '@/app/context/CartContext';
@@ -29,7 +30,13 @@ const SQUARE_SETTINGS: SquareSettings = {
 // order, transaction, or inventory record is created while this is true.
 const IS_DEMO_MODE = SQUARE_SETTINGS.applicationId.includes('REPLACE');
 
-export const Checkout = () => {
+export const Checkout = () => (
+  <CheckoutGate>
+    <CheckoutFlow />
+  </CheckoutGate>
+);
+
+const CheckoutFlow = () => {
   const { items, subtotal, tax, shipping, total, clearCart, confirmCartPurchase, preferredDelivery, setPreferredDelivery } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
