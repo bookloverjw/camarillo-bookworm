@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CreditCard, ExternalLink, Truck, Shield, Gift } from 'lucide-react';
+import { Trash2, Plus, Minus, ArrowLeft, ShoppingBag, CreditCard, ExternalLink, Truck, Shield, Gift, Loader2 } from 'lucide-react';
 import { Link, useNavigate } from 'react-router';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { toast } from 'sonner';
@@ -19,6 +19,7 @@ export const Cart = () => {
     removeItem,
     clearCart,
     getBookshopCartUrl,
+    isLoading,
   } = useCart();
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -35,6 +36,17 @@ export const Cart = () => {
     }
     navigate('/checkout');
   };
+
+  // The cart is read back from localStorage in an effect, so items is empty on
+  // the first render - show the spinner rather than flashing "your bag is empty"
+  // at someone who has books in it.
+  if (isLoading) {
+    return (
+      <div className="min-h-[60vh] flex items-center justify-center">
+        <Loader2 size={32} className="animate-spin text-muted-foreground" />
+      </div>
+    );
+  }
 
   if (items.length === 0) {
     return (
