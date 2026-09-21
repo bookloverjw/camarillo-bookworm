@@ -31,6 +31,8 @@ export const CollectionPage = () => {
 
   if (!collection) return <div className="py-32" aria-busy="true" />;
 
+  const sources = collection.sources ?? (collection.source ? [collection.source] : []);
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
       <Link to="/collections" className="inline-flex items-center gap-1 text-sm text-muted-foreground hover:text-primary mb-8">
@@ -61,10 +63,15 @@ export const CollectionPage = () => {
       ))}
 
       <p className="text-xs text-muted-foreground border-t border-border pt-6">
-        Source:{' '}
-        <a href={collection.source.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary inline-flex items-center gap-1">
-          {collection.source.name} <ExternalLink size={11} />
-        </a>
+        {sources.length > 1 ? 'Sources: ' : 'Source: '}
+        {sources.map((src, i) => (
+          <React.Fragment key={src.url}>
+            {i > 0 && '; '}
+            <a href={src.url} target="_blank" rel="noopener noreferrer" className="underline hover:text-primary inline-flex items-center gap-1">
+              {src.name} <ExternalLink size={11} />
+            </a>
+          </React.Fragment>
+        ))}
         . Books we carry open in our store; the rest link to Bookshop.org, which supports us too.
       </p>
     </div>

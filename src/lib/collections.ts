@@ -27,7 +27,9 @@ export interface CuratedCollection {
   title: string;
   tagline: string;
   description: string;
-  source: { name: string; url: string };
+  source?: { name: string; url: string };
+  /** For collections drawn from more than one place. */
+  sources?: { name: string; url: string }[];
   sections: { title: string; subtitle?: string; books: CollectionBook[] }[];
 }
 
