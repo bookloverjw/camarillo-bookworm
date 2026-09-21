@@ -1,118 +1,147 @@
 import React from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Phone, Mail, Clock, Instagram, Facebook, Award, Users, BookOpen, Heart } from 'lucide-react';
-import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
+import { MapPin, Phone, Clock, Instagram, Facebook, BookOpen, Heart, Users, CalendarDays, Star, Quote } from 'lucide-react';
 import { Link } from 'react-router';
 import { STORE } from '@/lib/storeConfig';
+import { CUSTOMER_REVIEWS, GOOGLE_REVIEWS_URL } from '@/lib/reviews';
+
+const MAP_EMBED = `https://www.google.com/maps?q=${encodeURIComponent(`The Bookworm, ${STORE.address.full}`)}&output=embed`;
+
+const AT_A_GLANCE = [
+  { icon: BookOpen, title: `Since ${STORE.foundedYear}`, text: 'Over fifty years of putting the right book in the right hands.' },
+  { icon: Heart, title: 'Woman-owned, always', text: 'From the day we opened to today.' },
+  { icon: Users, title: 'Independent', text: "Every book on our shelves was chosen by a bookseller, not an algorithm." },
+];
+
+const WHAT_WE_DO = [
+  { icon: BookOpen, title: 'A curated selection', text: "Fiction, nonfiction, children's books and timeless classics - chosen with care, with something for every kind of reader.", to: '/shop', cta: 'Browse the shelves' },
+  { icon: Heart, title: 'The right book for you', text: "Tell us what you loved last and we'll find what you'll love next. And if it isn't on the shelf, we're happy to order it.", to: '/staff-picks', cta: 'See our staff picks' },
+  { icon: CalendarDays, title: 'Book clubs & events', text: 'Author signings, story times, and book clubs for fantasy, fiction and sci-fi readers. New faces are always welcome.', to: '/events', cta: "See what's coming up" },
+];
 
 export const About = () => {
   return (
     <div className="pb-24">
-      {/* Hero Section */}
-      <section className="relative py-32 overflow-hidden">
-        <div className="absolute inset-0 z-0">
-          <ImageWithFallback src="https://images.unsplash.com/photo-1761384979966-546eb28f60a7?auto=format&fit=crop&q=80&w=1920" alt="Bookstore Interior" className="w-full h-full object-cover" />
-          <div className="absolute inset-0 bg-primary/90 mix-blend-multiply"></div>
-        </div>
-        <div className="relative z-10 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center text-white">
-          <motion.div
-            initial={{ opacity: 0, y: 30 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ duration: 0.8 }}
-          >
-            <h1 className="text-6xl md:text-7xl font-serif font-bold mb-8">Our Story</h1>
-            <p className="text-xl md:text-2xl text-white/80 max-w-3xl mx-auto leading-relaxed">
-              Serving the Camarillo community with curated literature and local heart for over 50 years.
+      {/* Hero */}
+      <section className="bg-primary text-white">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8 py-20 md:py-24 text-center">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-white/70 mb-5">Camarillo, California · Est. {STORE.foundedYear}</p>
+            <h1 className="text-5xl md:text-6xl font-serif font-bold mb-6">Our Story</h1>
+            <p className="text-xl text-white/80 max-w-2xl mx-auto leading-relaxed">
+              Camarillo's independent, woman-owned bookstore - a cornerstone of the community since {STORE.foundedYear}.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* History Section */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-20 items-center">
-          <div className="space-y-8">
-            <h2 className="text-4xl font-serif font-bold text-primary">A Legacy of Literacy</h2>
+      {/* Story */}
+      <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+        <div className="grid grid-cols-1 lg:grid-cols-5 gap-14 items-center">
+          <div className="lg:col-span-3 space-y-6">
+            <h2 className="text-4xl font-serif font-bold text-primary">A quaint literary haven in the heart of Camarillo</h2>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Camarillo Bookworm opened its doors in 1973 with a simple mission: to provide a sanctuary for readers and a hub for the local community. What started as a small, one-room shop has grown into one of the region's most beloved independent bookstores.
+              The Bookworm opened its doors in {STORE.foundedYear}, and it has been woman-owned every day since. For more than fifty years
+              we've been a cornerstone of the Camarillo community, with a thoughtfully curated selection of books that spark the
+              imagination and nurture the soul.
             </p>
             <p className="text-lg text-muted-foreground leading-relaxed">
-              Throughout five decades, we have remained independent and family-owned, weathering the shifts in the industry by staying true to our roots—personalized recommendations, a carefully curated selection, and a deep love for the Camarillo community.
+              Stepping inside feels a little like stepping into another world, where every corner holds a new treasure waiting to
+              be uncovered. Our shelves span fiction, nonfiction, children's books and timeless classics, so there is something
+              here for every kind of reader.
             </p>
-            <div className="grid grid-cols-2 gap-8 pt-8">
-              <div className="flex items-start space-x-4">
-                <div className="p-3 bg-accent/10 rounded-xl text-accent"><Award size={24} /></div>
-                <div>
-                  <p className="font-bold text-primary">50+ Years</p>
-                  <p className="text-sm text-muted-foreground">In Business</p>
-                </div>
-              </div>
-              <div className="flex items-start space-x-4">
-                <div className="p-3 bg-accent/10 rounded-xl text-accent"><Users size={24} /></div>
-                <div>
-                  <p className="font-bold text-primary">Community First</p>
-                  <p className="text-sm text-muted-foreground">Local Focus</p>
-                </div>
-              </div>
-            </div>
+            <p className="text-lg text-muted-foreground leading-relaxed">
+              Our booksellers are always ready to help you find that perfect book - just as Ollivander guided Harry Potter to his
+              wand. Whether you're after your next page-turner, a heartfelt gift, or inspiration for your book club, we're here
+              to make the search part of the pleasure.
+            </p>
           </div>
-          <div className="relative">
-            <div className="aspect-[4/3] rounded-3xl overflow-hidden shadow-2xl">
-              <ImageWithFallback src="https://images.unsplash.com/photo-1641411002123-ea633f5c5be3?auto=format&fit=crop&q=80&w=1200" alt="Old Bookstore Photo" className="w-full h-full object-cover" />
-            </div>
-            <div className="absolute -bottom-10 -left-10 bg-white p-8 rounded-2xl shadow-xl border border-border hidden md:block max-w-xs">
-              <p className="font-serif italic text-primary">
-                "Camarillo Bookworm is more than just a store; it's the heart of our neighborhood."
-              </p>
-              <p className="text-xs font-bold text-accent uppercase mt-4">— Longtime Customer</p>
-            </div>
+          <div className="lg:col-span-2">
+            <img
+              src="/brand/mascot.png"
+              alt="The Bookworm's mascot: a green bookworm in round glasses and a pink scarf, reading a book beside a cup of coffee"
+              width={900}
+              height={940}
+              loading="lazy"
+              className="w-full max-w-sm mx-auto h-auto"
+            />
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-8 mt-16">
+          {AT_A_GLANCE.map(({ icon: Icon, title, text }) => (
+            <div key={title} className="flex items-start space-x-4">
+              <div className="p-3 bg-accent/10 rounded-xl text-accent shrink-0"><Icon size={24} /></div>
+              <div>
+                <p className="font-bold text-primary">{title}</p>
+                <p className="text-sm text-muted-foreground leading-relaxed">{text}</p>
+              </div>
+            </div>
+          ))}
         </div>
       </section>
 
-      {/* Values */}
-      <section className="bg-muted py-24">
+      {/* What you'll find */}
+      <section className="bg-muted py-20">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center mb-16">
-            <h2 className="text-4xl font-serif font-bold text-primary mb-4">What We Believe In</h2>
+          <div className="text-center mb-14">
+            <h2 className="text-4xl font-serif font-bold text-primary mb-4">What you'll find here</h2>
             <div className="w-24 h-1 bg-accent mx-auto"></div>
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-12">
-            {[
-              { icon: <BookOpen className="text-accent" />, title: "The Power of Stories", desc: "We believe literature has the power to build empathy, expand horizons, and change lives." },
-              { icon: <Users className="text-accent" />, title: "Community Hub", desc: "We strive to be a welcoming space where neighbors can gather, discuss, and celebrate together." },
-              { icon: <Heart className="text-accent" />, title: "Independent Spirit", desc: "We support fellow local businesses and believe in the importance of independent curation." }
-            ].map((value, i) => (
-              <div key={i} className="bg-white p-10 rounded-3xl border border-border text-center space-y-4 hover:shadow-lg transition-shadow">
-                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-6">
-                  {React.cloneElement(value.icon as React.ReactElement, { size: 32 })}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+            {WHAT_WE_DO.map(({ icon: Icon, title, text, to, cta }) => (
+              <div key={title} className="bg-white p-9 rounded-3xl border border-border text-center flex flex-col">
+                <div className="w-16 h-16 bg-accent/10 rounded-2xl flex items-center justify-center mx-auto mb-6 text-accent">
+                  <Icon size={32} />
                 </div>
-                <h3 className="text-2xl font-serif font-bold text-primary">{value.title}</h3>
-                <p className="text-muted-foreground leading-relaxed">{value.desc}</p>
+                <h3 className="text-2xl font-serif font-bold text-primary mb-3">{title}</h3>
+                <p className="text-muted-foreground leading-relaxed mb-5 flex-1">{text}</p>
+                <Link to={to} className="text-primary font-medium underline underline-offset-4 hover:no-underline">{cta}</Link>
               </div>
             ))}
           </div>
         </div>
       </section>
 
+      {/* Reviews - real ones only; see src/lib/reviews.ts */}
+      {CUSTOMER_REVIEWS.length > 0 && (
+        <section className="max-w-6xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="text-center mb-12">
+            <h2 className="text-4xl font-serif font-bold text-primary mb-4">In our customers' words</h2>
+            <div className="w-24 h-1 bg-accent mx-auto"></div>
+          </div>
+          <div className={`grid grid-cols-1 gap-6 ${CUSTOMER_REVIEWS.length > 1 ? 'md:grid-cols-2 lg:grid-cols-3' : 'max-w-xl mx-auto'}`}>
+            {CUSTOMER_REVIEWS.map((review) => (
+              <figure key={review.quote} className="bg-white p-8 rounded-2xl border border-border">
+                <Quote size={24} className="text-accent/40 mb-3" />
+                <blockquote className="font-serif italic text-lg text-primary leading-relaxed">"{review.quote}"</blockquote>
+                <figcaption className="text-xs font-bold text-accent uppercase tracking-wide mt-4">
+                  - {review.name ? `${review.name}, ` : ''}{review.source} review
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <p className="text-center mt-8">
+            <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-primary font-medium underline underline-offset-4 hover:no-underline">
+              <Star size={16} /> Read more reviews on Google - or leave us one
+            </a>
+          </p>
+        </section>
+      )}
+
       {/* Location & Info */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-24">
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-16">
-          <div className="lg:col-span-4 space-y-12">
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12">
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-12">
+          <div className="lg:col-span-4 space-y-10">
             <div>
-              <h3 className="text-2xl font-serif font-bold text-primary mb-6">Find Us</h3>
+              <h2 className="text-2xl font-serif font-bold text-primary mb-6">Find Us</h2>
               <div className="space-y-6">
                 <div className="flex items-start space-x-4">
                   <MapPin className="text-accent mt-1" size={20} />
                   <div>
-                    <p className="font-bold text-primary">Store Address</p>
-                    <a
-                      href="https://maps.app.goo.gl/UGK8t2q3Etce2Q6P7"
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-                    >
-                      93 E Daily Dr<br />Camarillo, CA 93010
+                    <p className="font-bold text-primary">Las Posas Plaza</p>
+                    <a href={GOOGLE_REVIEWS_URL} target="_blank" rel="noopener noreferrer" className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline">
+                      {STORE.address.line1}<br />{STORE.address.city}, {STORE.address.state} {STORE.address.zip}
                     </a>
                   </div>
                 </div>
@@ -131,61 +160,49 @@ export const About = () => {
                   <Phone className="text-accent mt-1" size={20} />
                   <div>
                     <p className="font-bold text-primary">Call Us</p>
-                    <a
-                      href="tel:+18054821384"
-                      className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline"
-                    >
-                      (805) 482-1384
-                    </a>
+                    <a href={STORE.phoneTel} className="text-muted-foreground hover:text-primary transition-colors underline-offset-2 hover:underline">{STORE.phone}</a>
                   </div>
                 </div>
               </div>
             </div>
 
             <div>
-              <h3 className="text-2xl font-serif font-bold text-primary mb-6">Stay Connected</h3>
+              <h2 className="text-2xl font-serif font-bold text-primary mb-3">Stay Connected</h2>
+              <p className="text-sm text-muted-foreground mb-5">
+                Follow along for sales and special events, or <Link to="/newsletter" className="underline text-primary">get our newsletter</Link>.
+              </p>
               <div className="flex space-x-4">
-                <a href="https://instagram.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
-                <a href="https://facebook.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
+                <a href={STORE.social.instagram} aria-label="Instagram" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Instagram size={24} /></a>
+                <a href={STORE.social.facebook} aria-label="Facebook" target="_blank" rel="noopener noreferrer" className="p-3 bg-muted rounded-xl text-primary hover:bg-accent hover:text-white transition-all"><Facebook size={24} /></a>
               </div>
             </div>
           </div>
 
           <div className="lg:col-span-8">
-            <div className="w-full h-[500px] rounded-3xl overflow-hidden bg-muted border border-border relative">
-              {/* Mock Map */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <div className="text-center space-y-4">
-                  <MapPin size={48} className="text-accent mx-auto animate-bounce" />
-                  <p className="font-bold text-primary">Camarillo Bookworm</p>
-                  <p className="text-xs text-muted-foreground">Interactive Map Placeholder</p>
-                </div>
-              </div>
-              <ImageWithFallback src="https://images.unsplash.com/photo-1761384979966-546eb28f60a7?auto=format&fit=crop&q=80&w=1200" alt="Map background" className="w-full h-full object-cover opacity-20 grayscale" />
+            <div className="w-full h-[420px] rounded-3xl overflow-hidden bg-muted border border-border">
+              <iframe
+                title="Map showing The Bookworm at 93 E Daily Dr, Camarillo"
+                src={MAP_EMBED}
+                className="w-full h-full border-0"
+                loading="lazy"
+                referrerPolicy="no-referrer-when-downgrade"
+              />
             </div>
           </div>
         </div>
       </section>
 
       {/* CTA */}
-      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pb-24">
-        <div className="bg-primary p-16 rounded-3xl text-center text-white relative overflow-hidden">
-          <div className="relative z-10">
-            <h2 className="text-4xl font-serif font-bold mb-6">Ready to find your next read?</h2>
-            <p className="text-xl text-white/70 mb-10 max-w-2xl mx-auto">
-              Visit us in person or explore our curated selection online. We can't wait to help you find your new favorite book.
-            </p>
-            <div className="flex flex-wrap justify-center gap-4">
-              <Link to="/shop" className="bg-accent text-white px-10 py-4 rounded-xl font-bold hover:bg-accent/90 transition-all">
-                Shop the Catalog
-              </Link>
-              <Link to="/staff-picks" className="bg-white/10 backdrop-blur-md border border-white/20 px-10 py-4 rounded-xl font-bold hover:bg-white/20 transition-all">
-                Meet the Staff
-              </Link>
-            </div>
+      <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-12">
+        <div className="bg-primary p-12 md:p-16 rounded-3xl text-center text-white">
+          <h2 className="text-4xl font-serif font-bold mb-5">Come in and say hello</h2>
+          <p className="text-xl text-white/70 mb-9 max-w-2xl mx-auto">
+            Stories come to life here, and every visit is a small adventure. We can't wait to help you find your next favorite book.
+          </p>
+          <div className="flex flex-wrap justify-center gap-4">
+            <Link to="/shop" className="bg-white text-primary px-9 py-4 rounded-xl font-bold hover:bg-white/90 transition-all">Browse Books</Link>
+            <Link to="/events" className="bg-white/10 border border-white/20 px-9 py-4 rounded-xl font-bold hover:bg-white/20 transition-all">Upcoming Events</Link>
           </div>
-          <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full -mr-32 -mt-32 blur-3xl"></div>
-          <div className="absolute bottom-0 left-0 w-64 h-64 bg-secondary/20 rounded-full -ml-32 -mb-32 blur-3xl"></div>
         </div>
       </section>
     </div>
