@@ -483,17 +483,29 @@ const Footer = () => {
 // Announcement bar with dynamic hours
 const AnnouncementBar = () => {
   const todayHours = getTodayHours();
+  const { pathname } = useLocation();
 
   return (
-    <div className="bg-muted text-muted-foreground py-2 px-4 text-center text-xs">
-      Free local delivery in Camarillo on orders over $50 &nbsp;|&nbsp;{' '}
-      <span className={`font-medium ${todayHours.isOpen ? 'text-primary' : 'text-secondary'}`}>
-        {todayHours.holidayName
-          ? `Closed Today (${todayHours.holidayName})`
-          : todayHours.isOpen
-          ? `Open Today: ${todayHours.hours}`
-          : `Closed Now (Hours: ${todayHours.hours})`}
+    <div className="bg-muted text-muted-foreground py-2.5 px-4 text-sm flex flex-wrap items-center justify-center gap-x-4 gap-y-1.5">
+      <span className="text-center">
+        <span className="hidden sm:inline">Free local delivery in Camarillo on orders over $50 &nbsp;|&nbsp;{' '}</span>
+        <span className={`font-medium ${todayHours.isOpen ? 'text-primary' : 'text-secondary'}`}>
+          {todayHours.holidayName
+            ? `Closed Today (${todayHours.holidayName})`
+            : todayHours.isOpen
+            ? `Open Today: ${todayHours.hours}`
+            : `Closed Now (Hours: ${todayHours.hours})`}
+        </span>
       </span>
+      {pathname !== '/newsletter' && (
+        <Link
+          to="/newsletter"
+          className="inline-flex items-center gap-1.5 bg-primary text-white px-3.5 py-1 rounded-full text-xs font-medium hover:bg-primary/90 transition-colors"
+        >
+          <Mail size={13} />
+          Get our newsletter
+        </Link>
+      )}
     </div>
   );
 };
