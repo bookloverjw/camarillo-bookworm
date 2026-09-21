@@ -27,6 +27,11 @@ AWARD_CATEGORY = {'caldecott': 'Picture Books', 'belpre-illustrator': 'Picture B
                   'pulitzer-nonfiction': 'Nonfiction'}
 
 
+# Hand-checked categories where Open Library's subjects mislead (Sept 2026).
+CATEGORY_OVERRIDES = {'You Only Live Twice': 'Fiction', 'Notorious RBG': 'Biography',
+                      'A Bad Boy Can Be Good For a Girl': 'YA'}
+
+
 def wanted():
     """Every uncarried collection book with an ISBN: isbn -> {title, author, hint}."""
     out = {}
@@ -146,7 +151,7 @@ def main():
             'id': best, 'isbn': best, 'title': title, 'author': w['author'],
             'description': (d.get('description') or None) and d['description'].strip()[:4000],
             'price': 0, 'cover_url': w.get('cover') if best == isbn else None,
-            'category': category(d.get('subject'), w['hint']), 'publisher': d.get('publisher'),
+            'category': CATEGORY_OVERRIDES.get(w['title']) or category(d.get('subject'), w['hint']), 'publisher': d.get('publisher'),
             'page_count': d.get('pages'), 'inventory_count': 0, 'reserved_count': 0,
             'status': 'out_of_stock', 'tags': [TAG],
         }
