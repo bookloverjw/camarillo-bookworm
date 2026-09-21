@@ -34,6 +34,8 @@ async function signUp(email: string, source: string): Promise<'subscribed' | 'al
 export function useNewsletterSignup(source: string) {
   const [email, setEmail] = useState('');
   const [isSubscribing, setIsSubscribing] = useState(false);
+  // True once this visitor is on the list (newly, or already was)
+  const [isSubscribed, setIsSubscribed] = useState(false);
 
   const subscribe = async (e?: React.FormEvent) => {
     e?.preventDefault();
@@ -42,6 +44,7 @@ export function useNewsletterSignup(source: string) {
     setIsSubscribing(true);
     try {
       const status = await signUp(email.trim(), source);
+      setIsSubscribed(true);
       if (status === 'already-subscribed') {
         toast.info("You're already subscribed!");
       } else {
@@ -55,5 +58,5 @@ export function useNewsletterSignup(source: string) {
     }
   };
 
-  return { email, setEmail, isSubscribing, subscribe };
+  return { email, setEmail, isSubscribing, isSubscribed, subscribe };
 }

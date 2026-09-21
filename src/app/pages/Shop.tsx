@@ -44,8 +44,8 @@ const ShopNewsletterBox = () => {
   const { email, setEmail, isSubscribing, subscribe } = useNewsletterSignup('shop');
   return (
     <div className="bg-muted p-6 rounded-2xl border border-border">
-      <h4 className="font-bold text-primary mb-2">Staff Recommendations</h4>
-      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">Sign up for our monthly "Bookworm Buzz" newsletter for hand-picked gems.</p>
+      <h4 className="font-bold text-primary mb-2">New books, every week</h4>
+      <p className="text-xs text-muted-foreground mb-4 leading-relaxed">The week's new releases, what's coming soon, and events at the store - one short email.</p>
       <form onSubmit={subscribe}>
         <input
           type="email"

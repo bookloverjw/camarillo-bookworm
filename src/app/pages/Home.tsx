@@ -614,9 +614,9 @@ export const Home = () => {
       <section className="bg-muted/50 py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="max-w-xl mx-auto text-center">
-            <h2 className="font-serif text-3xl text-foreground mb-4">Stay in the loop</h2>
+            <h2 className="font-serif text-3xl text-foreground mb-4">Be first to hear</h2>
             <p className="text-muted-foreground mb-6">
-              Get monthly book recommendations, event invites, and exclusive offers.
+              Author events, signings and book clubs, plus the week's new books - in one short email from your neighborhood bookstore.
             </p>
             <form onSubmit={subscribe} className="flex gap-2 max-w-md mx-auto">
               <input

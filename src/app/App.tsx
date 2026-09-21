@@ -2,7 +2,7 @@ import React, { useEffect } from 'react';
 import { Routes, Route, Link, Navigate, useLocation, useNavigate, BrowserRouter } from 'react-router';
 import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Toaster, toast } from 'sonner';
+import { Toaster } from 'sonner';
 import { getTodayHours, getFormattedHours } from '@/lib/storeHours';
 import { STORE } from '@/lib/storeConfig';
 import { usePageTracking } from '@/app/hooks/usePageTracking';
@@ -31,6 +31,8 @@ import { StaffPicks } from '@/app/pages/StaffPicks';
 import { GiftCards } from '@/app/pages/GiftCards';
 import { About } from '@/app/pages/About';
 import { Contact } from '@/app/pages/Contact';
+import { Newsletter } from '@/app/pages/Newsletter';
+import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 import { ReadAlikes } from '@/app/pages/ReadAlikes';
 import { Cart } from '@/app/pages/Cart';
 import { Checkout } from '@/app/pages/Checkout';
@@ -364,41 +366,7 @@ const Navbar = () => {
 };
 
 const Footer = () => {
-  const [email, setEmail] = React.useState('');
-  const [isSubscribing, setIsSubscribing] = React.useState(false);
-
-  const handleNewsletterSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!email.trim()) return;
-
-    setIsSubscribing(true);
-    try {
-      // Import supabase here to avoid circular dependencies
-      const { supabase } = await import('@/lib/supabase');
-
-      const { error } = await supabase.from('newsletter_subscribers').insert({
-        email: email.trim(),
-        source: 'footer',
-        subscribed_at: new Date().toISOString(),
-        is_active: true,
-      });
-
-      if (error) {
-        if (error.code === '23505') {
-          toast.info("You're already subscribed!");
-        } else {
-          throw error;
-        }
-      } else {
-        toast.success('Welcome to our newsletter!');
-        setEmail('');
-      }
-    } catch (err) {
-      toast.error('Failed to subscribe. Please try again.');
-    } finally {
-      setIsSubscribing(false);
-    }
-  };
+  const { email, setEmail, isSubscribing, subscribe: handleNewsletterSubmit } = useNewsletterSignup('footer');
 
   return (
     <footer className="bg-primary text-white">
@@ -473,7 +441,9 @@ const Footer = () => {
           {/* Newsletter */}
           <div>
             <h4 className="text-sm font-medium mb-4">Newsletter</h4>
-            <p className="text-sm text-white/70 mb-4">Monthly recommendations & event updates.</p>
+            <p className="text-sm text-white/70 mb-4">
+              Author events, book clubs and the week's new books. <Link to="/newsletter" className="underline hover:text-white">What you'll get</Link>
+            </p>
             <form onSubmit={handleNewsletterSubmit} className="flex">
               <input
                 type="email"
@@ -575,6 +545,7 @@ export default function App() {
                 <Route path="/collections/awards/:awardId" element={<AwardsPage />} />
                 <Route path="/collections/:slug" element={<CollectionPage />} />
                 <Route path="/contact" element={<Contact />} />
+                <Route path="/newsletter" element={<Newsletter />} />
                 {/* Store ordering is built but switched off - send anyone with an
                     old link back to the shop rather than a dead end. */}
                 <Route path="/cart" element={STORE_ORDERING_ENABLED ? <Cart /> : <Navigate to="/shop" replace />} />

@@ -38,5 +38,9 @@
   "/contact": {
     "title": "Contact & Hours",
     "description": "Visit Camarillo Bookworm at 93 E Daily Dr, Camarillo, CA 93010. Open Mon-Fri 10-6, Sat 10-5, Sun 12-5. Call (805) 482-1384."
+  },
+  "/newsletter": {
+    "title": "Newsletter",
+    "description": "Be first to hear about author events, signings and book clubs at Camarillo Bookworm, plus the week's new books - one short email from your neighborhood bookstore."
   }
 }
