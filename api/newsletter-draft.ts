@@ -13,14 +13,18 @@
  * SETUP REQUIRED (Vercel > Settings > Environment Variables):
  *   RESEND_API_KEY      from resend.com/api-keys
  *   RESEND_SEGMENT_ID   the segment (audience) subscribers are added to
- *   NEWSLETTER_FROM     e.g. Camarillo Bookworm <hello@camarillobookworm.com>
- *                       - the domain must be verified in Resend
+ *   NEWSLETTER_FROM     e.g. Camarillo Bookworm <hello@updates.camarillobookworm.com>
+ *                       - must be on the domain verified in Resend, which is
+ *                       the updates. subdomain
+ *   NEWSLETTER_REPLY_TO optional; where replies go. The sending subdomain has
+ *                       no mailbox, so this defaults to the store's address.
  *   CRON_SECRET         any long random string
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buildNewsletter } from './_lib/newsletter.js';
 
 const SITE_URL = 'https://www.camarillobookworm.com';
+const DEFAULT_REPLY_TO = 'hello@camarillobookworm.com';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });
@@ -49,6 +53,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     body: JSON.stringify({
       segment_id: RESEND_SEGMENT_ID,
       from: NEWSLETTER_FROM,
+      reply_to: process.env.NEWSLETTER_REPLY_TO || DEFAULT_REPLY_TO,
       subject: newsletter.subject,
       name: newsletter.name,
       html: newsletter.html,
