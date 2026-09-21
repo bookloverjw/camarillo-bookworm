@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, Ex
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
-import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, type UpcomingBook } from '@/lib/bookService';
+import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, getUpcomingSnapshot, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -95,7 +95,7 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
         {item.title}
       </h3>
       {item.author && <p className="text-xs text-muted-foreground mb-1">{item.author}</p>}
-      {item.price !== null && <p className="text-sm font-medium text-primary">${item.price.toFixed(2)}</p>}
+      {!!item.price && <p className="text-sm font-medium text-primary">${item.price.toFixed(2)}</p>}
       {INVENTORY_STATUS_IS_LIVE && (item.status === 'In Store' || item.status === 'Only 1 Left') && (
         <p className={`text-xs font-medium mt-1 ${item.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
           {item.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
@@ -297,9 +297,18 @@ export const Home = () => {
     loadBestsellers();
     loadEvents();
     getHomepageBooks().then(setLists);
-    getUpcomingBooks().then(setUpcoming).catch(() => {});
+    // Pinned releases right away, then the build-time snapshot, then the
+    // live list (which can take most of a minute to build after a deploy).
+    setUpcoming(pinnedUpcoming());
+    let live = false;
+    getUpcomingSnapshot().then(books => { if (!live && books.length) setUpcoming(books); });
+    getUpcomingBooks().then(books => {
+      // The live list only replaces the snapshot if it found as much.
+      if (books.length > pinnedUpcoming().length) { live = true; setUpcoming(books); }
+    }).catch(() => {});
 
-    const running = activeFeatures().filter(f => f.status === 'now');
+    // At most three seasonal shelves; December can have four features running.
+    const running = activeFeatures().filter(f => f.status === 'now').slice(0, 3);
     Promise.all(
       running.map(feature =>
         getCollection(feature.collection)
@@ -311,7 +320,9 @@ export const Home = () => {
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
-  const preorders = books.filter(b => b.status === 'Preorder');
+  // The catalogue stopped syncing in February, so most of its "preorders" are
+  // out by now; only show ones whose release date is still ahead.
+  const preorders = books.filter(b => b.status === 'Preorder' && (!b.releaseDate || new Date(b.releaseDate) > new Date()));
   const staffPicks = books.filter(b => b.isStaffPick);
 
   return (

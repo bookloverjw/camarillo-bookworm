@@ -823,7 +823,7 @@ export const Shop = () => {
                     {book.author && <p className="text-muted-foreground text-xs mb-2 italic">by {book.author}</p>}
 
                     <div className={`flex items-baseline space-x-2 ${viewMode === 'list' ? 'mb-4' : 'mb-6'}`}>
-                      <p className="text-primary font-bold text-lg">${book.price.toFixed(2)}</p>
+                      {book.price > 0 && <p className="text-primary font-bold text-lg">${book.price.toFixed(2)}</p>}
                       <span className="text-[9px] text-muted-foreground uppercase tracking-widest font-bold">{book.type}</span>
                     </div>
                   </div>

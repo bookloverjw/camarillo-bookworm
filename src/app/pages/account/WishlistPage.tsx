@@ -78,7 +78,7 @@ export const WishlistPage = () => {
                   {book.author && <p className="text-xs text-muted-foreground mb-4 italic">by {book.author}</p>}
                   
                   <div className="flex items-center space-x-2 mb-4">
-                    <span className="text-lg font-bold text-primary">${book.price.toFixed(2)}</span>
+                    {book.price > 0 && <span className="text-lg font-bold text-primary">${book.price.toFixed(2)}</span>}
                     {INVENTORY_STATUS_IS_LIVE && (
                       <span className={`text-[10px] font-bold uppercase tracking-widest ${
                         book.status === 'In Store' ? 'text-green-600' :

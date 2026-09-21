@@ -32,6 +32,8 @@ export interface Event {
   description: string;
   author?: string;
   featuredBookId?: string;
+  /** A private event: on the calendar, but not open for RSVPs. */
+  private?: boolean;
 }
 
 export interface StaffMember {

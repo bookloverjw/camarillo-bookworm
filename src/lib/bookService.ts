@@ -808,18 +808,73 @@ export interface UpcomingBook {
 /**
  * Forthcoming books by authors on the NYT lists and recent prize winners,
  * gathered weekly from ISBNdb (scripts/isbndb/refresh-coming-soon.mjs).
- * Empty until that job has run, in which case Coming Soon falls back to the
- * catalogue's own preorders.
+ * Until that job has run, the same idea built from Open Library's preorder
+ * records (api/coming-soon.ts) - fewer books, but all genuinely forthcoming.
  */
+/**
+ * The season's biggest releases, pinned to the front of Coming Soon whatever
+ * the feeds find. Each drops off on its release day. US hardcover ISBNs.
+ */
+const PINNED_UPCOMING: UpcomingBook[] = [
+  {
+    isbn: '9781639739134', title: 'A Court of Splintered Harmony', author: 'Sarah J. Maas',
+    publication_date: '2026-10-27', cover_url: 'https://covers.openlibrary.org/b/isbn/9781639739134-L.jpg',
+    msrp: null, reason: 'A Court of Thorns and Roses, book 6', catalog_id: null,
+  },
+  {
+    isbn: '9798260200568', title: 'A Court of Forgotten Melody', author: 'Sarah J. Maas',
+    publication_date: '2027-01-12', cover_url: 'https://covers.openlibrary.org/b/isbn/9798260200568-L.jpg',
+    msrp: null, reason: 'A Court of Thorns and Roses, book 7', catalog_id: null,
+  },
+];
+
+/** The pinned books still to come - available instantly, before the feeds answer. */
+export const pinnedUpcoming = () =>
+  PINNED_UPCOMING.filter(b => b.publication_date > new Date().toISOString().slice(0, 10));
+
+/**
+ * The Coming Soon list saved at build time (public/coming-soon.json): the
+ * pinned books plus the snapshot, instantly, while the live list loads.
+ */
+export async function getUpcomingSnapshot(limit = 40): Promise<UpcomingBook[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const pinned = pinnedUpcoming();
+  try {
+    const r = await fetch('/coming-soon.json');
+    const { books } = r.ok ? ((await r.json()) as { books?: UpcomingBook[] }) : { books: [] };
+    const seen = new Set(pinned.map(b => b.title.toLowerCase()));
+    return [...pinned, ...(books ?? []).filter(b => b.publication_date > today && !seen.has(b.title.toLowerCase()))].slice(0, limit);
+  } catch {
+    return pinned;
+  }
+}
+
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const pinned = pinnedUpcoming();
+  const seen = new Set(pinned.map(b => b.title.toLowerCase()));
+  const withPinned = (books: UpcomingBook[]) =>
+    [...pinned, ...books.filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
+  return withPinned(await upcomingFromFeeds(today, limit));
+}
+
+async function upcomingFromFeeds(today: string, limit: number): Promise<UpcomingBook[]> {
   const { data, error } = await supabase
     .from('upcoming_books')
     .select('*')
     .gte('publication_date', today)
     .order('publication_date', { ascending: true })
     .limit(limit);
-  return error || !data ? [] : (data as UpcomingBook[]);
+  if (!error && data?.length) return data as UpcomingBook[];
+  // Until the ISBNdb job has run: Open Library's preorders, via /api/coming-soon.
+  try {
+    const r = await fetch('/api/coming-soon');
+    if (!r.ok) return [];
+    const { books } = (await r.json()) as { books?: UpcomingBook[] };
+    return (books ?? []).filter(b => b.publication_date >= today).slice(0, limit);
+  } catch {
+    return [];
+  }
 }
 
 

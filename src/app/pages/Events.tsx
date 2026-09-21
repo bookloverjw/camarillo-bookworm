@@ -355,12 +355,18 @@ const EventDetailPanel: React.FC<{
         )}
 
         {/* Actions */}
-        <button
-          onClick={onRegister}
-          className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-all mb-3"
-        >
-          Register / RSVP
-        </button>
+        {event.private ? (
+          <p className="w-full text-center text-sm text-muted-foreground bg-muted/50 py-3 rounded-xl mb-3">
+            Private event — not open for RSVPs
+          </p>
+        ) : (
+          <button
+            onClick={onRegister}
+            className="w-full bg-primary text-white py-3 rounded-xl font-bold hover:bg-primary/90 transition-all mb-3"
+          >
+            Register / RSVP
+          </button>
+        )}
         <div className="flex gap-2">
           <button
             onClick={onAddToCalendar}
@@ -846,12 +852,18 @@ END:VCALENDAR`;
                     <p className="text-muted-foreground leading-relaxed max-w-2xl text-sm">{event.description}</p>
 
                     <div className="flex flex-wrap gap-3 pt-2">
-                      <button
-                        onClick={() => setRegisterEvent(event)}
-                        className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all"
-                      >
-                        Register / RSVP
-                      </button>
+                      {event.private ? (
+                        <span className="px-4 py-2.5 rounded-xl text-sm text-muted-foreground bg-muted/50">
+                          Private event — not open for RSVPs
+                        </span>
+                      ) : (
+                        <button
+                          onClick={() => setRegisterEvent(event)}
+                          className="bg-primary text-white px-6 py-2.5 rounded-xl font-bold text-sm hover:bg-primary/90 transition-all"
+                        >
+                          Register / RSVP
+                        </button>
+                      )}
                       <button
                         onClick={() => handleAddToCalendar(event)}
                         className="flex items-center gap-1.5 text-sm text-primary font-bold hover:underline"

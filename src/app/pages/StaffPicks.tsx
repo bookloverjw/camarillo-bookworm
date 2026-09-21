@@ -124,7 +124,7 @@ export const StaffPicks = () => {
                         {book.author && <p className="text-muted-foreground mb-6 font-medium italic">by {book.author}</p>}
 
                         <div className="flex items-center space-x-6">
-                          <p className="font-bold text-primary text-xl">${book.price.toFixed(2)}</p>
+                          {book.price > 0 && <p className="font-bold text-primary text-xl">${book.price.toFixed(2)}</p>}
                           <Link to={`/book/${book.id}`} className="text-xs font-bold uppercase tracking-widest text-accent flex items-center hover:underline">
                             View Details <ChevronRight size={14} className="ml-1" />
                           </Link>
