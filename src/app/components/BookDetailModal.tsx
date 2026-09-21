@@ -6,6 +6,7 @@ import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { buysThroughBookshop } from '@/lib/features';
+import { displayGenre } from '@/lib/genres';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { BookAwards } from '@/app/components/AwardBadge';
 import { CriticReviews } from '@/app/components/CriticReviews';
@@ -146,7 +147,7 @@ export const BookDetailModal: React.FC = () => {
                   {/* Info */}
                   <div className="flex-1 space-y-4">
                     <span className="inline-block px-2 py-0.5 bg-muted text-xs text-muted-foreground rounded font-medium uppercase tracking-wide">
-                      {book.genre}
+                      {displayGenre(book.category, book.genre) ?? book.category}
                     </span>
                     <h2 className="text-3xl md:text-4xl font-serif font-bold text-primary leading-tight">
                       {book.title}
