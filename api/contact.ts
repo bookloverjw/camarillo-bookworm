@@ -10,7 +10,8 @@
  */
 
 const TO = process.env.CONTACT_TO || 'Sales@camarillobookworm.com';
-const FROM = process.env.CONTACT_FROM || 'Camarillo Bookworm Website <website@camarillobookworm.com>';
+// The domain verified in Resend is the updates. subdomain.
+const FROM = process.env.CONTACT_FROM || 'The Bookworm Website <website@updates.camarillobookworm.com>';
 
 const SUBJECTS = new Set([
   'General Inquiry', 'Order Status', 'Special Order Request', 'Event Question',

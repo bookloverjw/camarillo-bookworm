@@ -37,8 +37,6 @@ export const Contact = () => {
         subject: formData.subject,
         message: formData.message,
         status: 'new',
-        created_at: new Date().toISOString(),
-        updated_at: new Date().toISOString(),
       }).then(({ error }) => { if (error) console.warn('Contact form copy not saved:', error.message); });
 
       toast.success("Message sent! We'll get back to you within 24 hours.");
