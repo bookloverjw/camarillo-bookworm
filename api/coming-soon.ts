@@ -112,12 +112,14 @@ async function forAuthor(name: string, reason: string, today: string, horizon: s
 }
 
 /** Run fn over items, a few at a time, to stay polite to Open Library. */
-async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): Promise<R[]> {
+async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, budgetMs = 40000): Promise<R[]> {
   const out: R[] = [];
+  const deadline = Date.now() + budgetMs;
   let i = 0;
   let failures = 0;
   await Promise.all(Array.from({ length: size }, async () => {
-    while (i < items.length) {
+    // Stop starting new lookups once the budget is spent, well inside maxDuration.
+    while (i < items.length && Date.now() < deadline) {
       const item = items[i++];
       try { out.push(await fn(item)); } catch (err) {
         // One slow author shouldn't sink the list.
@@ -126,7 +128,7 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>): P
       }
     }
   }));
-  if (failures) console.warn(`coming-soon: ${failures} of ${items.length} lookups failed`);
+  if (failures || i < items.length) console.warn(`coming-soon: ${failures} failed, ${items.length - i} skipped for time`);
   return out;
 }
 
