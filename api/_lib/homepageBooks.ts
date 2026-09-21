@@ -22,7 +22,8 @@ import { firstPublishedYears } from './firstPublished.js';
 import { PERENNIAL, foldName } from './prominentAuthors.js';
 
 // The browser client uses these same two values (src/lib/supabase.ts). Both
-// are public by design; books is readable by anyone under RLS.
+// are public by design; the customer-facing columns of books are readable by
+// anyone.
 const SUPABASE_URL = 'https://lildbdxabljkoynvpflu.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_h_B4nBpI9hTOycnv4Fj6Tw_epMD62aO';
 
@@ -191,10 +192,11 @@ async function supabaseSelect(path: string): Promise<any[]> {
   return res.json();
 }
 
-// Every column rather than a list: list_price only exists once
-// supabase/isbndb-prices-and-coming-soon.sql has run, and naming a missing
-// column would fail the whole request. It's at most a couple of hundred rows.
-const CATALOGUE_FIELDS = '*';
+// Named columns, not '*': the publishable key may only read the customer-
+// facing ones (supabase/books-public-columns-2-lockdown.sql), and asking for
+// everything is refused. list_price is created by step 1 of that migration
+// if the ISBNdb one has not already.
+const CATALOGUE_FIELDS = 'id,isbn,title,author,price,list_price,cover_url,category,publication_date';
 
 export async function buildHomepageBooks(nytApiKey: string, now = new Date()): Promise<HomepageBooks> {
   const { date: listsDate, salesWeekEnding, lists } = await fetchNytLists(nytApiKey);

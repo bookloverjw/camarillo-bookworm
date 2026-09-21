@@ -198,39 +198,34 @@ export async function confirmPurchase(
 export async function checkAvailability(
   bookId: string,
   requestedQuantity: number = 1
-): Promise<{ available: boolean; inStock: number; reserved: number; message?: string }> {
+): Promise<{ available: boolean; message?: string }> {
   try {
-    const { data: book, error } = await supabase
-      .from('books')
-      .select('inventory_count, reserved_count')
-      .eq('id', bookId)
-      .single();
+    // Copies not held in another cart, capped at 20. The raw
+    // inventory_count / reserved_count columns are not readable from the
+    // browser (supabase/books-public-columns-2-lockdown.sql).
+    const { data: copies, error } = await supabase.rpc('book_availability', {
+      p_book_id: bookId,
+    });
 
-    if (error || !book) {
+    if (error || copies === null || copies === undefined) {
       // Display-only fallback; reserve_book still enforces the real limit
-      return { available: true, inStock: 0, reserved: 0 };
+      return { available: true };
     }
 
-    const inStock = book.inventory_count || 0;
-    const reserved = book.reserved_count || 0;
-    const actualAvailable = inStock - reserved;
-
-    if (actualAvailable < requestedQuantity) {
+    if (copies < requestedQuantity) {
       return {
         available: false,
-        inStock,
-        reserved,
         message:
-          actualAvailable <= 0
-            ? 'This book is currently reserved by other shoppers. Check back soon!'
-            : `Only ${actualAvailable} available (${reserved} reserved by other shoppers)`,
+          copies <= 0
+            ? 'This book is currently sold out or reserved by other shoppers. Check back soon!'
+            : `Only ${copies} available`,
       };
     }
 
-    return { available: true, inStock, reserved };
+    return { available: true };
   } catch (error) {
     console.error('Check availability error:', error);
-    return { available: true, inStock: 0, reserved: 0 };
+    return { available: true };
   }
 }
 

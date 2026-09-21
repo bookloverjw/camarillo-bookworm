@@ -1,6 +1,8 @@
 """Shared catalogue access for the cleanup and import scripts.
 
-Reads with the site's public key. Writes need SUPABASE_SECRET_KEY in the
+Reads with the site's public key, which sees the customer-facing columns
+only (supabase/books-public-columns-2-lockdown.sql) - pass all_books() the
+secret key to read sales figures. Writes need SUPABASE_SECRET_KEY in the
 environment (the Supabase dashboard's secret key); it's never printed."""
 import json, os, re, ssl, sys, time, unicodedata, urllib.error, urllib.parse, urllib.request
 from pathlib import Path
@@ -38,11 +40,12 @@ def http(url, data=None, headers=None, method=None, tries=5, timeout=60):
             time.sleep(5 * (attempt + 1))
 
 
-def all_books(fields):
+def all_books(fields, key=None):
+    key = key or PUBLIC_KEY
     rows = []
     for offset in range(0, 500000, 1000):
         q = urllib.parse.urlencode({'select': fields, 'order': 'id.asc', 'offset': offset, 'limit': 1000})
-        page = http(f'{SUPABASE_URL}/rest/v1/books?{q}', headers={'apikey': PUBLIC_KEY, 'Authorization': f'Bearer {PUBLIC_KEY}'})
+        page = http(f'{SUPABASE_URL}/rest/v1/books?{q}', headers={'apikey': key, 'Authorization': f'Bearer {key}'})
         rows += page
         if len(page) < 1000:
             return rows
