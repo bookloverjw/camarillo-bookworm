@@ -11,9 +11,51 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
+import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
+import { getHomepageBooks, type HomepageBook, type HomepageBooks, type Shelf } from '@/lib/homepageBooks';
+
+/**
+ * One card in a carousel. Books we carry open the quick-view modal on our own
+ * catalogue; books we don't - most of this week's NYT lists, since the
+ * catalogue stopped syncing in February - go straight to Bookshop.org.
+ */
+interface CarouselItem {
+  key: string;
+  title: string;
+  author: string;
+  cover: string | null;
+  isbn?: string;
+  price: number | null;
+  /** A small line above the title, e.g. "#1 · Hardcover Fiction". */
+  eyebrow?: string;
+  catalogId?: string;
+  status?: Book['status'];
+}
+
+const fromCatalogue = (book: Book): CarouselItem => ({
+  key: book.id,
+  title: book.title,
+  author: book.author,
+  cover: book.cover,
+  isbn: book.isbn,
+  price: book.price,
+  catalogId: book.id,
+  status: book.status,
+});
+
+const fromList = (book: HomepageBook, { ranked }: { ranked: boolean }): CarouselItem => ({
+  key: book.isbn,
+  title: book.title,
+  author: book.author,
+  cover: book.cover,
+  isbn: book.isbn,
+  price: book.price,
+  catalogId: book.catalogId ?? undefined,
+  eyebrow: ranked && book.rank ? `#${book.rank} · ${book.list}` : undefined,
+});
 
 // Horizontal scrolling book carousel component - Elliott Bay style
-const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
+const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
   const { openModal } = useBookModal();
 
@@ -26,6 +68,35 @@ const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
       });
     }
   };
+
+  const cardClass = 'flex-shrink-0 w-[140px] group/book text-left cursor-pointer';
+
+  const cardBody = (item: CarouselItem) => (
+    <>
+      <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md">
+        <BookCover
+          src={item.cover}
+          isbn={item.isbn}
+          title={item.title}
+          author={item.author}
+          className="w-full h-full object-contain"
+        />
+      </div>
+      {item.eyebrow && (
+        <p className="text-[10px] font-bold uppercase tracking-wider text-accent mb-1 truncate">{item.eyebrow}</p>
+      )}
+      <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">
+        {item.title}
+      </h3>
+      {item.author && <p className="text-xs text-muted-foreground mb-1">{item.author}</p>}
+      {item.price !== null && <p className="text-sm font-medium text-primary">${item.price.toFixed(2)}</p>}
+      {INVENTORY_STATUS_IS_LIVE && (item.status === 'In Store' || item.status === 'Only 1 Left') && (
+        <p className={`text-xs font-medium mt-1 ${item.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
+          {item.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
+        </p>
+      )}
+    </>
+  );
 
   return (
     <div className="relative group">
@@ -49,33 +120,23 @@ const BookCarousel = ({ books, title }: { books: Book[]; title: string }) => {
         className="flex overflow-x-auto gap-6 pb-4 scrollbar-hide scroll-smooth"
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
-        {books.map((book) => (
-          <button
-            key={book.id}
-            onClick={() => openModal(book.id)}
-            className="flex-shrink-0 w-[140px] group/book text-left cursor-pointer"
-          >
-            <div className="aspect-[2/3] mb-3 overflow-hidden rounded shadow-sm transition-shadow group-hover/book:shadow-md">
-              <BookCover
-                src={book.cover}
-                isbn={book.isbn}
-                title={book.title}
-                author={book.author}
-                className="w-full h-full object-contain"
-              />
-            </div>
-            <h3 className="font-serif text-sm text-foreground leading-tight line-clamp-2 mb-1 group-hover/book:text-primary transition-colors">
-              {book.title}
-            </h3>
-            {book.author && <p className="text-xs text-muted-foreground mb-1">{book.author}</p>}
-            <p className="text-sm font-medium text-primary">${book.price.toFixed(2)}</p>
-            {INVENTORY_STATUS_IS_LIVE && (book.status === 'In Store' || book.status === 'Only 1 Left') && (
-              <p className={`text-xs font-medium mt-1 ${book.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
-                {book.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
-              </p>
-            )}
-          </button>
-        ))}
+        {items.map((item) =>
+          item.catalogId ? (
+            <button key={item.key} onClick={() => openModal(item.catalogId!)} className={cardClass}>
+              {cardBody(item)}
+            </button>
+          ) : (
+            <a
+              key={item.key}
+              href={getBookshopAffiliateUrl(item.isbn)}
+              target="_blank"
+              rel="noopener noreferrer"
+              className={cardClass}
+            >
+              {cardBody(item)}
+            </a>
+          ),
+        )}
       </div>
     </div>
   );
@@ -87,6 +148,10 @@ export const Home = () => {
   // Start empty and fill from Supabase - never show placeholder content
   const [books, setBooks] = useState<Book[]>([]);
   const [bestsellers, setBestsellers] = useState<Book[]>([]);
+  // NYT lists plus this quarter's releases; null until loaded, or if the API
+  // isn't available, in which case the sections fall back to our catalogue.
+  const [lists, setLists] = useState<HomepageBooks | null>(null);
+  const [shelf, setShelf] = useState<Shelf>('hardcover');
   const [events, setEvents] = useState<Event[]>([]);
 
   // Load data from Supabase on mount
@@ -127,6 +192,7 @@ export const Home = () => {
     loadBooks();
     loadBestsellers();
     loadEvents();
+    getHomepageBooks().then(setLists);
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
@@ -169,20 +235,63 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Bestsellers Section */}
-      {bestsellers.length > 0 && (
+      {/* Bestsellers Section - this week's NYT lists, or our own sales ranking
+          if they can't be loaded */}
+      {(lists || bestsellers.length > 0) && (
         <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
           <div className="text-center mb-10">
             <h2 className="section-title">Bestsellers</h2>
-            <p className="text-muted-foreground mt-4">Our most popular titles right now</p>
+            <p className="text-muted-foreground mt-4">
+              {lists ? "This week's New York Times best sellers" : 'Our most popular titles right now'}
+            </p>
           </div>
 
-          <BookCarousel books={bestsellers} title="Bestsellers" />
+          {lists && (
+            <div className="flex items-center justify-center space-x-1 mb-8 border-b border-border">
+              {([
+                ['hardcover', 'Hardcover'],
+                ['paperback', 'Paperback'],
+                ['childrens', "Children's"],
+              ] as [Shelf, string][]).map(([key, label]) => (
+                <button
+                  key={key}
+                  onClick={() => setShelf(key)}
+                  className={`px-5 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                    shelf === key
+                      ? 'text-primary border-primary'
+                      : 'text-muted-foreground border-transparent hover:text-primary'
+                  }`}
+                >
+                  {label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          <BookCarousel
+            items={lists
+              ? lists.bestsellers[shelf].map(book => fromList(book, { ranked: true }))
+              : bestsellers.map(fromCatalogue)}
+          />
 
           <div className="mt-8 text-center">
-            <Link to="/shop?sort=best-selling" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
-              View All Bestsellers <ArrowRight size={16} className="ml-1" />
-            </Link>
+            {lists ? (
+              // The NYT's terms ask for attribution with a link back.
+              <a
+                href="https://www.nytimes.com/books/best-sellers/"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-xs text-muted-foreground hover:text-primary"
+              >
+                Lists from The New York Times
+                {lists.listsDate &&
+                  `, week of ${new Date(`${lists.listsDate}T00:00:00`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' })}`}
+              </a>
+            ) : (
+              <Link to="/shop?sort=best-selling" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
+                View All Bestsellers <ArrowRight size={16} className="ml-1" />
+              </Link>
+            )}
           </div>
         </section>
       )}
@@ -191,6 +300,7 @@ export const Home = () => {
       <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
         <div className="text-center mb-10">
           <h2 className="section-title">New Releases</h2>
+          {lists && <p className="text-muted-foreground mt-4">Out in the last three months</p>}
         </div>
 
         {/* Category filter tabs */}
@@ -210,7 +320,14 @@ export const Home = () => {
           ))}
         </div>
 
-        <BookCarousel books={filteredBooks} title="New Releases" />
+        <BookCarousel
+          items={lists
+            ? lists.newReleases
+                .filter(book => book.category === activeFilter)
+                .slice(0, 16)
+                .map(book => fromList(book, { ranked: false }))
+            : filteredBooks.map(fromCatalogue)}
+        />
 
         <div className="mt-8 text-center">
           <Link to="/shop" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
@@ -227,7 +344,7 @@ export const Home = () => {
             <p className="text-muted-foreground mt-4">Preorder anticipated titles</p>
           </div>
 
-          <BookCarousel books={preorders} title="Coming Soon" />
+          <BookCarousel items={preorders.map(fromCatalogue)} />
 
           <div className="mt-8 text-center">
             <Link to="/shop?filter=preorder" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
@@ -245,7 +362,7 @@ export const Home = () => {
           <p className="text-muted-foreground mt-4">Hand-selected favorites from our team</p>
         </div>
 
-        <BookCarousel books={staffPicks} title="Staff Picks" />
+        <BookCarousel items={staffPicks.map(fromCatalogue)} />
 
         <div className="mt-8 text-center">
           <Link to="/staff-picks" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
