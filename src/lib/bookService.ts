@@ -5,7 +5,7 @@
 
 import { supabase } from './supabase';
 import { type Book } from '@/app/utils/data';
-import { splitTitle } from './titleUtils';
+import { splitTitle, fixAllCapsTitle } from './titleUtils';
 import { STORE_ORDERING_ENABLED } from '@/lib/features';
 
 export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'author' | 'best-selling';
@@ -72,7 +72,7 @@ export interface SupabaseBook {
  * Map Supabase book to website Book format
  */
 function mapSupabaseBookToBook(sb: SupabaseBook): Book {
-  const { title, subtitle } = splitTitle(sb.title);
+  const { title, subtitle } = splitTitle(fixAllCapsTitle(sb.title));
   return {
     id: sb.id,
     isbn: sb.isbn,
