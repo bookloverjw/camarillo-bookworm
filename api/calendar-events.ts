@@ -76,6 +76,21 @@ export function cleanTitle(raw: string) {
   return t || raw.trim();
 }
 
+/**
+ * Descriptions synced from the store's schedule arrive as
+ * "From schedule Notes cell:\n***SCI-FI BOOKCLUB 5:30PM***". Drop the sync
+ * boilerplate and the asterisks, and drop the note entirely when all it does
+ * is repeat the title.
+ */
+export function cleanDescription(raw: string, title: string) {
+  const d = raw
+    .replace(/^\s*from schedule notes cell:?\s*/i, '')
+    .replace(/\*{2,}/g, '')
+    .trim();
+  const fold = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+  return !d || fold(cleanTitle(d)) === fold(title) ? '' : d;
+}
+
 export function parseFeed(ics: string): CalendarEvent[] {
   // Undo line folding: a line starting with a space or tab continues the last.
   const lines = ics.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
@@ -89,13 +104,14 @@ export function parseFeed(ics: string): CalendarEvent[] {
       const end = cur.DTEND && parseDate(cur.DTEND.params, cur.DTEND.value);
       if (start && cur.STATUS?.value !== 'CANCELLED') {
         if (cur.RRULE) console.warn(`calendar-events: "${cur.SUMMARY?.value}" repeats; only its first date is shown`);
+        const title = cleanTitle(unescape(cur.SUMMARY?.value || 'Event'));
         events.push({
           id: cur.UID?.value || `${start.iso}-${cur.SUMMARY?.value}`,
-          title: cleanTitle(unescape(cur.SUMMARY?.value || 'Event')),
+          title,
           start: start.iso,
           end: end ? end.iso : null,
           allDay: start.allDay,
-          description: unescape(cur.DESCRIPTION?.value || ''),
+          description: cleanDescription(unescape(cur.DESCRIPTION?.value || ''), title),
           location: unescape(cur.LOCATION?.value || ''),
         });
       }
