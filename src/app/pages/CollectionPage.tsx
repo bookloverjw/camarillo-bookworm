@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link, useParams } from 'react-router';
 import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { CollectionBookCard } from '@/app/components/CollectionBookCard';
-import { BannedBooksWeekBanner } from '@/app/pages/Collections';
+import { SeasonalBanners } from '@/app/components/SeasonalBanners';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
 import { getCollection, type CuratedCollection } from '@/lib/collections';
 
@@ -43,7 +43,8 @@ export const CollectionPage = () => {
         <p className="text-muted-foreground">{collection.description}</p>
       </header>
 
-      {collection.slug === 'banned-books' && <div className="mb-12"><BannedBooksWeekBanner /></div>}
+      {/* This collection's own seasonal banner, when it's in season */}
+      <SeasonalBanners only={collection.slug === 'banned-books' ? 'banned-books-week' : collection.slug} className="mb-12" />
 
       {collection.sections.map(section => (
         <section key={section.title} className="mb-16">

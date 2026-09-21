@@ -6,9 +6,13 @@ import { getAwardIndex, type AwardBadge as Badge } from '@/lib/collections';
  * An award's seal where we have one, a text ribbon where we don't.
  *
  * Seals sit on a white plate: several are black line art (the Eisner, the
- * Hugo rocket) that would vanish against the dark theme. Newbery, Caldecott
- * and Printz get the ribbon deliberately - the ALA licenses those seals and
- * restricts their use.
+ * Hugo rocket) that would vanish against the dark theme.
+ *
+ * The ALA seals (Newbery, Caldecott, Printz, Belpré) are the gold winner
+ * medals, so they appear on winners only - honor books get a different,
+ * silver seal, which we don't have, and show the ribbon instead. The ALA
+ * restricts reproduction of its seals; the store has chosen to show them on
+ * genuine winners, as booksellers commonly do.
  */
 export const AwardSeal = ({ badge, size = 'md' }: { badge: Badge; size?: 'sm' | 'md' }) => {
   const dim = size === 'sm' ? 'w-9 h-9' : 'w-16 h-16';

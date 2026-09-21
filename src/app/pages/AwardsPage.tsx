@@ -4,19 +4,21 @@ import { ArrowLeft, ArrowRight, ExternalLink } from 'lucide-react';
 import { CollectionBookCard } from '@/app/components/CollectionBookCard';
 import { AwardSeal } from '@/app/components/AwardBadge';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
-import { badgeLabel, getAwards, sealUrl, type Award, type AwardEntry, type AwardsData } from '@/lib/collections';
+import { badgeLabel, getAwards, sealFor, type Award, type AwardEntry, type AwardsData } from '@/lib/collections';
 
 // How the index groups the prizes.
 const GROUPS: { title: string; ids: string[] }[] = [
   { title: 'Literary', ids: ['pulitzer-fiction', 'nba-fiction', 'booker', 'nba-translated', 'pulitzer-nonfiction', 'nba-nonfiction'] },
-  { title: 'Science Fiction, Fantasy & Mystery', ids: ['hugo-novel', 'edgar-novel'] },
+  { title: 'Science Fiction, Fantasy, Horror & Mystery', ids: ['hugo-novel', 'stoker-novel', 'edgar-novel'] },
   { title: 'Graphic Novels', ids: ['eisner-graphic-album', 'eisner-graphic-memoir'] },
   { title: "Children's & Young Adult", ids: ['newbery', 'caldecott', 'printz', 'nba-young-people'] },
+  // The ALA split the Belpré author medal in 2021; 'belpre-author' is 2016-2020.
+  { title: 'Pura Belpré Award', ids: ['belpre-childrens-author', 'belpre-ya-author', 'belpre-illustrator', 'belpre-author'] },
 ];
 
 const badgeFor = (award: Award, e: AwardEntry) => ({
-  award, year: e.year, result: e.result, label: badgeLabel(award, e.result),
-  seal: sealUrl(e.result === 'winner' ? award.seal.winner : award.seal.finalist),
+  award, year: e.year, result: e.result, label: badgeLabel(award, e.result, e.awardName),
+  seal: sealFor(award, e),
 });
 
 const Source = ({ data, award }: { data: AwardsData; award?: Award }) => (
@@ -44,7 +46,7 @@ const AwardsIndex = ({ data }: { data: AwardsData }) => {
         <h1 className="text-4xl sm:text-5xl font-serif font-bold text-primary mb-3">Award Winners</h1>
         <p className="text-muted-foreground">
           A decade of winners and finalists from the most respected prizes in books — from the Pulitzer and the
-          Booker to the Hugo, the Eisner and the Newbery.
+          Booker to the Hugo, the Bram Stoker, the Eisner, the Newbery and the Pura Belpré.
         </p>
       </header>
 

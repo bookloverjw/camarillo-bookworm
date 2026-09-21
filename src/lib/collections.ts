@@ -48,6 +48,18 @@ export interface AwardEntry {
   year: number;
   result: AwardResult;
   book: CollectionBook;
+  /**
+   * A seal for this year only, overriding the award's own. The Booker was the
+   * Man Booker Prize until 2019, so those years carry the Man Booker logo.
+   */
+  seal?: string;
+  /** The prize's name that year, where it differs: "Man Booker Prize" until 2019. */
+  awardName?: string;
+}
+
+/** The seal for one result: its own override, else the award's for that result. */
+export function sealFor(award: Award, entry: Pick<AwardEntry, 'result' | 'seal'>) {
+  return sealUrl(entry.seal ?? (entry.result === 'winner' ? award.seal.winner : award.seal.finalist));
 }
 
 export interface AwardsData {
@@ -86,8 +98,8 @@ export const getAwards = () => load<AwardsData>('awards.json');
 
 export const sealUrl = (file?: string) => (file ? `/awards/${file}` : undefined);
 
-export function badgeLabel(award: Award, result: AwardResult) {
-  return `${award.name} ${result === 'winner' ? 'Winner' : award.finalistLabel}`;
+export function badgeLabel(award: Award, result: AwardResult, name = award.name) {
+  return `${name} ${result === 'winner' ? 'Winner' : award.finalistLabel}`;
 }
 
 // Names are compared with accents and punctuation folded away, so "Han Kang"
@@ -133,8 +145,8 @@ export function getAwardIndex(): Promise<AwardIndex> {
           seen.add(key);
           badges.push({
             award, year: e.year, result: e.result,
-            label: badgeLabel(award, e.result),
-            seal: sealUrl(e.result === 'winner' ? award.seal.winner : award.seal.finalist),
+            label: badgeLabel(award, e.result, e.awardName),
+            seal: sealFor(award, e),
           });
         }
         const laureateYear = author ? nobel.get(foldName(author)) : undefined;
