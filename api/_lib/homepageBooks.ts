@@ -38,6 +38,8 @@ export interface HomepageBook {
   rank: number | null;
   list: string | null;
   weeksOnList: number | null;
+  /** The NYT's one-line description, when the book came from a list. */
+  description?: string | null;
 }
 
 export interface HomepageBooks {
@@ -70,6 +72,7 @@ const LISTS: Record<string, { shelf: Shelf | null; category: Category; label: st
 
 interface NytBook {
   rank: number;
+  description?: string;
   title: string;
   author: string;
   primary_isbn13: string;
@@ -221,6 +224,7 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
       rank: book.rank,
       list: meta.label,
       weeksOnList: book.weeks_on_list,
+      description: book.description || null,
     };
   };
 

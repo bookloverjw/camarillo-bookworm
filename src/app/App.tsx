@@ -14,6 +14,7 @@ import { CartProvider, useCart } from '@/app/context/CartContext';
 import { ThemeProvider, useTheme } from '@/app/context/ThemeContext';
 import { BookModalProvider } from '@/app/context/BookModalContext';
 import { BookDetailModal } from '@/app/components/BookDetailModal';
+import { ExternalBookModal } from '@/app/components/ExternalBookModal';
 import { AuthPage } from '@/app/pages/auth/AuthPage';
 import { AccountLayout } from '@/app/pages/account/AccountLayout';
 import { DashboardPage } from '@/app/pages/account/DashboardPage';
@@ -605,6 +606,7 @@ export default function App() {
 
             <Footer />
             <BookDetailModal />
+            <ExternalBookModal />
             <Toaster position="bottom-right" richColors />
           </div>
         </HashRouter>

@@ -1,14 +1,12 @@
 import React from 'react';
 import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
-import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
-import { getBookshopSearchUrl } from '@/lib/bookshopWidgets';
 import type { CollectionBook } from '@/lib/collections';
 
 /**
  * A book in a collection. Titles we carry open the quick view on our own
- * catalogue; the rest go to Bookshop.org - by ISBN under our affiliate link
- * where we have one, otherwise a title-and-author search.
+ * catalogue; the rest open a quick view of their own, offering Bookshop.org
+ * or a call to check our shelves or order it in.
  */
 export const CollectionBookCard = ({
   book,
@@ -21,7 +19,7 @@ export const CollectionBookCard = ({
   /** Anything under the author: a note, badges. */
   footer?: React.ReactNode;
 }) => {
-  const { openModal } = useBookModal();
+  const { openModal, openExternal } = useBookModal();
 
   const body = (
     <>
@@ -51,13 +49,12 @@ export const CollectionBookCard = ({
     );
   }
 
-  const href = book.isbn
-    ? getBookshopAffiliateUrl(book.isbn)
-    : getBookshopSearchUrl(`${book.title} ${book.author}`);
-
   return (
-    <a href={href} target="_blank" rel="noopener noreferrer" className="group block">
+    <button
+      onClick={() => openExternal({ title: book.title, author: book.author, isbn: book.isbn, cover: book.cover, note: book.note })}
+      className="group text-left w-full"
+    >
       {body}
-    </a>
+    </button>
   );
 };

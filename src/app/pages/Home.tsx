@@ -11,7 +11,6 @@ import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
-import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { SeasonalBanners } from '@/app/components/SeasonalBanners';
 import { activeFeatures, type ActiveFeature } from '@/lib/seasons';
 import { getCollection, type CollectionBook, type CuratedCollection } from '@/lib/collections';
@@ -33,6 +32,9 @@ interface CarouselItem {
   eyebrow?: string;
   catalogId?: string;
   status?: Book['status'];
+  /** For the quick view of a book we don't carry. */
+  description?: string;
+  forthcoming?: boolean;
 }
 
 const fromCatalogue = (book: Book): CarouselItem => ({
@@ -55,12 +57,13 @@ const fromList = (book: HomepageBook, { ranked }: { ranked: boolean }): Carousel
   price: book.price,
   catalogId: book.catalogId ?? undefined,
   eyebrow: ranked && book.rank ? `#${book.rank} · ${book.list}` : undefined,
+  description: book.description ?? undefined,
 });
 
 // Horizontal scrolling book carousel component - Elliott Bay style
 const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
-  const { openModal } = useBookModal();
+  const { openModal, openExternal } = useBookModal();
 
   const scroll = (direction: 'left' | 'right') => {
     if (scrollRef.current) {
@@ -129,15 +132,19 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
               {cardBody(item)}
             </button>
           ) : (
-            <a
+            // Not in our catalogue: our own quick view, not a jump to Bookshop,
+            // so the reader can still choose to call us.
+            <button
               key={item.key}
-              href={getBookshopAffiliateUrl(item.isbn)}
-              target="_blank"
-              rel="noopener noreferrer"
+              onClick={() => openExternal({
+                title: item.title, author: item.author, isbn: item.isbn, cover: item.cover,
+                note: item.eyebrow, description: item.description, price: item.price,
+                forthcoming: item.forthcoming,
+              })}
               className={cardClass}
             >
               {cardBody(item)}
-            </a>
+            </button>
           ),
         )}
       </div>
@@ -165,6 +172,7 @@ const fromUpcoming = (book: UpcomingBook): CarouselItem => ({
   price: book.msrp,
   catalogId: book.catalog_id ?? undefined,
   eyebrow: releaseLabel(book.publication_date),
+  forthcoming: true,
 });
 
 const fromCollection = (book: CollectionBook, i: number): CarouselItem => ({
