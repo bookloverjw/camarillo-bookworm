@@ -7,6 +7,7 @@ import { useBookModal } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { buysThroughBookshop } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
+import { BookAwards } from '@/app/components/AwardBadge';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getBooks } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
@@ -173,6 +174,8 @@ export const BookDetailModal: React.FC = () => {
                     </p>}
                     <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
                     <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
+
+                    <BookAwards id={book.id} isbn={book.isbn} author={book.author} />
 
                     {/* Meta info */}
                     <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-sm">

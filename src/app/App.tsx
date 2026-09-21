@@ -33,6 +33,9 @@ import { Contact } from '@/app/pages/Contact';
 import { ReadAlikes } from '@/app/pages/ReadAlikes';
 import { Cart } from '@/app/pages/Cart';
 import { Checkout } from '@/app/pages/Checkout';
+import { Collections } from '@/app/pages/Collections';
+import { CollectionPage } from '@/app/pages/CollectionPage';
+import { AwardsPage } from '@/app/pages/AwardsPage';
 
 const Navbar = () => {
   const [isOpen, setIsOpen] = React.useState(false);
@@ -50,6 +53,10 @@ const Navbar = () => {
     { name: 'All Books', path: '/shop', external: false },
     { name: 'New & Noteworthy', path: '/shop?filter=new', external: false },
     { name: 'Staff Picks', path: '/staff-picks', external: false },
+    { name: 'Collections', path: '/collections', external: false },
+    { name: 'Award Winners', path: '/collections/awards', external: false },
+    { name: 'Banned Books', path: '/collections/banned-books', external: false },
+    { name: 'The Book Was Better', path: '/collections/the-book-was-better', external: false },
     { name: 'Gift Cards', path: '/gift-cards', external: false },
     { name: 'Read-Alikes: What to Read Next', path: '/read-alikes', external: false, icon: BookOpen },
     { name: 'Audiobooks', path: 'https://libro.fm/camarillobookworm', external: true, icon: Headphones },
@@ -418,6 +425,7 @@ const Footer = () => {
               <li><Link to="/shop" className="text-sm text-white/70 hover:text-white transition-colors">Shop Books</Link></li>
               <li><Link to="/events" className="text-sm text-white/70 hover:text-white transition-colors">Events</Link></li>
               <li><Link to="/staff-picks" className="text-sm text-white/70 hover:text-white transition-colors">Staff Picks</Link></li>
+              <li><Link to="/collections" className="text-sm text-white/70 hover:text-white transition-colors">Collections</Link></li>
               <li><Link to="/gift-cards" className="text-sm text-white/70 hover:text-white transition-colors">Gift Cards</Link></li>
               <li><a href="https://bookshop.org/shop/camarillobookworm" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Bookshop.org</a></li>
               <li><a href="https://libro.fm/camarillobookworm" target="_blank" rel="noopener noreferrer" className="text-sm text-white/70 hover:text-white transition-colors">Libro.fm Audiobooks</a></li>
@@ -559,6 +567,10 @@ export default function App() {
                 <Route path="/gift-cards" element={<GiftCards />} />
                 <Route path="/about" element={<About />} />
                 <Route path="/read-alikes" element={<ReadAlikes />} />
+                <Route path="/collections" element={<Collections />} />
+                <Route path="/collections/awards" element={<AwardsPage />} />
+                <Route path="/collections/awards/:awardId" element={<AwardsPage />} />
+                <Route path="/collections/:slug" element={<CollectionPage />} />
                 <Route path="/contact" element={<Contact />} />
                 {/* Store ordering is built but switched off - send anyone with an
                     old link back to the shop rather than a dead end. */}

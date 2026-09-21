@@ -12,6 +12,7 @@ import { BookshopSearchBox } from '@/app/components/BookshopWidget';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
+import { BannedBooksWeekBanner } from '@/app/pages/Collections';
 import { getHomepageBooks, type HomepageBook, type HomepageBooks, type Shelf } from '@/lib/homepageBooks';
 
 /**
@@ -234,6 +235,11 @@ export const Home = () => {
           </motion.div>
         </div>
       </section>
+
+      {/* Shows itself only in the three weeks before and during Banned Books Week */}
+      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 empty:hidden">
+        <BannedBooksWeekBanner />
+      </div>
 
       {/* Bestsellers Section - this week's NYT lists, or our own sales ranking
           if they can't be loaded */}

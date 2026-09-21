@@ -12,6 +12,7 @@ const TITLES: Record<string, string> = {
   '/gift-cards': 'Gift Cards',
   '/about': 'About Us',
   '/read-alikes': 'Read-Alikes',
+  '/collections': 'Collections',
   '/contact': 'Contact & Hours',
   '/cart': 'Your Cart',
   '/checkout': 'Checkout',

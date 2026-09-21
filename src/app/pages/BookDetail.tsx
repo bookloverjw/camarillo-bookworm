@@ -4,6 +4,7 @@ import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
 import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
+import { BookAwards } from '@/app/components/AwardBadge';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
@@ -287,6 +288,8 @@ export const BookDetail = () => {
                 </div>
               </div>
             </div>
+
+            <BookAwards id={book.id} isbn={bookIsbn} author={book.author} />
 
             <div className="p-6 bg-muted/50 rounded-xl border border-border space-y-6">
               {INVENTORY_STATUS_IS_LIVE && (
