@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, Ex
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
-import { getBooks, getStaffPicks, getBestsellers } from '@/lib/bookService';
+import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, type UpcomingBook } from '@/lib/bookService';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -145,6 +145,28 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
   );
 };
 
+/**
+ * "Out Oct 14". A month-only release date is stored as the 1st, so a date on
+ * the 1st reads "Out in October" rather than claiming a day we don't know.
+ */
+function releaseLabel(iso: string) {
+  const d = new Date(`${iso}T12:00:00`);
+  return d.getDate() === 1
+    ? `Out in ${d.toLocaleDateString('en-US', { month: 'long' })}`
+    : `Out ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
+}
+
+const fromUpcoming = (book: UpcomingBook): CarouselItem => ({
+  key: book.isbn,
+  title: book.title,
+  author: book.author,
+  cover: book.cover_url,
+  isbn: book.isbn,
+  price: book.msrp,
+  catalogId: book.catalog_id ?? undefined,
+  eyebrow: releaseLabel(book.publication_date),
+});
+
 const fromCollection = (book: CollectionBook, i: number): CarouselItem => ({
   key: `${book.catalogId ?? book.isbn ?? book.title}-${i}`,
   title: book.title,
@@ -224,6 +246,7 @@ export const Home = () => {
   const [lists, setLists] = useState<HomepageBooks | null>(null);
   const [shelf, setShelf] = useState<Shelf>('hardcover');
   // Whatever the calendar is featuring right now, each with a sample of books.
+  const [upcoming, setUpcoming] = useState<UpcomingBook[]>([]);
   const [seasonal, setSeasonal] = useState<{ feature: ActiveFeature; collection: CuratedCollection }[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
 
@@ -266,6 +289,7 @@ export const Home = () => {
     loadBestsellers();
     loadEvents();
     getHomepageBooks().then(setLists);
+    getUpcomingBooks().then(setUpcoming).catch(() => {});
 
     const running = activeFeatures().filter(f => f.status === 'now');
     Promise.all(
@@ -435,15 +459,25 @@ export const Home = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center mb-10">
             <h2 className="section-title">Coming Soon</h2>
-            <p className="text-muted-foreground mt-4">Preorder anticipated titles</p>
+            <p className="text-muted-foreground mt-4">
+              {upcoming.length > 0
+                ? 'New books on the way from bestselling and prizewinning authors'
+                : 'Preorder anticipated titles'}
+            </p>
           </div>
 
-          <BookCarousel items={preorders.map(fromCatalogue)} />
+          {/* Forthcoming books from ISBNdb once the weekly job has run; until
+              then, the catalogue's own preorders */}
+          <BookCarousel items={upcoming.length > 0 ? upcoming.map(fromUpcoming) : preorders.map(fromCatalogue)} />
 
           <div className="mt-8 text-center">
-            <Link to="/shop?filter=preorder" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
-              View All Preorders <ArrowRight size={16} className="ml-1" />
-            </Link>
+            {upcoming.length > 0 ? (
+              <p className="text-xs text-muted-foreground">Preorder through Bookshop.org, or call us to reserve a copy.</p>
+            ) : (
+              <Link to="/shop?filter=preorder" className="inline-flex items-center text-primary text-sm font-medium hover:underline">
+                View All Preorders <ArrowRight size={16} className="ml-1" />
+              </Link>
+            )}
           </div>
         </div>
       </section>

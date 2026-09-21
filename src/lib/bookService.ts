@@ -6,6 +6,7 @@
 import { supabase } from './supabase';
 import { type Book } from '@/app/utils/data';
 import { splitTitle } from './titleUtils';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
 
 export type SortOption = 'newest' | 'price-asc' | 'price-desc' | 'alphabetical' | 'author' | 'best-selling';
 export type BestsellerPeriod = 'month' | 'quarter' | 'year';
@@ -37,6 +38,8 @@ export interface SupabaseBook {
   author: string;
   description: string | null;
   price: number;
+  /** Publisher list price from ISBNdb, refreshed by the scheduled job. */
+  list_price?: number | null;
   cost: number | null;
   cover_url: string | null;
   category: string | null;
@@ -76,7 +79,7 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     title,
     subtitle,
     author: sb.author_last ? sb.author : '',
-    price: sb.price || 0,
+    price: displayPrice(sb),
     // No stock photo stand-in: BookCover falls back to Open Library by ISBN,
     // then to a drawn placeholder carrying the book's own title.
     cover: sb.cover_url || '',
@@ -95,6 +98,17 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     staffReviewer: sb.staff_reviewer || undefined,
     staffQuote: sb.staff_quote || undefined,
   };
+}
+
+/**
+ * The price to show. While purchases go through Bookshop.org, that's the
+ * publisher's current list price - what Bookshop charges - when the nightly
+ * ISBNdb job has one; our POS price is months old. Once we take orders
+ * ourselves again, it's our own shelf price.
+ */
+function displayPrice(sb: Pick<SupabaseBook, 'price' | 'list_price'>): number {
+  if (!STORE_ORDERING_ENABLED && sb.list_price) return Number(sb.list_price);
+  return sb.price || 0;
 }
 
 /**
@@ -777,4 +791,33 @@ export async function searchBooks(query: string, limit?: number): Promise<Book[]
   }
 
   return getBooks({ search: query, limit });
+}
+
+
+export interface UpcomingBook {
+  isbn: string;
+  title: string;
+  author: string;
+  publication_date: string;
+  cover_url: string | null;
+  msrp: number | null;
+  reason: string | null;
+  catalog_id: string | null;
+}
+
+/**
+ * Forthcoming books by authors on the NYT lists and recent prize winners,
+ * gathered weekly from ISBNdb (scripts/isbndb/refresh-coming-soon.mjs).
+ * Empty until that job has run, in which case Coming Soon falls back to the
+ * catalogue's own preorders.
+ */
+export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const { data, error } = await supabase
+    .from('upcoming_books')
+    .select('*')
+    .gte('publication_date', today)
+    .order('publication_date', { ascending: true })
+    .limit(limit);
+  return error || !data ? [] : (data as UpcomingBook[]);
 }

@@ -49,3 +49,6 @@ Thumbs.db
 .cache/
 .temp/
 .tmp/
+
+# ISBNdb price job report (CI artifact; not for the repo)
+price-changes.csv

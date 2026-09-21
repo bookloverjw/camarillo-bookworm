@@ -89,6 +89,7 @@ interface CatalogueRow {
   title: string;
   author: string;
   price: number;
+  list_price?: number | null;
   cover_url: string | null;
   category: string | null;
   publication_date: string | null;
@@ -167,7 +168,10 @@ async function supabaseSelect(path: string): Promise<any[]> {
   return res.json();
 }
 
-const CATALOGUE_FIELDS = 'id,isbn,title,author,price,cover_url,category,publication_date';
+// Every column rather than a list: list_price only exists once
+// supabase/isbndb-prices-and-coming-soon.sql has run, and naming a missing
+// column would fail the whole request. It's at most a couple of hundred rows.
+const CATALOGUE_FIELDS = '*';
 
 export async function buildHomepageBooks(nytApiKey: string, now = new Date()): Promise<HomepageBooks> {
   const { date: listsDate, salesWeekEnding, lists } = await fetchNytLists(nytApiKey);
@@ -205,7 +209,10 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
       // NYT's jacket is current and sized for display; ours is the fallback.
       cover: book.book_image || ours?.cover_url || null,
       catalogId: ours?.id ?? null,
-      price: ours?.price ?? null,
+      // Purchases go through Bookshop.org, which charges list price; prefer the
+      // publisher's current one over our months-old POS price (the site's
+      // displayPrice in src/lib/bookService.ts does the same).
+      price: ours ? Number(ours.list_price || ours.price) : null,
       // Our publication date is exact when we have it. The NYT debut is the
       // backstop for the (currently most) titles we don't carry.
       releaseDate: ours?.publication_date ?? nytDebut,
@@ -257,7 +264,7 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
       author: row.author,
       cover: row.cover_url,
       catalogId: row.id,
-      price: row.price,
+      price: Number(row.list_price || row.price),
       releaseDate: row.publication_date,
       releaseDateSource: 'catalogue',
       category,
