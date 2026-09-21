@@ -2,7 +2,10 @@
 """Propose catalogue fixes from Open Library's records (fetch_openlibrary.py
 first). Nothing is written to the database; this makes a review file.
 
-  python3 scripts/catalog/propose_fixes.py
+  SUPABASE_SECRET_KEY=... python3 scripts/catalog/propose_fixes.py
+
+Needs the secret key because it sorts by sales_past12, which the public key
+cannot read.
 
 Three kinds of fix, each only when the evidence is clear:
   author    the POS scrambles and truncates names: "Pelt Shelby Van",
@@ -20,10 +23,11 @@ as Fiction that Open Library couldn't classify, to check by hand.
 """
 import csv, json, re
 from pathlib import Path
-from catalog import CACHE, all_books, fold, isbn_of, words
+from catalog import CACHE, all_books, fold, isbn_of, secret_key, words
 
 ol = json.loads((CACHE / 'openlibrary.json').read_text())
-books = all_books('id,isbn,title,author,category,genre,book_type,sales_past12')
+# sales_past12 is not readable with the public key.
+books = all_books('id,isbn,title,author,category,genre,book_type,sales_past12', secret_key())
 
 ADULT = {'Fiction', 'Nonfiction', 'Biography', 'History', 'Science', 'Self-Help', 'Religion', 'Cooking'}
 FICTION_WORDS = re.compile(r'\bfiction\b|\bnovel|ficci[oó]n|romans|\bstories\b|short stories|poetry', re.I)
