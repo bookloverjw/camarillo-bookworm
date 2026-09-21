@@ -22,6 +22,8 @@ interface CalendarEvent {
   end: string | null;
   allDay: boolean;
   description: string;
+  /** Not open to the public: shown on the calendar without RSVPs. */
+  private?: boolean;
   location: string;
 }
 
@@ -91,6 +93,20 @@ export function cleanDescription(raw: string, title: string) {
   return !d || fold(cleanTitle(d)) === fold(title) ? '' : d;
 }
 
+/**
+ * Events shown under a generic name with RSVPs turned off, whatever the
+ * calendar calls them. The calendar's own title and notes never leave the
+ * server for these.
+ */
+const PRIVATE_EVENTS: { match: RegExp; title: string }[] = [
+  { match: /aafje/i, title: 'Private Book Club' },
+];
+
+function privacy(rawTitle: string) {
+  const rule = PRIVATE_EVENTS.find(r => r.match.test(rawTitle));
+  return rule ? { title: rule.title, description: '', private: true } : null;
+}
+
 export function parseFeed(ics: string): CalendarEvent[] {
   // Undo line folding: a line starting with a space or tab continues the last.
   const lines = ics.replace(/\r\n[ \t]/g, '').replace(/\n[ \t]/g, '').split(/\r?\n/);
@@ -105,6 +121,7 @@ export function parseFeed(ics: string): CalendarEvent[] {
       if (start && cur.STATUS?.value !== 'CANCELLED') {
         if (cur.RRULE) console.warn(`calendar-events: "${cur.SUMMARY?.value}" repeats; only its first date is shown`);
         const title = cleanTitle(unescape(cur.SUMMARY?.value || 'Event'));
+        const hidden = privacy(unescape(cur.SUMMARY?.value || ''));
         events.push({
           id: cur.UID?.value || `${start.iso}-${cur.SUMMARY?.value}`,
           title,
@@ -113,6 +130,7 @@ export function parseFeed(ics: string): CalendarEvent[] {
           allDay: start.allDay,
           description: cleanDescription(unescape(cur.DESCRIPTION?.value || ''), title),
           location: unescape(cur.LOCATION?.value || ''),
+          ...hidden,
         });
       }
       cur = null;

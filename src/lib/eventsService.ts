@@ -75,6 +75,7 @@ interface CalendarEvent {
   allDay: boolean;
   description: string;
   location: string;
+  private?: boolean;
 }
 
 function eventType(title: string, description = ''): Event['type'] {
@@ -114,6 +115,7 @@ function mapCalendarEvent(e: CalendarEvent): Event {
     type: eventType(e.title, e.description),
     location: eventLocation(e.location),
     description: e.description,
+    private: e.private || undefined,
   };
 }
 
