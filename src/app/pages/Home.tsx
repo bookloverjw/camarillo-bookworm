@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, Ex
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
-import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, type UpcomingBook } from '@/lib/bookService';
+import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -297,7 +297,10 @@ export const Home = () => {
     loadBestsellers();
     loadEvents();
     getHomepageBooks().then(setLists);
-    getUpcomingBooks().then(setUpcoming).catch(() => {});
+    // Pinned releases right away; the full list can take a while to build
+    // the first time after a deploy.
+    setUpcoming(pinnedUpcoming());
+    getUpcomingBooks().then(books => { if (books.length) setUpcoming(books); }).catch(() => {});
 
     const running = activeFeatures().filter(f => f.status === 'now');
     Promise.all(

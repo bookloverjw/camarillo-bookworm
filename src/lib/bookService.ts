@@ -828,9 +828,13 @@ const PINNED_UPCOMING: UpcomingBook[] = [
   },
 ];
 
+/** The pinned books still to come - available instantly, before the feeds answer. */
+export const pinnedUpcoming = () =>
+  PINNED_UPCOMING.filter(b => b.publication_date > new Date().toISOString().slice(0, 10));
+
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
   const today = new Date().toISOString().slice(0, 10);
-  const pinned = PINNED_UPCOMING.filter(b => b.publication_date > today);
+  const pinned = pinnedUpcoming();
   const seen = new Set(pinned.map(b => b.title.toLowerCase()));
   const withPinned = (books: UpcomingBook[]) =>
     [...pinned, ...books.filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
