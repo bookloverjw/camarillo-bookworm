@@ -9,6 +9,8 @@
  * Never a dead end: if the book lookup fails, the plain index.html is served
  * and the page works exactly as it would without this function.
  */
+import { readFile } from 'node:fs/promises';
+import { join } from 'node:path';
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { titleCase } from './_lib/homepageBooks.js';
 
@@ -32,12 +34,36 @@ function setTag(html: string, pattern: RegExp, replacement: string) {
   return pattern.test(html) ? html.replace(pattern, replacement) : html;
 }
 
+/**
+ * The built index.html. It ships with the function (includeFiles in
+ * vercel.json); fetching it over HTTP is the fallback, and only trusted if it
+ * really is the app - a protected preview deployment answers with a login page.
+ */
+let shell: string | null = null;
+async function loadShell(origin: string) {
+  if (shell) return shell;
+  try {
+    shell = await readFile(join(process.cwd(), 'dist', 'index.html'), 'utf8');
+  } catch {
+    const response = await fetch(`${origin}/index.html`);
+    const text = await response.text();
+    if (!response.ok || !text.includes('id="root"')) throw new Error(`shell fetch returned ${response.status}`);
+    shell = text;
+  }
+  return shell;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const id = String(req.query.id ?? '');
-  const origin = `https://${req.headers.host}`;
 
-  const shellResponse = await fetch(`${origin}/index.html`);
-  let html = await shellResponse.text();
+  let html: string;
+  try {
+    html = await loadShell(`https://${req.headers.host}`);
+  } catch (error) {
+    console.error('book-page could not load the app shell:', error);
+    res.setHeader('Cache-Control', 'no-store');
+    return res.status(503).send('Temporarily unavailable - please try again.');
+  }
 
   try {
     const lookup = await fetch(
