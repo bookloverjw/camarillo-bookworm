@@ -56,6 +56,26 @@ export const SEASONAL_FEATURES: SeasonalFeature[] = [
     dates: year => [`${year}-09-15`, `${year}-10-31`],
     leadDays: 7,
   },
+  {
+    id: 'native-american-heritage-month',
+    collection: 'native-american-heritage-month',
+    to: '/collections/native-american-heritage-month',
+    title: 'Native American Heritage Month',
+    blurb: 'Fiction, poetry, history and books for young readers by Native American and Indigenous writers.',
+    cta: 'See the full Native American Heritage Month collection',
+    dates: year => [`${year}-11-01`, `${year}-11-30`],
+    leadDays: 0,
+  },
+  {
+    id: 'holiday-gift-guide',
+    collection: 'holiday-gift-guide',
+    to: '/collections/holiday-gift-guide',
+    title: 'Holiday Gift Guide',
+    blurb: "This year's prizewinners, award-winning books for kids, graphic novels and the holiday classics.",
+    cta: 'See the full Holiday Gift Guide',
+    dates: year => [`${year}-11-01`, `${year}-12-31`],
+    leadDays: 0,
+  },
 ];
 
 export interface ActiveFeature extends SeasonalFeature {

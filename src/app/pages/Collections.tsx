@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router';
-import { BookX, Clapperboard, Award as AwardIcon, Ghost, Sun } from 'lucide-react';
+import { BookX, Clapperboard, Award as AwardIcon, Ghost, Sun, Users, Sparkles, Library, MapPin, Feather, Gift } from 'lucide-react';
 import { BookCover } from '@/app/components/BookCover';
 import { SeasonalBanners } from '@/app/components/SeasonalBanners';
 import { getAwards, getCollection, type CollectionBook } from '@/lib/collections';
@@ -32,10 +32,16 @@ const withCovers = (books: CollectionBook[]) => books.filter(b => b.cover).conca
 
 // The curated lists, in the order the index shows them.
 const CURATED: [string, React.ElementType][] = [
+  ['book-club-picks', Users],
   ['banned-books', BookX],
   ['the-book-was-better', Clapperboard],
+  ['series-starters', Library],
+  ['debut-novels', Sparkles],
+  ['california-writers', MapPin],
   ['hispanic-heritage-month', Sun],
   ['read-if-you-dare', Ghost],
+  ['native-american-heritage-month', Feather],
+  ['holiday-gift-guide', Gift],
 ];
 
 export const Collections = () => {
@@ -69,7 +75,7 @@ export const Collections = () => {
       <div className="text-center mb-12">
         <h1 className="section-title">Collections</h1>
         <p className="text-muted-foreground mt-4 max-w-xl mx-auto">
-          Shelves we've pulled together — prize winners, banned books, seasonal reads, and the books behind this year's films.
+          Shelves we've pulled together — prize winners, book club picks, series worth starting, banned books, seasonal reads, and the books behind this year's films.
         </p>
       </div>
 
