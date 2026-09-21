@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
 import { snippet, setJsonLd, SITE_URL } from '@/lib/seo';
+import { displayGenre } from '@/lib/genres';
 import { STORE } from '@/lib/storeConfig';
 import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
@@ -266,10 +267,10 @@ export const BookDetail = () => {
             <Link to="/shop" className="hover:text-primary transition-colors">Shop</Link>
             <span>/</span>
             <Link to={`/shop?category=${encodeURIComponent(book.category)}`} className="hover:text-primary transition-colors">{book.category}</Link>
-            {book.genre && (
+            {book.genre && displayGenre(book.category, book.genre) && (
               <>
                 <span>/</span>
-                <Link to={`/shop?category=${encodeURIComponent(book.category)}&genre=${encodeURIComponent(book.genre)}`} className="hover:text-primary transition-colors">{book.genre}</Link>
+                <Link to={`/shop?category=${encodeURIComponent(book.category)}&genre=${encodeURIComponent(book.genre)}`} className="hover:text-primary transition-colors">{displayGenre(book.category, book.genre)}</Link>
               </>
             )}
             <span>/</span>
@@ -510,7 +511,9 @@ export const BookDetail = () => {
                   </div>
                   <div>
                     <p className="text-muted-foreground">Category</p>
-                    <p className="font-medium text-primary">{book.genre}</p>
+                    <p className="font-medium text-primary">
+                      {[book.category, displayGenre(book.category, book.genre)].filter(Boolean).join(' · ')}
+                    </p>
                   </div>
                 </div>
               </div>
