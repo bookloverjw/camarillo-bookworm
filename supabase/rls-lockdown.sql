@@ -200,15 +200,30 @@ END $$;
 -- ------------------------------------------------------------
 -- (RLS enabled above; zero policies = anon/authenticated fully denied.)
 -- Balance checks go through this exact-match function:
+-- Written against the table as it actually exists: the card is identified
+-- by card_number and has an is_active flag. (An earlier draft assumed code
+-- and status columns, which is why this file failed on its first run.)
+--
+-- The page strips spaces and dashes and uppercases what the customer types
+-- before sending it, while the card itself may be stored as GC-1234-5678.
+-- Normalising both sides means the format on the card never has to match
+-- the format in the box. The table is small, so skipping the index is fine.
+--
+-- status is returned as text because that is what the page already reads:
+-- anything other than 'active' is shown to the customer as the reason.
 CREATE OR REPLACE FUNCTION check_gift_card_balance(p_code text)
 RETURNS TABLE (current_balance numeric, status text, expires_at timestamptz)
 LANGUAGE sql
 SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT g.current_balance, g.status, g.expires_at
+  SELECT
+    g.current_balance::numeric,
+    CASE WHEN g.is_active THEN 'active' ELSE 'inactive' END,
+    g.expires_at::timestamptz
   FROM gift_cards g
-  WHERE g.code = p_code;
+  WHERE upper(regexp_replace(g.card_number::text, '[[:space:]-]', '', 'g'))
+      = upper(regexp_replace(p_code,               '[[:space:]-]', '', 'g'));
 $$;
 REVOKE ALL ON FUNCTION check_gift_card_balance(text) FROM PUBLIC;
 GRANT EXECUTE ON FUNCTION check_gift_card_balance(text) TO anon, authenticated;
