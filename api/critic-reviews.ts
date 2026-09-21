@@ -17,7 +17,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 
 // Looking through other editions takes a few round trips; each is capped
 // below so a slow upstream can't run the function into the platform limit.
-export const config = { maxDuration: 25 };
+export const config = { maxDuration: 45 };
 
 const VERDICTS = ['Rave', 'Positive', 'Mixed', 'Pan'];
 
@@ -59,11 +59,11 @@ async function reviewsFor(isbn: string): Promise<{ verdict: string | null; count
  * then any other English-language edition.
  */
 async function otherEditions(isbn: string): Promise<string[]> {
-  const edition = await get(`https://openlibrary.org/isbn/${isbn}.json`, 8000);
+  const edition = await get(`https://openlibrary.org/isbn/${isbn}.json`, 15000);
   if (!edition.ok) return [];
   const work = (await edition.json())?.works?.[0]?.key;
   if (!work) return [];
-  const res = await get(`https://openlibrary.org${work}/editions.json?limit=50`, 8000);
+  const res = await get(`https://openlibrary.org${work}/editions.json?limit=50`, 15000);
   if (!res.ok) return [];
   const english = (i: string) => /^97[89][01]/.test(i);
   const year = (d?: string) => Number((d || '').match(/\d{4}/)?.[0] ?? 9999);
@@ -85,14 +85,27 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   try {
     // Start the slow other-editions search straight away, but answer as soon
     // as this ISBN turns out to have reviews of its own - most reviewed books.
-    const alternatesSearch = otherEditions(isbn).catch(() => [] as string[]);
+    // null when the search itself failed (Open Library is often slow from
+    // here), as opposed to [] for a book that simply has no other editions.
+    const alternatesSearch = otherEditions(isbn).catch(() => null);
     let found = await reviewsFor(isbn).catch(() => null);
     let reviewedIsbn = isbn;
+    let searchFailed = false;
+
+    // A pair we already know about needs no search at all.
+    const known = REVIEWED_EDITION[isbn];
+    if (!found && known) {
+      const hit = await reviewsFor(known).catch(() => null);
+      if (hit) {
+        found = hit;
+        reviewedIsbn = known;
+      }
+    }
 
     if (!found) {
       const alternates = await alternatesSearch;
-      const known = REVIEWED_EDITION[isbn];
-      const candidates = [...new Set([...(known ? [known] : []), ...alternates])].slice(0, 4);
+      searchFailed = alternates === null;
+      const candidates = [...new Set([...(known ? [known] : []), ...(alternates ?? [])])].slice(0, 4);
       const results = await Promise.all(candidates.map(i => reviewsFor(i).catch(() => null)));
       const hit = results.findIndex(Boolean);
       if (hit >= 0) {
@@ -101,8 +114,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       }
     }
 
-    // Reviews change slowly: cache a day, serve a week-old copy while refreshing.
-    res.setHeader('Cache-Control', 'public, s-maxage=86400, stale-while-revalidate=604800');
+    // Reviews change slowly: cache a day, serve a week-old copy while
+    // refreshing. But a "no" we couldn't finish checking - the edition search
+    // timed out - is only a guess, so it gets another try within the hour
+    // instead of standing for a day.
+    res.setHeader(
+      'Cache-Control',
+      !found && searchFailed
+        ? 'public, s-maxage=600, stale-while-revalidate=3000'
+        : 'public, s-maxage=86400, stale-while-revalidate=604800',
+    );
     // isbn is the edition Book Marks reviewed, which is what its widget needs.
     return res.status(200).json(found ? { hasReviews: true, isbn: reviewedIsbn, ...found } : { hasReviews: false });
   } catch (error) {
