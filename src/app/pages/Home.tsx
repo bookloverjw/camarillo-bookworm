@@ -5,7 +5,7 @@ import { ChevronRight, ChevronLeft, Calendar, ArrowRight, Quote, ShoppingBag, Ex
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
-import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
+import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, getUpcomingSnapshot, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -297,10 +297,15 @@ export const Home = () => {
     loadBestsellers();
     loadEvents();
     getHomepageBooks().then(setLists);
-    // Pinned releases right away; the full list can take a while to build
-    // the first time after a deploy.
+    // Pinned releases right away, then the build-time snapshot, then the
+    // live list (which can take most of a minute to build after a deploy).
     setUpcoming(pinnedUpcoming());
-    getUpcomingBooks().then(books => { if (books.length) setUpcoming(books); }).catch(() => {});
+    let live = false;
+    getUpcomingSnapshot().then(books => { if (!live && books.length) setUpcoming(books); });
+    getUpcomingBooks().then(books => {
+      // The live list only replaces the snapshot if it found as much.
+      if (books.length > pinnedUpcoming().length) { live = true; setUpcoming(books); }
+    }).catch(() => {});
 
     // At most three seasonal shelves; December can have four features running.
     const running = activeFeatures().filter(f => f.status === 'now').slice(0, 3);

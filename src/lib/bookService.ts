@@ -832,6 +832,23 @@ const PINNED_UPCOMING: UpcomingBook[] = [
 export const pinnedUpcoming = () =>
   PINNED_UPCOMING.filter(b => b.publication_date > new Date().toISOString().slice(0, 10));
 
+/**
+ * The Coming Soon list saved at build time (public/coming-soon.json): the
+ * pinned books plus the snapshot, instantly, while the live list loads.
+ */
+export async function getUpcomingSnapshot(limit = 40): Promise<UpcomingBook[]> {
+  const today = new Date().toISOString().slice(0, 10);
+  const pinned = pinnedUpcoming();
+  try {
+    const r = await fetch('/coming-soon.json');
+    const { books } = r.ok ? ((await r.json()) as { books?: UpcomingBook[] }) : { books: [] };
+    const seen = new Set(pinned.map(b => b.title.toLowerCase()));
+    return [...pinned, ...(books ?? []).filter(b => b.publication_date > today && !seen.has(b.title.toLowerCase()))].slice(0, limit);
+  } catch {
+    return pinned;
+  }
+}
+
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
   const today = new Date().toISOString().slice(0, 10);
   const pinned = pinnedUpcoming();
