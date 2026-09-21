@@ -12,6 +12,7 @@ export const Contact = () => {
     phone: '',
     subject: 'General Inquiry',
     message: '',
+    website: '',
   });
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -20,7 +21,16 @@ export const Contact = () => {
     setIsSubmitting(true);
 
     try {
-      const { error } = await supabase.from('contact_submissions').insert({
+      // Email the store (the part that matters), then keep a copy in the
+      // database. The copy is best-effort and never blocks the message.
+      const response = await fetch('/api/contact', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(formData),
+      });
+      if (!response.ok) throw new Error(`contact API returned ${response.status}`);
+
+      supabase.from('contact_submissions').insert({
         name: formData.name,
         email: formData.email,
         phone: formData.phone || null,
@@ -29,9 +39,7 @@ export const Contact = () => {
         status: 'new',
         created_at: new Date().toISOString(),
         updated_at: new Date().toISOString(),
-      });
-
-      if (error) throw error;
+      }).then(({ error }) => { if (error) console.warn('Contact form copy not saved:', error.message); });
 
       toast.success("Message sent! We'll get back to you within 24 hours.");
       setFormData({
@@ -40,10 +48,11 @@ export const Contact = () => {
         phone: '',
         subject: 'General Inquiry',
         message: '',
+        website: '',
       });
     } catch (err) {
       console.error('Contact form error:', err);
-      toast.error('Failed to send message. Please try again or call us directly.');
+      toast.error(`Sorry, your message didn't go through. Please call us at ${STORE.phone} or email Sales@camarillobookworm.com.`);
     } finally {
       setIsSubmitting(false);
     }
@@ -143,6 +152,17 @@ export const Contact = () => {
             <div className="bg-white p-10 md:p-16 rounded-3xl border border-border shadow-2xl">
               <h2 className="text-3xl font-serif font-bold text-primary mb-8">Send a Message</h2>
               <form onSubmit={handleSubmit} className="space-y-8">
+                {/* Spam trap: hidden from people, filled in by bots. */}
+                <input
+                  type="text"
+                  name="website"
+                  tabIndex={-1}
+                  autoComplete="off"
+                  aria-hidden="true"
+                  value={formData.website}
+                  onChange={(e) => setFormData({ ...formData, website: e.target.value })}
+                  className="hidden"
+                />
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
                   <div className="space-y-2">
                     <label className="text-xs font-bold uppercase tracking-widest text-muted-foreground">Full Name *</label>
