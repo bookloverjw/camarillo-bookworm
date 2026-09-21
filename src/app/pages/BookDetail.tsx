@@ -280,7 +280,7 @@ export const BookDetail = () => {
               {book.author && <p className="text-2xl text-muted-foreground font-serif italic mb-6">by {book.author}</p>}
 
               <div className="flex items-center space-x-6">
-                <p className="text-3xl font-bold text-primary">${book.price.toFixed(2)}</p>
+                {book.price > 0 && <p className="text-3xl font-bold text-primary">${book.price.toFixed(2)}</p>}
                 <div className="px-3 py-1 bg-muted border border-border rounded text-sm font-medium text-primary uppercase tracking-wider">
                   {book.type}
                 </div>
@@ -517,7 +517,7 @@ export const BookDetail = () => {
                 </div>
                 <h4 className="font-serif font-bold text-primary line-clamp-1 group-hover:text-accent transition-colors">{item.title}</h4>
                 <p className="text-xs text-muted-foreground">{item.author}</p>
-                <p className="text-sm font-bold text-primary mt-1">${item.price.toFixed(2)}</p>
+                {item.price > 0 && <p className="text-sm font-bold text-primary mt-1">${item.price.toFixed(2)}</p>}
               </Link>
             ))}
           </div>

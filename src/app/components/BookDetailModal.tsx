@@ -159,7 +159,7 @@ export const BookDetailModal: React.FC = () => {
                     {book.author && <p className="text-lg text-muted-foreground font-serif italic">
                       by {book.author}
                     </p>}
-                    <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
+                    {book.price > 0 && <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>}
                     <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
 
                     <BookAwards id={book.id} isbn={book.isbn} author={book.author} title={book.title} />
@@ -324,9 +324,11 @@ export const BookDetailModal: React.FC = () => {
                             {item.title}
                           </h4>
                           <p className="text-xs text-muted-foreground">{item.author}</p>
-                          <p className="text-sm font-bold text-primary mt-1">
-                            ${item.price.toFixed(2)}
-                          </p>
+                          {item.price > 0 && (
+                            <p className="text-sm font-bold text-primary mt-1">
+                              ${item.price.toFixed(2)}
+                            </p>
+                          )}
                         </button>
                       ))}
                     </div>

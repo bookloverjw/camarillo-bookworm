@@ -95,7 +95,7 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
         {item.title}
       </h3>
       {item.author && <p className="text-xs text-muted-foreground mb-1">{item.author}</p>}
-      {item.price !== null && <p className="text-sm font-medium text-primary">${item.price.toFixed(2)}</p>}
+      {!!item.price && <p className="text-sm font-medium text-primary">${item.price.toFixed(2)}</p>}
       {INVENTORY_STATUS_IS_LIVE && (item.status === 'In Store' || item.status === 'Only 1 Left') && (
         <p className={`text-xs font-medium mt-1 ${item.status === 'Only 1 Left' ? 'text-amber-600' : 'text-[#16A34A]'}`}>
           {item.status === 'Only 1 Left' ? 'only 1 left' : 'in store'}
