@@ -821,3 +821,52 @@ export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
     .limit(limit);
   return error || !data ? [] : (data as UpcomingBook[]);
 }
+
+
+/** Two records of one book (hardcover and paperback) reduce to the same key. */
+const titleKey = (title: string) =>
+  title.toLowerCase().split(':')[0].replace(/\(.*$/, '').replace(/[^a-z0-9 ]/g, ' ')
+    .replace(/\s+/g, ' ').trim().replace(/ (a|an) (novel|memoir)\b.*$/, '').replace(/^(the|a|an) /, '');
+
+/**
+ * "You might also like": more by the same author, then what sells best in
+ * the same genre. It used to be the four most recently published books in
+ * the same broad category - effectively random - and fetched a thousand
+ * rows to pick them.
+ */
+export async function getRecommendations(book: Book, limit = 4): Promise<Book[]> {
+  const picks: Book[] = [];
+  const seen = new Set([book.id, titleKey(book.title)]);
+  const take = (rows: SupabaseBook[] | null) => {
+    for (const row of rows ?? []) {
+      if (picks.length >= limit) return;
+      const b = mapSupabaseBookToBook(row);
+      // Other editions of this book, sidelines without an ISBN, withdrawn titles.
+      if (seen.has(b.id) || seen.has(titleKey(b.title))) continue;
+      if (!/^97[89]\d{10}$/.test(b.isbn || '') || b.status === 'Unavailable') continue;
+      seen.add(b.id);
+      seen.add(titleKey(b.title));
+      picks.push(b);
+    }
+  };
+
+  // 1. More by this author.
+  if (book.author) {
+    const { data } = await supabase.from('books').select('*')
+      .eq('author', book.author).neq('id', book.id)
+      .order('sales_past12', { ascending: false, nullsFirst: false }).limit(12);
+    take(data as SupabaseBook[] | null);
+  }
+
+  // 2. Bestsellers in the same genre - or category, when the genre is only
+  //    the 'Literary' placeholder the mapper fills in for a missing one.
+  if (picks.length < limit) {
+    const [field, value] = book.genre && book.genre !== 'Literary' ? ['genre', book.genre] : ['category', book.category];
+    const { data } = await supabase.from('books').select('*')
+      .eq(field, value).neq('id', book.id)
+      .order('sales_past12', { ascending: false, nullsFirst: false }).limit(24);
+    take(data as SupabaseBook[] | null);
+  }
+
+  return picks;
+}

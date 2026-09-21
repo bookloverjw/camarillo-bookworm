@@ -110,8 +110,37 @@ export function badgeLabel(award: Award, result: AwardResult, name = award.name)
 const foldName = (name: string) =>
   name.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z ]/g, ' ').replace(/\s+/g, ' ').trim();
 
+/**
+ * A title reduced to what two records of the same book share: the main title
+ * without subtitle, series notes, "A Novel", award stickers the POS folds in,
+ * punctuation or a leading article.
+ */
+function foldTitle(title: string) {
+  return title
+    .normalize('NFKD').replace(/[\u0300-\u036f]/g, '').toLowerCase()
+    .split(':')[0].replace(/\(.*$/, '')
+    .replace(/&/g, ' and ').replace(/['’]/g, '').replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim()
+    .replace(/ (a|an) (novel|memoir|thriller|graphic novel|novel in verse|mystery|story)\b.*$/, '')
+    .replace(/ (a )?(printz|newbery|caldecott|national book|pulitzer|booker|hugo|edgar|eisner)\b.*$/, '')
+    .replace(/^(the|a|an) /, '')
+    .trim();
+}
+
+/** Every surname in a byline: "Kai Bird and Martin J. Sherwin" -> bird, sherwin. */
+function surnames(author: string) {
+  return author
+    .replace(/\(.*?\)/g, '')
+    .split(/,| and | & |;/)
+    .map(part => foldName(part).split(' ').filter(w => !['jr', 'sr', 'ii', 'iii'].includes(w)).pop())
+    .filter((s): s is string => !!s && s.length > 1);
+}
+
 export interface AwardIndex {
-  forBook(book: { id?: string; isbn?: string; author?: string }): AwardBadge[];
+  /**
+   * By catalogue id or ISBN first; failing those, by title and author, so an
+   * award still shows on another edition than the one the award list names.
+   */
+  forBook(book: { id?: string; isbn?: string; author?: string; title?: string }): AwardBadge[];
 }
 
 let indexPromise: Promise<AwardIndex> | null = null;
@@ -128,6 +157,8 @@ export function getAwardIndex(): Promise<AwardIndex> {
     for (const entry of data.results) {
       add(entry.book.catalogId && `id:${entry.book.catalogId}`, entry);
       add(entry.book.isbn && `isbn:${entry.book.isbn}`, entry);
+      const t = foldTitle(entry.book.title);
+      if (t) for (const sn of surnames(entry.book.author)) add(`t:${t}|${sn}`, entry);
     }
     const nobel = new Map(data.nobel.map(n => [foldName(n.author), n.year]));
     const nobelAward: Award = {
@@ -136,8 +167,12 @@ export function getAwardIndex(): Promise<AwardIndex> {
     };
 
     return {
-      forBook({ id, isbn, author }) {
+      forBook({ id, isbn, author, title }) {
         const entries = [...(byKey.get(`id:${id}`) ?? []), ...(byKey.get(`isbn:${isbn}`) ?? [])];
+        if (title && author) {
+          const t = foldTitle(title);
+          for (const sn of surnames(author)) entries.push(...(byKey.get(`t:${t}|${sn}`) ?? []));
+        }
         const seen = new Set<string>();
         const badges: AwardBadge[] = [];
         for (const e of entries) {

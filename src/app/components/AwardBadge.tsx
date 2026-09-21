@@ -46,16 +46,18 @@ export const AwardSeal = ({ badge, size = 'md' }: { badge: Badge; size?: 'sm' | 
 };
 
 /** The awards section on a book page. Renders nothing for an unawarded book. */
-export const BookAwards = ({ id, isbn, author }: { id?: string; isbn?: string; author?: string }) => {
+export const BookAwards = ({
+  id, isbn, author, title, compact = false,
+}: { id?: string; isbn?: string; author?: string; title?: string; compact?: boolean }) => {
   const [badges, setBadges] = useState<Badge[]>([]);
 
   useEffect(() => {
     let live = true;
     getAwardIndex()
-      .then(index => live && setBadges(index.forBook({ id, isbn, author })))
+      .then(index => live && setBadges(index.forBook({ id, isbn, author, title })))
       .catch(() => {}); // awards are a garnish; a failed load just shows none
     return () => { live = false; };
-  }, [id, isbn, author]);
+  }, [id, isbn, author, title]);
 
   if (badges.length === 0) return null;
 

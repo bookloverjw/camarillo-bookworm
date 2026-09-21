@@ -8,14 +8,14 @@ import { BookAwards } from '@/app/components/AwardBadge';
 import { motion } from 'framer-motion';
 import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
-import { getBookById, getBooks } from '@/lib/bookService';
+import { getBookById, getRecommendations } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { stripHtmlTags } from '@/lib/stripHtml';
-import { BookmarksReviews } from '@/app/components/BookmarksReviews';
+import { CriticReviews } from '@/app/components/CriticReviews';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 
 export const BookDetail = () => {
@@ -39,11 +39,9 @@ export const BookDetail = () => {
         const fetchedBook = await getBookById(id);
         setBook(fetchedBook);
 
-        // Load recommendations (same category, different book)
+        // More by this author, then what sells best in the genre
         if (fetchedBook) {
-          const allBooks = await getBooks();
-          const recs = allBooks.filter(b => b.category === fetchedBook.category && b.id !== id).slice(0, 4);
-          setRecommendations(recs);
+          setRecommendations(await getRecommendations(fetchedBook));
         }
       } catch (error) {
         console.error('Failed to fetch book:', error);
@@ -289,7 +287,7 @@ export const BookDetail = () => {
               </div>
             </div>
 
-            <BookAwards id={book.id} isbn={bookIsbn} author={book.author} />
+            <BookAwards id={book.id} isbn={bookIsbn} author={book.author} title={book.title} />
 
             <div className="p-6 bg-muted/50 rounded-xl border border-border space-y-6">
               {INVENTORY_STATUS_IS_LIVE && (
@@ -439,13 +437,8 @@ export const BookDetail = () => {
                 </div>
               )}
 
-              {/* Bookmarks.reviews — critic review aggregator */}
-              {bookIsbn && (
-                <div>
-                  <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Critic Reviews</h3>
-                  <BookmarksReviews isbn={bookIsbn} />
-                </div>
-              )}
+              {/* Book Marks critic reviews - only when it has some for this book */}
+              <CriticReviews isbn={bookIsbn} />
 
               <div>
                 <h3 className="text-lg font-bold text-primary mb-4 border-b border-border pb-2">Product Details</h3>

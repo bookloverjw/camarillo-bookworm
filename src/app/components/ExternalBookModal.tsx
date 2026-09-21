@@ -4,6 +4,7 @@ import { X, ExternalLink, Phone } from 'lucide-react';
 import { BookCover } from '@/app/components/BookCover';
 import { PhoneLink } from '@/app/components/PhoneLink';
 import { BookAwards } from '@/app/components/AwardBadge';
+import { CriticReviews } from '@/app/components/CriticReviews';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { getBookshopSearchUrl } from '@/lib/bookshopWidgets';
@@ -67,7 +68,7 @@ export const ExternalBookModal: React.FC = () => {
                 )}
                 {book.description && <p className="text-sm text-foreground/80 leading-relaxed line-clamp-6">{book.description}</p>}
 
-                <BookAwards isbn={book.isbn} author={book.author} />
+                <BookAwards isbn={book.isbn} author={book.author} title={book.title} />
 
                 <div className="space-y-3 pt-2">
                   <a
@@ -86,6 +87,11 @@ export const ExternalBookModal: React.FC = () => {
                   </p>
                 </div>
               </div>
+            </div>
+
+            {/* Critic reviews, full width under the book - only if Book Marks has any */}
+            <div className="px-6 sm:px-8 pb-8 empty:hidden">
+              <CriticReviews isbn={book.isbn} compact />
             </div>
           </motion.div>
         </motion.div>

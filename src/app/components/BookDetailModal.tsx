@@ -8,8 +8,9 @@ import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { buysThroughBookshop } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { BookAwards } from '@/app/components/AwardBadge';
-import { BOOKS, type Book } from '@/app/utils/data';
-import { getBookById, getBooks } from '@/lib/bookService';
+import { CriticReviews } from '@/app/components/CriticReviews';
+import { type Book } from '@/app/utils/data';
+import { getBookById, getRecommendations } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { stripHtmlTags } from '@/lib/stripHtml';
@@ -45,22 +46,9 @@ export const BookDetailModal: React.FC = () => {
       try {
         const fetched = await getBookById(bookId!);
         setBook(fetched);
-        if (fetched) {
-          const allBooks = await getBooks();
-          setRelated(
-            allBooks
-              .filter(b => b.category === fetched.category && b.id !== bookId)
-              .slice(0, 4)
-          );
-        }
+        if (fetched) setRelated(await getRecommendations(fetched));
       } catch {
-        const staticBook = BOOKS.find(b => b.id === bookId);
-        setBook(staticBook || null);
-        if (staticBook) {
-          setRelated(
-            BOOKS.filter(b => b.category === staticBook.category && b.id !== bookId).slice(0, 4)
-          );
-        }
+        setBook(null);
       }
     }
     load();
@@ -175,7 +163,7 @@ export const BookDetailModal: React.FC = () => {
                     <p className="text-2xl font-bold text-primary">${book.price.toFixed(2)}</p>
                     <div className="text-muted-foreground leading-relaxed whitespace-pre-line">{stripHtmlTags(book.description)}</div>
 
-                    <BookAwards id={book.id} isbn={book.isbn} author={book.author} />
+                    <BookAwards id={book.id} isbn={book.isbn} author={book.author} title={book.title} />
 
                     {/* Meta info */}
                     <div className="grid grid-cols-3 gap-4 pt-4 border-t border-border text-sm">
@@ -307,6 +295,12 @@ export const BookDetailModal: React.FC = () => {
                 )}
 
                 {/* Related titles */}
+                {book.isbn && (
+                  <div className="pt-6 border-t border-border empty:hidden">
+                    <CriticReviews isbn={book.isbn} compact />
+                  </div>
+                )}
+
                 {related.length > 0 && (
                   <div>
                     <h3 className="text-xl font-serif font-bold text-primary mb-6 pb-2 border-b border-border">
