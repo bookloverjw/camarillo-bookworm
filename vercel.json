@@ -1,9 +1,23 @@
 {
   "functions": {
-    "api/book-page.ts": { "includeFiles": "dist/index.html" }
+    "api/book-page.ts": {
+      "includeFiles": "dist/index.html"
+    }
   },
   "rewrites": [
-    { "source": "/book/:id", "destination": "/api/book-page?id=:id" },
-    { "source": "/((?!api/|assets/|.*\\.[a-zA-Z0-9]+$).*)", "destination": "/index.html" }
+    {
+      "source": "/book/:id",
+      "destination": "/api/book-page?id=:id"
+    },
+    {
+      "source": "/((?!api/|assets/|.*\\.[a-zA-Z0-9]+$).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "crons": [
+    {
+      "path": "/api/newsletter-draft",
+      "schedule": "0 15 * * 2"
+    }
   ]
 }
