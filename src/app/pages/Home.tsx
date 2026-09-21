@@ -302,7 +302,8 @@ export const Home = () => {
     setUpcoming(pinnedUpcoming());
     getUpcomingBooks().then(books => { if (books.length) setUpcoming(books); }).catch(() => {});
 
-    const running = activeFeatures().filter(f => f.status === 'now');
+    // At most three seasonal shelves; December can have four features running.
+    const running = activeFeatures().filter(f => f.status === 'now').slice(0, 3);
     Promise.all(
       running.map(feature =>
         getCollection(feature.collection)

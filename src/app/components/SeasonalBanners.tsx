@@ -39,7 +39,7 @@ export const SeasonalBanners = ({
   status?: 'now' | 'upcoming';
   className?: string;
 }) => {
-  const features = activeFeatures().filter(f => (!only || f.id === only) && (!status || f.status === status));
+  const features = activeFeatures().filter(f => (!only || f.id === only) && (!status || f.status === status)).slice(0, 3);
   if (features.length === 0) return null;
   return (
     <div className={`grid gap-4 ${features.length > 1 ? 'md:grid-cols-2' : ''} ${features.length > 2 ? 'lg:grid-cols-3' : ''} ${className}`}>
