@@ -10,8 +10,10 @@
  * sets), so a book only counts if it has an exact future release date, an
  * English edition with a US/UK ISBN, and was never published before.
  *
- * This needs no API key. Once the ISBNdb weekly job fills the upcoming_books
- * table, the site prefers that and this is only the fallback.
+ * With GOOGLE_BOOKS_API_KEY set, Google Books is searched first - it has
+ * far more preorder records - and Open Library fills in with whatever time
+ * is left. Without a key it's Open Library alone. Once the ISBNdb weekly job
+ * fills the upcoming_books table, the site prefers that.
  */
 
 const PERENNIAL = [
@@ -63,6 +65,9 @@ const fold = (s: string) =>
 
 const titleKey = (t: string) => fold(t.split(':')[0].replace(/\(.*$/, '')).replace(/^(the|a|an) /, '');
 
+/** US/UK ISBN-13s: 978-0, 978-1, and the newer US 979-8 block. */
+const isPrintIsbn = (i: string) => /^(97[89][01]|9798)\d{9}$/.test(i);
+
 const SKIP = /box(ed)? set|collection|books? set|\bset\b|omnibus|coloring|calendar|journal|summary|study guide|\/|\bvol(ume)?\.? ?\d+ ?- ?\d+/i;
 
 interface Doc {
@@ -100,13 +105,42 @@ async function forAuthor(name: string, reason: string, today: string, horizon: s
     if (!dates.length || dates.some(x => x <= today)) continue;
     const date = dates.sort()[0];
     if (date > horizon) continue;
-    const isbn = (d.isbn ?? []).find(i => /^97[89][01]\d{9}$/.test(i));
+    const isbn = (d.isbn ?? []).find(isPrintIsbn);
     if (!isbn) continue;
     out.push({
       isbn, title: d.title, author: name, publication_date: date,
       cover_url: d.cover_i ? `https://covers.openlibrary.org/b/id/${d.cover_i}-L.jpg` : null,
       msrp: null, reason, catalog_id: null,
     });
+  }
+  return out;
+}
+
+interface Volume {
+  volumeInfo: {
+    title: string; subtitle?: string; authors?: string[]; publishedDate?: string; language?: string;
+    industryIdentifiers?: { type: string; identifier: string }[]; imageLinks?: { thumbnail?: string };
+  };
+}
+
+async function googleForAuthor(key: string, name: string, reason: string, today: string, horizon: string): Promise<UpcomingBook[]> {
+  const q = new URLSearchParams({
+    q: `inauthor:"${name}"`, orderBy: 'newest', maxResults: '20', printType: 'books', langRestrict: 'en', key,
+  });
+  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, { signal: AbortSignal.timeout(8000) });
+  if (!r.ok) throw new Error(`Google Books ${r.status}`);
+  const { items = [] } = (await r.json()) as { items?: Volume[] };
+  const out: UpcomingBook[] = [];
+  for (const { volumeInfo: v } of items) {
+    const date = v.publishedDate ?? '';
+    // An exact day, still ahead, within the horizon.
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= today || date > horizon) continue;
+    if (v.language && v.language !== 'en') continue;
+    if (SKIP.test(v.title) || !(v.authors ?? []).some(a => fold(a) === fold(name))) continue;
+    const isbn = (v.industryIdentifiers ?? []).map(x => x.identifier).find(isPrintIsbn);
+    if (!isbn) continue;
+    const thumb = v.imageLinks?.thumbnail?.replace(/^http:/, 'https:').replace(/&edge=curl/, '');
+    out.push({ isbn, title: v.title, author: name, publication_date: date, cover_url: thumb ?? null, msrp: null, reason, catalog_id: null });
   }
   return out;
 }
@@ -159,7 +193,16 @@ export async function buildComingSoon(origin: string, now = new Date()): Promise
     }
   }
 
-  const found = (await pool([...authors].slice(0, 150), 8, ([n, why]) => forAuthor(n, why, today, horizon))).flat();
+  const queue = [...authors].slice(0, 150);
+  const started = Date.now();
+  const googleKey = process.env.GOOGLE_BOOKS_API_KEY;
+  // Google first when there's a key: it's fast and far more complete.
+  const fromGoogle = googleKey
+    ? (await pool(queue, 10, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon), 20000)).flat()
+    : [];
+  const fromOpenLibrary = (await pool(queue, 8, ([n, why]) => forAuthor(n, why, today, horizon),
+    Math.max(5000, 40000 - (Date.now() - started)))).flat();
+  const found = [...fromGoogle, ...fromOpenLibrary];
   const seen = new Set<string>();
   return found
     .sort((a, b) => a.publication_date.localeCompare(b.publication_date))

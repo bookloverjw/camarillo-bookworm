@@ -811,8 +811,33 @@ export interface UpcomingBook {
  * Until that job has run, the same idea built from Open Library's preorder
  * records (api/coming-soon.ts) - fewer books, but all genuinely forthcoming.
  */
+/**
+ * The season's biggest releases, pinned to the front of Coming Soon whatever
+ * the feeds find. Each drops off on its release day. US hardcover ISBNs.
+ */
+const PINNED_UPCOMING: UpcomingBook[] = [
+  {
+    isbn: '9781639739134', title: 'A Court of Splintered Harmony', author: 'Sarah J. Maas',
+    publication_date: '2026-10-27', cover_url: 'https://covers.openlibrary.org/b/id/15253996-L.jpg',
+    msrp: null, reason: 'A Court of Thorns and Roses, book 6', catalog_id: null,
+  },
+  {
+    isbn: '9798260200568', title: 'A Court of Forgotten Melody', author: 'Sarah J. Maas',
+    publication_date: '2027-01-12', cover_url: 'https://covers.openlibrary.org/b/id/15246555-L.jpg',
+    msrp: null, reason: 'A Court of Thorns and Roses, book 7', catalog_id: null,
+  },
+];
+
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
   const today = new Date().toISOString().slice(0, 10);
+  const pinned = PINNED_UPCOMING.filter(b => b.publication_date > today);
+  const seen = new Set(pinned.map(b => b.title.toLowerCase()));
+  const withPinned = (books: UpcomingBook[]) =>
+    [...pinned, ...books.filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
+  return withPinned(await upcomingFromFeeds(today, limit));
+}
+
+async function upcomingFromFeeds(today: string, limit: number): Promise<UpcomingBook[]> {
   const { data, error } = await supabase
     .from('upcoming_books')
     .select('*')
