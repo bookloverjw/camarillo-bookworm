@@ -15,8 +15,9 @@
  */
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 
-// Looking through other editions can take a few round trips.
-export const config = { maxDuration: 20 };
+// Looking through other editions takes a few round trips; each is capped
+// below so a slow upstream can't run the function into the platform limit.
+export const config = { maxDuration: 25 };
 
 const VERDICTS = ['Rave', 'Positive', 'Mixed', 'Pan'];
 
@@ -31,9 +32,12 @@ const REVIEWED_EDITION: Record<string, string> = {
 };
 const UA = { 'User-Agent': 'CamarilloBookworm/1.0 (+https://www.camarillobookworm.com)' };
 
+/** fetch with a deadline: Open Library in particular can hang for a long time. */
+const get = (url: string, ms: number) => fetch(url, { headers: UA, signal: AbortSignal.timeout(ms) });
+
 /** Book Marks' verdict and review count for exactly this ISBN, or null. */
 async function reviewsFor(isbn: string): Promise<{ verdict: string | null; count: number } | null> {
-  const page = await fetch(`https://lithub.com/book-widget/${isbn}/0/0/?ver=1.5.1`, { headers: UA });
+  const page = await get(`https://lithub.com/book-widget/${isbn}/0/0/?ver=1.5.1`, 6000);
   if (!page.ok) throw new Error(`Book Marks ${page.status}`);
   const text = (await page.text())
     .replace(/<script[\s\S]*?<\/script>|<style[\s\S]*?<\/style>/g, ' ')
@@ -55,11 +59,11 @@ async function reviewsFor(isbn: string): Promise<{ verdict: string | null; count
  * then any other English-language edition.
  */
 async function otherEditions(isbn: string): Promise<string[]> {
-  const edition = await fetch(`https://openlibrary.org/isbn/${isbn}.json`, { headers: UA });
+  const edition = await get(`https://openlibrary.org/isbn/${isbn}.json`, 8000);
   if (!edition.ok) return [];
   const work = (await edition.json())?.works?.[0]?.key;
   if (!work) return [];
-  const res = await fetch(`https://openlibrary.org${work}/editions.json?limit=100`, { headers: UA });
+  const res = await get(`https://openlibrary.org${work}/editions.json?limit=50`, 8000);
   if (!res.ok) return [];
   const english = (i: string) => /^97[89][01]/.test(i);
   const year = (d?: string) => Number((d || '').match(/\d{4}/)?.[0] ?? 9999);
@@ -79,12 +83,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
   }
 
   try {
-    let found = await reviewsFor(isbn);
+    // Start the slow other-editions search straight away, but answer as soon
+    // as this ISBN turns out to have reviews of its own - most reviewed books.
+    const alternatesSearch = otherEditions(isbn).catch(() => [] as string[]);
+    let found = await reviewsFor(isbn).catch(() => null);
     let reviewedIsbn = isbn;
 
     if (!found) {
+      const alternates = await alternatesSearch;
       const known = REVIEWED_EDITION[isbn];
-      const candidates = [...(known ? [known] : []), ...(await otherEditions(isbn))].slice(0, 4);
+      const candidates = [...new Set([...(known ? [known] : []), ...alternates])].slice(0, 4);
       const results = await Promise.all(candidates.map(i => reviewsFor(i).catch(() => null)));
       const hit = results.findIndex(Boolean);
       if (hit >= 0) {
@@ -99,7 +107,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return res.status(200).json(found ? { hasReviews: true, isbn: reviewedIsbn, ...found } : { hasReviews: false });
   } catch (error) {
     console.error('critic-reviews failed:', error);
-    res.setHeader('Cache-Control', 'no-store');
+    // Try again in an hour rather than on every visitor's page load.
+    res.setHeader('Cache-Control', 'public, s-maxage=3600');
     return res.status(502).json({ hasReviews: false });
   }
 }

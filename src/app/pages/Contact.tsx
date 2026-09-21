@@ -123,7 +123,7 @@ export const Contact = () => {
               <div className="space-y-6 relative z-10">
                 <div className="space-y-2">
                   <p className="font-bold flex items-center"><HelpCircle size={16} className="mr-2 text-accent" /> Do you buy used books?</p>
-                  <p className="text-sm text-white/70">Yes! We evaluate used books for store credit every Tuesday and Thursday from 10am to 4pm.</p>
+                  <p className="text-sm text-white/70">No, we don't buy used books.</p>
                 </div>
                 <div className="space-y-2">
                   <p className="font-bold flex items-center"><HelpCircle size={16} className="mr-2 text-accent" /> Can I order a book not in stock?</p>

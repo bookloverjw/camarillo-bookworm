@@ -12,7 +12,6 @@ import { CriticReviews } from '@/app/components/CriticReviews';
 import { type Book } from '@/app/utils/data';
 import { getBookById, getRecommendations } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
-import { BookmarksReviews } from '@/app/components/BookmarksReviews';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
@@ -284,22 +283,12 @@ export const BookDetailModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Bookmarks.reviews critic reviews */}
-                {book.isbn && (
-                  <div className="mb-10">
-                    <h3 className="text-xl font-serif font-bold text-primary mb-6 pb-2 border-b border-border">
-                      Critic Reviews
-                    </h3>
-                    <BookmarksReviews isbn={book.isbn} />
-                  </div>
-                )}
+                {/* Book Marks critic reviews - only when it has some for this book */}
+                <div className="mb-10 empty:hidden">
+                  <CriticReviews isbn={book.isbn} />
+                </div>
 
                 {/* Related titles */}
-                {book.isbn && (
-                  <div className="pt-6 border-t border-border empty:hidden">
-                    <CriticReviews isbn={book.isbn} compact />
-                  </div>
-                )}
 
                 {related.length > 0 && (
                   <div>
