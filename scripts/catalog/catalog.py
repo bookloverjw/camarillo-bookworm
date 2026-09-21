@@ -48,10 +48,23 @@ def all_books(fields):
             return rows
 
 
+def _env_local(name):
+    """A value from the project's .env.local (gitignored), if it's there."""
+    path = ROOT / '.env.local'
+    if path.exists():
+        for line in path.read_text().splitlines():
+            k, _, v = line.partition('=')
+            if k.strip() == name and v.strip():
+                return v.strip().strip('"').strip("'")
+    return None
+
+
 def secret_key():
-    key = os.environ.get('SUPABASE_SECRET_KEY') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+    key = (os.environ.get('SUPABASE_SECRET_KEY') or os.environ.get('SUPABASE_SERVICE_ROLE_KEY')
+           or _env_local('SUPABASE_SECRET_KEY'))
     if not key:
-        sys.exit('Set SUPABASE_SECRET_KEY (Supabase dashboard > Project Settings > API keys > secret key).')
+        sys.exit('Add SUPABASE_SECRET_KEY=sb_secret_... to .env.local in the project folder '
+                 '(Supabase dashboard > Project Settings > API keys > secret key), or export it.')
     if key.startswith('sb_publishable_'):
         sys.exit('That is the publishable key; writes need the secret key (sb_secret_...).')
     return key
