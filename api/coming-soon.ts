@@ -98,8 +98,9 @@ async function forAuthor(name: string, reason: string, today: string, horizon: s
     if (SKIP.test(d.title)) continue;
     if ((d.first_publish_year ?? 0) < thisYear) continue;
     if (d.language && !d.language.includes('eng')) continue;
-    // The author has to be this author, not a namesake or a study-guide writer.
-    if (!(d.author_name ?? []).some(a => fold(a) === fold(name))) continue;
+    // This author has to be the book's main author: listed first, not a
+    // co-contributor such as the writer of an introduction.
+    if (fold(d.author_name?.[0] ?? '') !== fold(name)) continue;
     const dates = (d.publish_date ?? []).map(exactDate).filter((x): x is string => !!x);
     // Already out in some edition, or no exact release date: not "coming soon".
     if (!dates.length || dates.some(x => x <= today)) continue;
@@ -136,7 +137,7 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
     // An exact day, still ahead, within the horizon.
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= today || date > horizon) continue;
     if (v.language && v.language !== 'en') continue;
-    if (SKIP.test(v.title) || !(v.authors ?? []).some(a => fold(a) === fold(name))) continue;
+    if (SKIP.test(v.title) || fold(v.authors?.[0] ?? '') !== fold(name)) continue;
     const isbn = (v.industryIdentifiers ?? []).map(x => x.identifier).find(isPrintIsbn);
     if (!isbn) continue;
     const thumb = v.imageLinks?.thumbnail?.replace(/^http:/, 'https:').replace(/&edge=curl/, '');
