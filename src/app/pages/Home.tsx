@@ -157,21 +157,61 @@ const fromCollection = (book: CollectionBook, i: number): CarouselItem => ({
 });
 
 /**
- * A homepage-sized sample of a collection: take from each section in turn so
- * Hispanic Heritage Month shows picture books, middle grade and YA rather than
- * sixteen picture books, and put books with a cover ahead of placeholders.
+ * A seasonal collection on the homepage: one tab per part of it - Fiction,
+ * Nonfiction, Picture books... - so each gets its own highlights instead of
+ * being shuffled into one row, and a clear way through to the whole thing.
  */
-function sampleCollection(collection: CuratedCollection, count = 16): CollectionBook[] {
-  const queues = collection.sections.map(s => [...s.books.filter(b => b.cover), ...s.books.filter(b => !b.cover)]);
-  const out: CollectionBook[] = [];
-  while (out.length < count && queues.some(q => q.length)) {
-    for (const q of queues) {
-      const next = q.shift();
-      if (next && out.length < count) out.push(next);
-    }
-  }
-  return out;
-}
+const SeasonalShelf = ({ feature, collection }: { feature: ActiveFeature; collection: CuratedCollection }) => {
+  const sections = collection.sections.filter(sec => sec.books.length > 0);
+  const [active, setActive] = useState(0);
+  const section = sections[Math.min(active, sections.length - 1)];
+  // Books with a cover first; a row of placeholders sells nothing.
+  const books = [...section.books.filter(b => b.cover), ...section.books.filter(b => !b.cover)].slice(0, 16);
+
+  return (
+    <section className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+      <div className="text-center mb-8">
+        <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-3">In season · {feature.range}</p>
+        <h2 className="section-title">
+          {feature.title}
+          {feature.theme && <>: “{feature.theme}”</>}
+        </h2>
+        <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{feature.blurb}</p>
+      </div>
+
+      {sections.length > 1 && (
+        // Scrolls sideways on a phone rather than wrapping onto two lines.
+        <div className="flex justify-start sm:justify-center overflow-x-auto mb-8 border-b border-border -mx-4 px-4 sm:mx-0 sm:px-0"
+             style={{ scrollbarWidth: 'none' }}>
+          {sections.map((sec, i) => (
+            <button
+              key={sec.title}
+              onClick={() => setActive(i)}
+              className={`shrink-0 whitespace-nowrap px-4 py-3 text-sm font-medium transition-colors border-b-2 -mb-px ${
+                i === active ? 'text-primary border-primary' : 'text-muted-foreground border-transparent hover:text-primary'
+              }`}
+            >
+              {sec.title}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {section.subtitle && <p className="text-center text-sm text-muted-foreground -mt-4 mb-6">{section.subtitle}</p>}
+
+      <BookCarousel items={books.map(fromCollection)} />
+
+      <div className="mt-8 text-center">
+        <Link
+          to={feature.to}
+          className="inline-flex items-center gap-1 rounded-full border border-primary px-5 py-2.5 text-sm font-bold text-primary hover:bg-primary hover:text-white transition-colors"
+        >
+          {feature.cta} <ArrowRight size={16} />
+        </Link>
+      </div>
+    </section>
+  );
+};
 
 export const Home = () => {
   const [activeFilter, setActiveFilter] = useState('Fiction');
@@ -184,7 +224,7 @@ export const Home = () => {
   const [lists, setLists] = useState<HomepageBooks | null>(null);
   const [shelf, setShelf] = useState<Shelf>('hardcover');
   // Whatever the calendar is featuring right now, each with a sample of books.
-  const [seasonal, setSeasonal] = useState<{ feature: ActiveFeature; books: CollectionBook[] }[]>([]);
+  const [seasonal, setSeasonal] = useState<{ feature: ActiveFeature; collection: CuratedCollection }[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
 
   // Load data from Supabase on mount
@@ -231,10 +271,11 @@ export const Home = () => {
     Promise.all(
       running.map(feature =>
         getCollection(feature.collection)
-          .then(c => ({ feature, books: sampleCollection(c) }))
+          .then(collection => ({ feature, collection }))
           .catch(() => null), // a missing collection just doesn't get a section
       ),
-    ).then(sections => setSeasonal(sections.filter((x): x is NonNullable<typeof x> => !!x && x.books.length > 0)));
+    ).then(found => setSeasonal(found.filter((x): x is NonNullable<typeof x> =>
+      !!x && x.collection.sections.some(sec => sec.books.length > 0))));
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
@@ -279,23 +320,8 @@ export const Home = () => {
 
       {/* In season: a shelf of books for each running feature - Heritage Month,
           spooky season, the holidays - chosen by the calendar, not by hand */}
-      {seasonal.map(({ feature, books }) => (
-        <section key={feature.id} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
-          <div className="text-center mb-10">
-            <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-3">In season · {feature.range}</p>
-            <h2 className="section-title">
-              {feature.title}
-              {feature.theme && <>: “{feature.theme}”</>}
-            </h2>
-            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{feature.blurb}</p>
-          </div>
-          <BookCarousel items={books.map(fromCollection)} />
-          <div className="mt-8 text-center">
-            <Link to={feature.to} className="inline-flex items-center text-primary text-sm font-medium hover:underline">
-              {feature.cta} <ArrowRight size={16} className="ml-1" />
-            </Link>
-          </div>
-        </section>
+      {seasonal.map(({ feature, collection }) => (
+        <SeasonalShelf key={feature.id} feature={feature} collection={collection} />
       ))}
 
       {/* Coming up: a teaser for features that start soon */}
