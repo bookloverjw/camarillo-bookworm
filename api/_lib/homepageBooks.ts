@@ -8,15 +8,27 @@
  * every week and we look their ISBNs up in the catalogue, so a title we carry
  * links to our own page and price, and one we don't links to Bookshop.org.
  *
+ * New Releases holds itself to the same standard as Coming Soon: books that
+ * really are new (first published inside the window - not a paperback, tie-in
+ * or reissue of an older book; see firstPublished.ts) by authors readers ask
+ * for by name. Being on a current NYT list is what makes an author prominent;
+ * a catalogue title that isn't on one needs an author from the standing list.
+ * Adult, children's and YA books and long-form graphic novels only - no
+ * advice/how-to list, no series roll-ups, no numbered manga volumes.
+ *
  * Files under api/_lib are not exposed as routes; see api/homepage-books.ts.
  */
+import { firstPublishedYears } from './firstPublished.js';
+import { PERENNIAL, foldName } from './prominentAuthors.js';
 
 // The browser client uses these same two values (src/lib/supabase.ts). Both
 // are public by design; books is readable by anyone under RLS.
 const SUPABASE_URL = 'https://lildbdxabljkoynvpflu.supabase.co';
 const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_h_B4nBpI9hTOycnv4Fj6Tw_epMD62aO';
 
-const NEW_RELEASE_WINDOW_DAYS = 90;
+const NEW_RELEASE_WINDOW_DAYS = 60;
+/** How long to spend checking first-publication years before going with what we have. */
+const VERIFY_BUDGET_MS = 8000;
 const PER_LIST = 15;
 
 export type Category = 'Fiction' | 'Nonfiction' | 'Kids' | 'YA';
@@ -55,7 +67,7 @@ export interface HomepageBooks {
 //
 // Monthly lists count months, not weeks, in weeks_on_list, so their debut
 // date can't be worked out the same way. They fill Bestsellers only.
-const LISTS: Record<string, { shelf: Shelf | null; category: Category; label: string; monthly?: boolean }> = {
+const LISTS: Record<string, { shelf: Shelf | null; category: Category; label: string; monthly?: boolean; newReleases?: false }> = {
   'hardcover-fiction': { shelf: 'hardcover', category: 'Fiction', label: 'Fiction' },
   'hardcover-nonfiction': { shelf: 'hardcover', category: 'Nonfiction', label: 'Nonfiction' },
   'trade-fiction-paperback': { shelf: 'paperback', category: 'Fiction', label: 'Fiction' },
@@ -64,10 +76,11 @@ const LISTS: Record<string, { shelf: Shelf | null; category: Category; label: st
   'paperback-nonfiction-monthly': { shelf: 'paperback', category: 'Nonfiction', label: 'Nonfiction', monthly: true },
   'picture-books': { shelf: 'childrens', category: 'Kids', label: 'Picture Books' },
   'childrens-middle-grade-hardcover': { shelf: 'childrens', category: 'Kids', label: 'Middle Grade' },
-  'series-books': { shelf: 'childrens', category: 'Kids', label: 'Series' },
+  // A series charts as a whole, for years: Bestsellers only.
+  'series-books': { shelf: 'childrens', category: 'Kids', label: 'Series', newReleases: false },
   'young-adult-hardcover': { shelf: 'childrens', category: 'YA', label: 'Young Adult' },
-  // Not a Bestsellers tab, but new titles here belong in New Releases.
-  'advice-how-to-and-miscellaneous': { shelf: null, category: 'Nonfiction', label: 'Advice' },
+  // Not a Bestsellers tab, but new long-form graphic novels belong in New Releases.
+  'graphic-books-and-manga': { shelf: null, category: 'Fiction', label: 'Graphic Novel', monthly: true },
 };
 
 interface NytBook {
@@ -128,10 +141,17 @@ const daysAgo = (days: number, from: Date) => {
  * reports, so counting from the cover date put this week's debuts in the
  * future and dropped them from New Releases.
  */
-function debutDate(salesWeekEnding: string, weeksOnList: number) {
-  const weeks = Math.max(weeksOnList, 1) - 1;
-  return daysAgo(weeks * 7, new Date(`${salesWeekEnding}T00:00:00Z`));
+function debutDate(salesWeekEnding: string, weeksOnList: number, monthly = false) {
+  // Monthly lists count months in weeks_on_list.
+  const periods = Math.max(weeksOnList, 1) - 1;
+  return daysAgo(periods * (monthly ? 30 : 7), new Date(`${salesWeekEnding}T00:00:00Z`));
 }
+
+/** "Chainsaw Man, Vol. 20", "One Piece 108": an instalment, not a long-form graphic novel. */
+const NUMBERED_VOLUME = /\bvol(ume)?\.? ?\d+|,? #?\d+$/i;
+
+/** Not a new book whatever its date says. */
+const NOT_A_NEW_BOOK = /box(ed)? set|collected|collection|omnibus|anniversary|coloring|calendar|journal|\bedition\b/i;
 
 function catalogueCategory(raw: string | null): Category | null {
   const value = (raw || '').toLowerCase();
@@ -202,8 +222,7 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
   const fromNyt = (book: NytBook, list: NytList): HomepageBook => {
     const ours = byIsbn.get(book.primary_isbn13);
     const meta = LISTS[list.list_name_encoded];
-    const nytDebut =
-      salesWeekEnding && !meta.monthly ? debutDate(salesWeekEnding, book.weeks_on_list) : null;
+    const nytDebut = salesWeekEnding ? debutDate(salesWeekEnding, book.weeks_on_list, meta.monthly) : null;
 
     return {
       isbn: book.primary_isbn13,
@@ -246,25 +265,42 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
     }
   }
 
-  // --- New Releases: anything out within the window, newest first -----------
-  const releases = new Map<string, HomepageBook>();
+  // --- New Releases: really new, by authors readers ask for, newest first ----
+  const candidates = new Map<string, HomepageBook>();
+  // A hardcover new to its list is nearly always a new book, so it gets the
+  // benefit of the doubt if Open Library doesn't know it. A paperback new to
+  // its list is nearly always last year's hardcover, so it has to be
+  // confirmed as first published this year (a paperback original) to count.
+  const needsProof = new Set<string>();
+
+  // Everyone on a current list counts as prominent, along with the standing list.
+  const prominent = new Set(PERENNIAL.map(foldName));
+  for (const list of relevant) {
+    for (const book of list.books) prominent.add(foldName(book.author.split(/,| and | with /i)[0]));
+  }
 
   for (const list of relevant) {
+    const meta = LISTS[list.list_name_encoded];
+    if (meta.newReleases === false) continue;
     for (const book of list.books) {
+      if (NOT_A_NEW_BOOK.test(book.title)) continue;
+      if (list.list_name_encoded === 'graphic-books-and-manga' && NUMBERED_VOLUME.test(book.title)) continue;
       const item = fromNyt(book, list);
       if (item.releaseDate && item.releaseDate >= windowStart && item.releaseDate <= today) {
-        releases.set(item.isbn, releases.get(item.isbn) ?? item);
+        candidates.set(item.isbn, candidates.get(item.isbn) ?? item);
+        if (meta.shelf === 'paperback') needsProof.add(item.isbn);
       }
     }
   }
 
   for (const row of recentInCatalogue) {
-    if (releases.has(row.isbn)) continue;
+    if (candidates.has(row.isbn) || NOT_A_NEW_BOOK.test(row.title)) continue;
     const category = catalogueCategory(row.category);
     if (!category) continue;
-    releases.set(row.isbn, {
+    if (!prominent.has(foldName((row.author || '').split(/,| and | with /i)[0]))) continue;
+    candidates.set(row.isbn, {
       isbn: row.isbn,
-      title: row.title,
+      title: row.title === row.title.toUpperCase() ? titleCase(row.title) : row.title,
       author: row.author,
       cover: row.cover_url,
       catalogId: row.id,
@@ -278,9 +314,22 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
     });
   }
 
-  const newReleases = [...releases.values()].sort((a, b) =>
-    (b.releaseDate ?? '').localeCompare(a.releaseDate ?? ''),
-  );
+  // Drop anything first published before the window's year: a reissue, a
+  // paperback of last year's hardcover, a film tie-in.
+  // The doubtful ones first, in case time runs out.
+  const toCheck = [...candidates.values()].sort((a, b) => Number(needsProof.has(b.isbn)) - Number(needsProof.has(a.isbn)));
+  const firstYears = await firstPublishedYears(toCheck, VERIFY_BUDGET_MS);
+  const newestAllowedYear = Number(windowStart.slice(0, 4));
+  const reissues = new Set<string>();
+  for (const book of toCheck) {
+    const year = firstYears.get(book.isbn);
+    // Unknown to Open Library: fine for a hardcover, not for a paperback.
+    if (year ? year < newestAllowedYear : needsProof.has(book.isbn)) reissues.add(book.isbn);
+  }
+
+  const newReleases = [...candidates.values()]
+    .filter(book => !reissues.has(book.isbn))
+    .sort((a, b) => (b.releaseDate ?? '').localeCompare(a.releaseDate ?? '') || (a.rank ?? 99) - (b.rank ?? 99));
 
   return { listsDate, bestsellers, newReleases };
 }
