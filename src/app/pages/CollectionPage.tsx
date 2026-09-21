@@ -4,6 +4,7 @@ import { ArrowLeft, ExternalLink } from 'lucide-react';
 import { CollectionBookCard } from '@/app/components/CollectionBookCard';
 import { SeasonalBanners } from '@/app/components/SeasonalBanners';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
+import { snippet } from '@/lib/seo';
 import { getCollection, type CuratedCollection } from '@/lib/collections';
 
 /** A curated list: Banned & Challenged Books, The Book Was Better, and so on. */
@@ -18,7 +19,7 @@ export const CollectionPage = () => {
     getCollection(slug).then(setCollection).catch(() => setMissing(true));
   }, [slug]);
 
-  useDocumentTitle(collection?.title ?? null);
+  useDocumentTitle(collection?.title ?? null, collection ? snippet(collection.description || collection.tagline) : null);
 
   if (missing) {
     return (

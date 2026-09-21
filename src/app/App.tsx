@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { Routes, Route, Link, Navigate, useLocation, HashRouter } from 'react-router';
+import { Routes, Route, Link, Navigate, useLocation, useNavigate, BrowserRouter } from 'react-router';
 import { Search, ShoppingCart, User, Menu, X, Instagram, Facebook, Twitter, MapPin, Phone, Mail, ChevronRight, ChevronDown, Star, Calendar as CalendarIcon, ArrowRight, Gift, ShoppingBag, Clock, Headphones, ExternalLink, Sun, Moon, BookOpen } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Toaster, toast } from 'sonner';
@@ -69,10 +69,12 @@ const Navbar = () => {
     { name: 'Contact', path: '/contact' },
   ];
 
+  const navigate = useNavigate();
+
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
-      window.location.href = `#/shop?search=${encodeURIComponent(searchQuery.trim())}`;
+      navigate(`/shop?search=${encodeURIComponent(searchQuery.trim())}`);
       setSearchOpen(false);
       setSearchQuery('');
     }
@@ -550,7 +552,7 @@ export default function App() {
     <AuthProvider>
       <CartProvider>
         <BookModalProvider>
-        <HashRouter>
+        <BrowserRouter>
           <ScrollToTop />
           <AnalyticsTracker />
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
@@ -609,7 +611,7 @@ export default function App() {
             <ExternalBookModal />
             <Toaster position="bottom-right" richColors />
           </div>
-        </HashRouter>
+        </BrowserRouter>
         </BookModalProvider>
       </CartProvider>
     </AuthProvider>

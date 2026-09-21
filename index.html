@@ -10,7 +10,7 @@
       function gtag(){dataLayer.push(arguments);}
       gtag('js', new Date());
 
-      // send_page_view is off: this is a HashRouter app, so pageviews are
+      // send_page_view is off: this is a single-page app, so pageviews are
       // sent per-route from src/lib/analytics.ts.
       gtag('config', 'G-E0B2TQBBBB', { send_page_view: false });
     </script>
@@ -26,11 +26,15 @@
     <meta property="og:type" content="website" />
     <meta property="og:site_name" content="Camarillo Bookworm" />
     <meta property="og:locale" content="en_US" />
+    <meta property="og:url" content="https://www.camarillobookworm.com/" />
+    <meta property="og:image" content="https://www.camarillobookworm.com/og-image.png" />
 
     <!-- Twitter Card -->
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content="Camarillo Bookworm - Your Neighborhood Bookstore" />
     <meta name="twitter:description" content="Independent bookstore in Camarillo, CA since 1973. Shop new releases, attend author events, and discover your next favorite read." />
+    <meta name="twitter:image" content="https://www.camarillobookworm.com/og-image.png" />
+    <link rel="canonical" href="https://www.camarillobookworm.com/" />
 
     <title>Camarillo Bookworm | Independent Bookstore Since 1973</title>
 
@@ -41,7 +45,8 @@
       "@type": "BookStore",
       "name": "Camarillo Bookworm",
       "description": "Your neighborhood independent bookstore since 1973.",
-      "url": "https://camarillobookworm.com",
+      "url": "https://www.camarillobookworm.com",
+      "image": "https://www.camarillobookworm.com/og-image.png",
       "telephone": "+1-805-482-1384",
       "address": {
         "@type": "PostalAddress",
@@ -74,8 +79,8 @@
       "priceRange": "$$",
       "foundingDate": "1973",
       "sameAs": [
-        "https://instagram.com/camarillobookworm",
-        "https://facebook.com/camarillobookworm"
+        "https://www.instagram.com/camarillobookworm/",
+        "https://www.facebook.com/CamarilloBookworm/"
       ]
     }
     </script>

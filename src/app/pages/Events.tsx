@@ -11,6 +11,8 @@ import { BookCover } from '@/app/components/BookCover';
 import { toast } from 'sonner';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
+import { STORE } from '@/lib/storeConfig';
+import { setJsonLd, snippet, SITE_URL } from '@/lib/seo';
 
 interface RegistrationModalProps {
   event: Event;
@@ -401,6 +403,40 @@ export const Events = () => {
   const [events, setEvents] = useState<Event[]>([]);
   const [isLoadingEvents, setIsLoadingEvents] = useState(true);
   const today = new Date();
+
+  // Event structured data, so public events can show up in Google's event
+  // results. Private events are left out.
+  useEffect(() => {
+    const publicEvents = events.filter((e) => !e.private);
+    if (publicEvents.length === 0) return;
+    setJsonLd('events-jsonld', publicEvents.map((e) => ({
+      '@context': 'https://schema.org',
+      '@type': 'Event',
+      name: e.title,
+      startDate: e.date,
+      eventStatus: 'https://schema.org/EventScheduled',
+      eventAttendanceMode: e.location === 'Virtual'
+        ? 'https://schema.org/OnlineEventAttendanceMode'
+        : 'https://schema.org/OfflineEventAttendanceMode',
+      location: e.location === 'Virtual'
+        ? { '@type': 'VirtualLocation', url: `${SITE_URL}/events` }
+        : {
+            '@type': 'Place',
+            name: STORE.name,
+            address: {
+              '@type': 'PostalAddress',
+              streetAddress: STORE.address.line1,
+              addressLocality: STORE.address.city,
+              addressRegion: STORE.address.state,
+              postalCode: STORE.address.zip,
+              addressCountry: 'US',
+            },
+          },
+      ...(e.description && { description: snippet(e.description, 300) }),
+      organizer: { '@type': 'Organization', name: STORE.name, url: SITE_URL },
+    })));
+    return () => setJsonLd('events-jsonld', null);
+  }, [events]);
 
   // Fetch events from Supabase when the month changes. Months with no
   // events show an honest empty state - never placeholder events.

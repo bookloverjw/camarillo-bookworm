@@ -55,3 +55,10 @@ price-changes.csv
 
 # catalogue scripts: downloaded data and review files
 scripts/catalog/.cache/
+
+# Playwright output
+test-results/
+playwright-report/
+
+# Python bytecode
+__pycache__/

@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+Disallow: /account
+Disallow: /login
+Disallow: /cart
+Disallow: /checkout
+Disallow: /api/
+
+Sitemap: https://www.camarillobookworm.com/sitemap.xml

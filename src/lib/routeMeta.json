@@ -1,0 +1,42 @@
+{
+  "/": {
+    "title": "Independent Bookstore Since 1973",
+    "description": "Camarillo Bookworm - your neighborhood independent bookstore in Camarillo, CA since 1973. New releases, staff picks, author events, and book clubs."
+  },
+  "/shop": {
+    "title": "Shop Books",
+    "description": "Browse new releases, bestsellers, kids' books, and more at Camarillo Bookworm, Ventura County's independent bookstore. See what's on our shelves today."
+  },
+  "/events": {
+    "title": "Author Events & Book Clubs",
+    "description": "Author readings, signings, book clubs, and kids' story times at Camarillo Bookworm, 93 E Daily Dr, Camarillo, CA. See the calendar and RSVP."
+  },
+  "/staff-picks": {
+    "title": "Staff Picks",
+    "description": "Books our Camarillo Bookworm booksellers love and hand-sell - honest recommendations from people who read for a living."
+  },
+  "/gift-cards": {
+    "title": "Gift Cards",
+    "description": "Give the gift of reading with a Camarillo Bookworm gift card - good for any book in our Camarillo, CA store."
+  },
+  "/about": {
+    "title": "About Us",
+    "description": "The story of Camarillo Bookworm, an independent bookstore serving Camarillo and Ventura County since 1973."
+  },
+  "/read-alikes": {
+    "title": "Read-Alikes",
+    "description": "Loved a book and want more like it? Find what to read next with read-alike recommendations from Camarillo Bookworm."
+  },
+  "/collections": {
+    "title": "Collections",
+    "description": "Curated book lists from Camarillo Bookworm: award winners, banned books, book club picks, California writers, page-to-screen, and more."
+  },
+  "/collections/awards": {
+    "title": "Award Winners",
+    "description": "Pulitzer, National Book Award, Booker, Hugo, Newbery, Caldecott winners and more - every year's winners and finalists, at Camarillo Bookworm."
+  },
+  "/contact": {
+    "title": "Contact & Hours",
+    "description": "Visit Camarillo Bookworm at 93 E Daily Dr, Camarillo, CA 93010. Open Mon-Fri 10-6, Sat 10-5, Sun 12-5. Call (805) 482-1384."
+  }
+}

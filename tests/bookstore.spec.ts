@@ -41,14 +41,14 @@ test.describe('Navigation', () => {
 
   test('should navigate to events page', async ({ page }) => {
     await page.goto('/');
-    await page.click('a[href="#/events"]');
-    await page.waitForURL(/#\/events/);
+    await page.click('a[href="/events"]');
+    await page.waitForURL(/\/events$/);
   });
 
   test('should navigate to about page', async ({ page }) => {
     await page.goto('/');
-    await page.click('a[href="#/about"]');
-    await page.waitForURL(/#\/about/);
+    await page.click('a[href="/about"]');
+    await page.waitForURL(/\/about$/);
   });
 });
 
@@ -56,7 +56,7 @@ test.describe('Navigation', () => {
 
 test.describe('Shopping Cart', () => {
   test('should show cart page with empty state', async ({ page }) => {
-    await page.goto('/#/cart');
+    await page.goto('/cart');
     await expect(page.locator('text=Your cart is empty').or(page.locator('text=Cart'))).toBeVisible();
   });
 
@@ -245,19 +245,19 @@ test.describe('Newsletter Form', () => {
 
 test.describe('Book Detail Page', () => {
   test('should show book information', async ({ page }) => {
-    await page.goto('/#/book/1');
+    await page.goto('/book/1');
     await expect(page.locator('text=The Midnight Library').first()).toBeVisible();
     await expect(page.locator('text=Matt Haig').first()).toBeVisible();
   });
 
   test('should show purchase options', async ({ page }) => {
-    await page.goto('/#/book/1');
+    await page.goto('/book/1');
     await expect(page.locator('text=In-Store Pickup').first()).toBeVisible();
     await expect(page.locator('text=Ship to Me').first()).toBeVisible();
   });
 
   test('should show related books', async ({ page }) => {
-    await page.goto('/#/book/1');
+    await page.goto('/book/1');
     await expect(page.locator('text=You Might Also Like')).toBeVisible();
   });
 });

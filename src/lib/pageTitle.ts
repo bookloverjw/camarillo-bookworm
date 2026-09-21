@@ -1,19 +1,14 @@
 import { STORE } from '@/lib/storeConfig';
+import routeMeta from '@/lib/routeMeta.json';
 
 // Document titles per route. Keep in sync with the <Routes> in App.tsx.
+// The public, indexable pages live in routeMeta.json (with their descriptions)
+// so the build-time prerender can read them too; the rest are listed here.
 // Dynamic routes (/book/:id) fall back to the generic entry here and are
 // refined by the page itself once its data loads - see useDocumentTitle.
 const TITLES: Record<string, string> = {
-  '/': 'Independent Bookstore Since 1973',
-  '/shop': 'Shop Books',
+  ...Object.fromEntries(Object.entries(routeMeta).map(([path, meta]) => [path, meta.title])),
   '/book': 'Book Details',
-  '/events': 'Author Events & Book Clubs',
-  '/staff-picks': 'Staff Picks',
-  '/gift-cards': 'Gift Cards',
-  '/about': 'About Us',
-  '/read-alikes': 'Read-Alikes',
-  '/collections': 'Collections',
-  '/contact': 'Contact & Hours',
   '/cart': 'Your Cart',
   '/checkout': 'Checkout',
   '/login': 'Sign In',

@@ -1,7 +1,9 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, Link } from 'react-router';
+import { useParams, Link, useNavigate } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
+import { snippet, setJsonLd, SITE_URL } from '@/lib/seo';
+import { STORE } from '@/lib/storeConfig';
 import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { BookAwards } from '@/app/components/AwardBadge';
@@ -20,6 +22,7 @@ import { getLibroFmUrl, getGoodreadsUrl } from '@/lib/bookshopWidgets';
 
 export const BookDetail = () => {
   const { id } = useParams();
+  const navigate = useNavigate();
   const { addItem } = useCart();
   const { user } = useAuth();
   const [book, setBook] = useState<Book | null>(null);
@@ -28,7 +31,32 @@ export const BookDetail = () => {
   const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
   const [isInWishlist, setIsInWishlist] = useState(false);
 
-  useDocumentTitle(book ? `${book.title} by ${book.author}` : null);
+  useDocumentTitle(
+    book ? `${book.title} by ${book.author}` : null,
+    book?.description
+      ? snippet(`${book.title} by ${book.author} at ${STORE.name} in Camarillo, CA. ${stripHtmlTags(book.description)}`)
+      : null,
+    book?.cover?.startsWith('http') ? book.cover : null,
+  );
+
+  // Book structured data for search results
+  useEffect(() => {
+    if (!book) return;
+    setJsonLd('book-jsonld', {
+      '@context': 'https://schema.org',
+      '@type': 'Book',
+      name: book.title,
+      author: { '@type': 'Person', name: book.author },
+      url: `${SITE_URL}/book/${book.id}`,
+      ...(book.isbn && { isbn: book.isbn }),
+      ...(book.cover?.startsWith('http') && { image: book.cover }),
+      ...(book.description && { description: snippet(stripHtmlTags(book.description), 300) }),
+      ...(book.publisher && { publisher: { '@type': 'Organization', name: book.publisher } }),
+      ...(book.pageCount && { numberOfPages: book.pageCount }),
+      ...(book.genre && { genre: book.genre }),
+    });
+    return () => setJsonLd('book-jsonld', null);
+  }, [book]);
 
   // Load book from database
   useEffect(() => {
@@ -129,7 +157,7 @@ export const BookDetail = () => {
       {
         action: {
           label: 'View Cart',
-          onClick: () => window.location.href = '#/cart',
+          onClick: () => navigate('/cart'),
         },
       }
     );
@@ -140,7 +168,7 @@ export const BookDetail = () => {
       toast.error('Please sign in to add to wishlist', {
         action: {
           label: 'Sign In',
-          onClick: () => window.location.href = '#/login?redirect=/book/' + book.id,
+          onClick: () => navigate('/login?redirect=/book/' + book.id),
         },
       });
       return;
@@ -196,7 +224,7 @@ export const BookDetail = () => {
         toast.success('Added to wishlist!', {
           action: {
             label: 'View Wishlist',
-            onClick: () => window.location.href = '#/account/wishlist',
+            onClick: () => navigate('/account/wishlist'),
           },
         });
       }

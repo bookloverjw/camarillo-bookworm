@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Gift, CreditCard, Mail, CheckCircle, Info, Loader2, AlertCircle, Smartphone, Download, Copy, Phone, MapPin } from 'lucide-react';
 import { toast } from 'sonner';
+import { useNavigate } from 'react-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
@@ -53,6 +54,7 @@ const GiftCardInStoreNotice = () => (
 );
 
 export const GiftCards = () => {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const { addItem } = useCart();
   const [amount, setAmount] = useState('25');
@@ -127,7 +129,7 @@ export const GiftCards = () => {
             : 'Physical card will be shipped to your address',
           action: {
             label: 'Checkout',
-            onClick: () => window.location.href = '#/checkout',
+            onClick: () => navigate('/checkout'),
           },
         });
 
