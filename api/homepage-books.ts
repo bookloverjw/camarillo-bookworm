@@ -15,7 +15,10 @@
  */
 
 import type { VercelRequest, VercelResponse } from '@vercel/node';
-import { buildHomepageBooks } from './_lib/homepageBooks';
+// The .js extension is required: package.json sets "type": "module", and
+// Node's ESM loader will not resolve an extensionless relative import. It
+// points at the compiled output of _lib/homepageBooks.ts.
+import { buildHomepageBooks } from './_lib/homepageBooks.js';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') {

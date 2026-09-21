@@ -47,19 +47,25 @@ export interface HomepageBooks {
   newReleases: HomepageBook[];
 }
 
-// Which NYT lists feed each tab, and what each list means for New Releases'
-// Fiction / Nonfiction / Kids / YA tabs.
-const LISTS: Record<string, { shelf: Shelf | null; category: Category }> = {
-  'hardcover-fiction': { shelf: 'hardcover', category: 'Fiction' },
-  'hardcover-nonfiction': { shelf: 'hardcover', category: 'Nonfiction' },
-  'trade-fiction-paperback': { shelf: 'paperback', category: 'Fiction' },
-  'paperback-nonfiction': { shelf: 'paperback', category: 'Nonfiction' },
-  'picture-books': { shelf: 'childrens', category: 'Kids' },
-  'childrens-middle-grade-hardcover': { shelf: 'childrens', category: 'Kids' },
-  'series-books': { shelf: 'childrens', category: 'Kids' },
-  'young-adult-hardcover': { shelf: 'childrens', category: 'YA' },
+// Which NYT lists feed each tab, what each means for New Releases' Fiction /
+// Nonfiction / Kids / YA tabs, and a short label for the card - the tab
+// already says Hardcover or Paperback, so "#1 \u00b7 Fiction" is enough.
+//
+// Monthly lists count months, not weeks, in weeks_on_list, so their debut
+// date can't be worked out the same way. They fill Bestsellers only.
+const LISTS: Record<string, { shelf: Shelf | null; category: Category; label: string; monthly?: boolean }> = {
+  'hardcover-fiction': { shelf: 'hardcover', category: 'Fiction', label: 'Fiction' },
+  'hardcover-nonfiction': { shelf: 'hardcover', category: 'Nonfiction', label: 'Nonfiction' },
+  'trade-fiction-paperback': { shelf: 'paperback', category: 'Fiction', label: 'Fiction' },
+  // Weekly until the NYT made it monthly; the old paperback-nonfiction slug
+  // no longer appears in the overview.
+  'paperback-nonfiction-monthly': { shelf: 'paperback', category: 'Nonfiction', label: 'Nonfiction', monthly: true },
+  'picture-books': { shelf: 'childrens', category: 'Kids', label: 'Picture Books' },
+  'childrens-middle-grade-hardcover': { shelf: 'childrens', category: 'Kids', label: 'Middle Grade' },
+  'series-books': { shelf: 'childrens', category: 'Kids', label: 'Series' },
+  'young-adult-hardcover': { shelf: 'childrens', category: 'YA', label: 'Young Adult' },
   // Not a Bestsellers tab, but new titles here belong in New Releases.
-  'advice-how-to-and-miscellaneous': { shelf: null, category: 'Nonfiction' },
+  'advice-how-to-and-miscellaneous': { shelf: null, category: 'Nonfiction', label: 'Advice' },
 };
 
 interface NytBook {
@@ -112,10 +118,15 @@ const daysAgo = (days: number, from: Date) => {
 /**
  * When a book first appeared on its list, which for a bestseller is almost
  * always its release week. weeks_on_list counts this week as week one.
+ *
+ * Counted from the end of the sales week the list measures, not the list's
+ * cover date: the NYT dates each list about two weeks ahead of the sales it
+ * reports, so counting from the cover date put this week's debuts in the
+ * future and dropped them from New Releases.
  */
-function debutDate(listsDate: string, weeksOnList: number) {
+function debutDate(salesWeekEnding: string, weeksOnList: number) {
   const weeks = Math.max(weeksOnList, 1) - 1;
-  return daysAgo(weeks * 7, new Date(`${listsDate}T00:00:00Z`));
+  return daysAgo(weeks * 7, new Date(`${salesWeekEnding}T00:00:00Z`));
 }
 
 function catalogueCategory(raw: string | null): Category | null {
@@ -127,7 +138,9 @@ function catalogueCategory(raw: string | null): Category | null {
   return null;
 }
 
-async function fetchNytLists(apiKey: string): Promise<{ date: string | null; lists: NytList[] }> {
+async function fetchNytLists(
+  apiKey: string,
+): Promise<{ date: string | null; salesWeekEnding: string | null; lists: NytList[] }> {
   // One call returns every current list. The API allows 5 calls a minute and
   // 500 a day; the CDN cache in front of this means we make a few a day.
   const res = await fetch(
@@ -138,6 +151,7 @@ async function fetchNytLists(apiKey: string): Promise<{ date: string | null; lis
   const body = await res.json();
   return {
     date: body?.results?.published_date ?? null,
+    salesWeekEnding: body?.results?.bestsellers_date ?? null,
     lists: body?.results?.lists ?? [],
   };
 }
@@ -156,7 +170,7 @@ async function supabaseSelect(path: string): Promise<any[]> {
 const CATALOGUE_FIELDS = 'id,isbn,title,author,price,cover_url,category,publication_date';
 
 export async function buildHomepageBooks(nytApiKey: string, now = new Date()): Promise<HomepageBooks> {
-  const { date: listsDate, lists } = await fetchNytLists(nytApiKey);
+  const { date: listsDate, salesWeekEnding, lists } = await fetchNytLists(nytApiKey);
   const today = now.toISOString().slice(0, 10);
   const windowStart = daysAgo(NEW_RELEASE_WINDOW_DAYS, now);
 
@@ -180,7 +194,9 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
 
   const fromNyt = (book: NytBook, list: NytList): HomepageBook => {
     const ours = byIsbn.get(book.primary_isbn13);
-    const nytDebut = listsDate ? debutDate(listsDate, book.weeks_on_list) : null;
+    const meta = LISTS[list.list_name_encoded];
+    const nytDebut =
+      salesWeekEnding && !meta.monthly ? debutDate(salesWeekEnding, book.weeks_on_list) : null;
 
     return {
       isbn: book.primary_isbn13,
@@ -194,9 +210,9 @@ export async function buildHomepageBooks(nytApiKey: string, now = new Date()): P
       // backstop for the (currently most) titles we don't carry.
       releaseDate: ours?.publication_date ?? nytDebut,
       releaseDateSource: ours?.publication_date ? 'catalogue' : nytDebut ? 'nyt-debut' : null,
-      category: LISTS[list.list_name_encoded].category,
+      category: meta.category,
       rank: book.rank,
-      list: list.display_name,
+      list: meta.label,
       weeksOnList: book.weeks_on_list,
     };
   };
