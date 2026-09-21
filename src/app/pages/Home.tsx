@@ -344,10 +344,10 @@ export const Home = () => {
             className="max-w-2xl text-white text-center mx-auto"
           >
             <h1 className="text-4xl md:text-5xl font-serif font-normal mb-4 leading-tight">
-              Welcome to Camarillo Bookworm
+              Welcome to The Bookworm
             </h1>
             <p className="text-lg text-white/80 mb-8 leading-relaxed">
-              Your neighborhood independent bookstore since 1973. Discover your next great read.
+              Camarillo's independent bookstore since 1973. Discover your next great read.
             </p>
             <div className="flex flex-wrap justify-center gap-4">
               <Link to="/shop" className="bg-white text-primary px-6 py-3 rounded text-sm font-medium hover:bg-white/90 transition-colors inline-flex items-center">

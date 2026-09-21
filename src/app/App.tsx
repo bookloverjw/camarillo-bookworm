@@ -377,9 +377,9 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* About */}
           <div>
-            <h3 className="font-serif text-xl font-normal mb-4">Camarillo Bookworm</h3>
+            <h3 className="font-serif text-xl font-normal mb-4"><span className="italic">The</span> Bookworm</h3>
             <p className="text-sm text-white/70 leading-relaxed mb-4">
-              Your neighborhood independent bookstore since 1973.
+              Camarillo's independent bookstore since 1973.
             </p>
             <div className="flex space-x-3">
               <a href="https://instagram.com/camarillobookworm" target="_blank" rel="noopener noreferrer" className="text-white/70 hover:text-white transition-colors">
@@ -470,7 +470,7 @@ const Footer = () => {
       {/* Bottom bar */}
       <div className="border-t border-white/10">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex flex-col md:flex-row justify-between items-center gap-4">
-          <p className="text-xs text-white/50">© 2026 Camarillo Bookworm. All rights reserved.</p>
+          <p className="text-xs text-white/50">© {new Date().getFullYear()} The Bookworm, Camarillo. All rights reserved.</p>
           <div className="flex space-x-6">
             <Link to="/privacy" className="text-xs text-white/50 hover:text-white transition-colors">Privacy</Link>
             <Link to="/terms" className="text-xs text-white/50 hover:text-white transition-colors">Terms</Link>

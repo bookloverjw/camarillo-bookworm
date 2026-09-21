@@ -10,7 +10,7 @@ test.describe('Page Load & Layout', () => {
 
   test('should render the hero section', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Welcome to Camarillo Bookworm')).toBeVisible();
+    await expect(page.locator('text=Welcome to The Bookworm')).toBeVisible();
   });
 
   test('should render the navbar with logo', async ({ page }) => {
@@ -21,7 +21,7 @@ test.describe('Page Load & Layout', () => {
   test('should render the footer', async ({ page }) => {
     await page.goto('/');
     await expect(page.locator('footer')).toBeVisible();
-    await expect(page.locator('footer').locator('text=Your neighborhood independent bookstore since 1973.')).toBeVisible();
+    await expect(page.locator('footer').locator("text=Camarillo's independent bookstore since 1973.")).toBeVisible();
   });
 
   test('should show the announcement bar with store hours', async ({ page }) => {
