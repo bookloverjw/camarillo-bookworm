@@ -118,6 +118,14 @@ def refresh_awards(cat):
         data['results'].append(result)
         index[(e['award'], e['year'], e['title'].lower())] = result
         say(f"- **{names[e['award']]} {e['year']}** {e['result']}: *{e['title']}* by {e['author']}")
+    # The Booker has a logo per year rather than a standing seal. Give each
+    # result its year's, where the artwork has been added
+    # (assets/booker/booker-YYYY.png + scripts/make-booker-seals.mjs).
+    for r in data['results']:
+        if r['award'] == 'booker' and not r.get('seal'):
+            seal = f"booker-{r['year']}.png"
+            if (COLLECTIONS.parent / 'awards' / seal).exists():
+                r['seal'] = seal
     data['results'].sort(key=lambda r: (r['award'], -r['year'], r['result'] != 'winner'))
     write_json(path, data)
 
