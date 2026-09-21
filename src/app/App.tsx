@@ -89,8 +89,10 @@ const Navbar = () => {
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
             {/* Logo */}
-            <Link to="/" className="flex items-center space-x-3 group">
-              <span className="font-serif text-2xl font-normal text-white leading-tight">Camarillo Bookworm</span>
+            {/* Set like the sign over the door: an italic "The", BOOKWORM in capitals */}
+            <Link to="/" aria-label="The Bookworm - home" className="flex items-baseline gap-1.5 group font-serif text-white leading-tight whitespace-nowrap">
+              <span className="italic text-xl">The</span>
+              <span className="text-2xl uppercase tracking-[0.08em]">Bookworm</span>
             </Link>
 
             {/* Search Bar - Desktop */}

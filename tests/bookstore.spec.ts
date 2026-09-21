@@ -15,7 +15,7 @@ test.describe('Page Load & Layout', () => {
 
   test('should render the navbar with logo', async ({ page }) => {
     await page.goto('/');
-    await expect(page.locator('text=Camarillo Bookworm').first()).toBeVisible();
+    await expect(page.getByRole('link', { name: 'The Bookworm - home' })).toBeVisible();
   });
 
   test('should render the footer', async ({ page }) => {
@@ -220,7 +220,8 @@ test.describe('SEO & Accessibility', () => {
     expect(jsonLd).toBeTruthy();
     const data = JSON.parse(jsonLd!);
     expect(data['@type']).toBe('BookStore');
-    expect(data.name).toBe('Camarillo Bookworm');
+    expect(data.name).toBe('The Bookworm');
+    expect(data.alternateName).toBe('Camarillo Bookworm');
     expect(data.address.addressLocality).toBe('Camarillo');
   });
 
