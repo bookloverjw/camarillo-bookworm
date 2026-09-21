@@ -818,12 +818,12 @@ export interface UpcomingBook {
 const PINNED_UPCOMING: UpcomingBook[] = [
   {
     isbn: '9781639739134', title: 'A Court of Splintered Harmony', author: 'Sarah J. Maas',
-    publication_date: '2026-10-27', cover_url: 'https://covers.openlibrary.org/b/id/15253996-L.jpg',
+    publication_date: '2026-10-27', cover_url: 'https://covers.openlibrary.org/b/isbn/9781639739134-L.jpg',
     msrp: null, reason: 'A Court of Thorns and Roses, book 6', catalog_id: null,
   },
   {
     isbn: '9798260200568', title: 'A Court of Forgotten Melody', author: 'Sarah J. Maas',
-    publication_date: '2027-01-12', cover_url: 'https://covers.openlibrary.org/b/id/15246555-L.jpg',
+    publication_date: '2027-01-12', cover_url: 'https://covers.openlibrary.org/b/isbn/9798260200568-L.jpg',
     msrp: null, reason: 'A Court of Thorns and Roses, book 7', catalog_id: null,
   },
 ];
