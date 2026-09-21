@@ -31,6 +31,22 @@ export interface BookQueryOptions {
   bestsellerCategory?: BestsellerCategory;
 }
 
+/**
+ * The columns the publishable key is allowed to read - see
+ * supabase/books-public-columns-2-lockdown.sql. Cost, vendor, sales counters
+ * and raw inventory are service-role only, so select('*') is refused: every
+ * read of books names its columns, and a new one has to be granted there
+ * before it is added here.
+ */
+const BOOK_COLUMNS = [
+  'id', 'isbn', 'title', 'author', 'author_last', 'description',
+  'price', 'list_price', 'cover_url', 'category', 'genre', 'book_type',
+  'publisher', 'publication_date', 'page_count', 'stock_level', 'status',
+  'is_staff_pick', 'staff_reviewer', 'staff_quote',
+  'is_limited_preorder', 'preorder_cutoff_date', 'tags',
+  'sales_rank_mtd', 'sales_rank_ytd', 'sales_rank_past12',
+].join(',');
+
 export interface SupabaseBook {
   id: string;
   isbn: string;
@@ -40,7 +56,6 @@ export interface SupabaseBook {
   price: number;
   /** Publisher list price from ISBNdb, refreshed by the scheduled job. */
   list_price?: number | null;
-  cost: number | null;
   cover_url: string | null;
   category: string | null;
   genre: string | null;
@@ -48,8 +63,8 @@ export interface SupabaseBook {
   publisher: string | null;
   publication_date: string | null;
   page_count: number | null;
-  inventory_count: number;
-  reserved_count: number;
+  /** 0, 1, or 2 for "two or more" - all the site shows of the stock count. */
+  stock_level: number;
   status: string | null;
   is_staff_pick: boolean;
   staff_reviewer: string | null;
@@ -57,15 +72,13 @@ export interface SupabaseBook {
   author_last: string | null;
   is_limited_preorder: boolean;
   preorder_cutoff_date: string | null;
-  total_sold: number;
-  // Sales counters kept up to date by the POS sync. total_sold above is not
-  // one of them - it isn't a column on the table - so ranking reads these.
-  sales_mtd: number | null;
-  sales_ytd: number | null;
-  sales_past12: number | null;
+  // Position by units sold (1 = best seller, null = no sales in the window),
+  // computed from the POS counters by refresh_book_sales_ranks(). The
+  // counters themselves are not readable from the browser.
+  sales_rank_mtd: number | null;
+  sales_rank_ytd: number | null;
+  sales_rank_past12: number | null;
   tags: string[] | null;
-  created_at: string;
-  updated_at: string;
 }
 
 /**
@@ -86,7 +99,7 @@ function mapSupabaseBookToBook(sb: SupabaseBook): Book {
     category: (sb.category as Book['category']) || 'Fiction',
     genre: sb.genre || 'Literary',
     type: (sb.book_type as Book['type']) || 'Paperback',
-    status: mapStatus(sb.status, sb.inventory_count, sb.is_limited_preorder, sb.preorder_cutoff_date),
+    status: mapStatus(sb.status, sb.stock_level, sb.is_limited_preorder, sb.preorder_cutoff_date),
     releaseDate: sb.publication_date || undefined,
     isLimitedPreorder: sb.is_limited_preorder || false,
     preorderCutoffDate: sb.preorder_cutoff_date || undefined,
@@ -124,7 +137,7 @@ function displayPrice(sb: Pick<SupabaseBook, 'price' | 'list_price'>): number {
  */
 function mapStatus(
   status: string | null,
-  inventoryCount: number,
+  stockLevel: number,
   isLimitedPreorder?: boolean,
   preorderCutoffDate?: string | null,
 ): Book['status'] {
@@ -145,8 +158,8 @@ function mapStatus(
   }
 
   // Inventory-based status
-  if (inventoryCount <= 0) return 'Available to Order';
-  if (inventoryCount === 1) return 'Only 1 Left';
+  if (!stockLevel || stockLevel <= 0) return 'Available to Order';
+  if (stockLevel === 1) return 'Only 1 Left';
   return 'In Store';
 }
 
@@ -171,7 +184,7 @@ function applyFilters(query: any, options?: BookQueryOptions) {
     query = query.eq('book_type', options.format);
   }
   if (options?.inStockOnly) {
-    query = query.gt('inventory_count', 0);
+    query = query.gt('stock_level', 0);
   }
   if (options?.staffPicksOnly) {
     query = query.eq('is_staff_pick', true);
@@ -234,7 +247,7 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
 
     let query = supabase
       .from('books')
-      .select('*');
+      .select(BOOK_COLUMNS);
 
     query = applyFilters(query, options);
 
@@ -310,7 +323,7 @@ export async function getBooks(options?: BookQueryOptions): Promise<Book[]> {
  */
 async function getClientSortedBooks(options?: BookQueryOptions): Promise<Book[]> {
   try {
-    let query = supabase.from('books').select('*');
+    let query = supabase.from('books').select(BOOK_COLUMNS);
     query = applyFilters(query, options);
     query = query.order('title'); // fallback DB order
 
@@ -466,7 +479,7 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
     const rankedIds = rankings.map(r => r.book_id);
 
     // Step 2: Fetch books with normal filters, scoped to ranked IDs
-    let query = supabase.from('books').select('*');
+    let query = supabase.from('books').select(BOOK_COLUMNS);
     query = applyFilters(query, options);
     query = query.in('id', rankedIds);
 
@@ -506,7 +519,8 @@ async function getBestSellingBooks(options?: BookQueryOptions): Promise<Book[]> 
  * Priority:
  *   1. transaction_items (POS-style, keyed by book_id)
  *   2. order_items (website orders, keyed by isbn)
- *   3. books.total_sold column (static counter from POS sync)
+ *   3. books.sales_rank_* (from the POS sales counters; see
+ *      supabase/books-public-columns-1-prepare.sql)
  *   4. Alphabetical fallback
  */
 /**
@@ -518,13 +532,13 @@ function isRealBook(isbn?: string) {
   return !!isbn && /^97[89]\d{10}$/.test(isbn);
 }
 
-/** The POS counter that best matches the period being asked for. */
-function salesColumnForPeriod(period?: BestsellerPeriod): 'sales_mtd' | 'sales_ytd' | 'sales_past12' {
+/** The sales rank that best matches the period being asked for. */
+function rankColumnForPeriod(period?: BestsellerPeriod): 'sales_rank_mtd' | 'sales_rank_ytd' | 'sales_rank_past12' {
   switch (period) {
-    case 'month': return 'sales_mtd';
-    case 'year': return 'sales_ytd';
+    case 'month': return 'sales_rank_mtd';
+    case 'year': return 'sales_rank_ytd';
     // No quarterly counter is synced; trailing twelve months is the closest.
-    default: return 'sales_past12';
+    default: return 'sales_rank_past12';
   }
 }
 
@@ -532,7 +546,7 @@ async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book
   try {
     const days = periodToDays(options?.bestsellerPeriod);
 
-    let query = supabase.from('books').select('*');
+    let query = supabase.from('books').select(BOOK_COLUMNS);
     query = applyFilters(query, options);
     const { data, error } = await query;
 
@@ -550,12 +564,14 @@ async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book
     // POS counters, then by title. Only a handful of titles sell inside any
     // given period window, so without the counters as a tiebreaker the list
     // is a few real bestsellers followed by everything else alphabetically.
-    const salesColumn = salesColumnForPeriod(options?.bestsellerPeriod);
-    const posSales = new Map(data.map((d: SupabaseBook) => [d.id, Number(d[salesColumn]) || 0]));
+    // Ranks rather than units: 1 is best, and an unranked title sorts last.
+    const unranked = Number.MAX_SAFE_INTEGER;
+    const rankColumn = rankColumnForPeriod(options?.bestsellerPeriod);
+    const periodRank = new Map(data.map((d: SupabaseBook) => [d.id, d[rankColumn] ?? unranked]));
     // Month-to-date is thin - only a few hundred titles sell in any given
     // month - so trailing-twelve-month sales break the remaining ties. Without
     // it a "bestsellers this month" list is four books and then the alphabet.
-    const trailingSales = new Map(data.map((d: SupabaseBook) => [d.id, Number(d.sales_past12) || 0]));
+    const trailingRank = new Map(data.map((d: SupabaseBook) => [d.id, d.sales_rank_past12 ?? unranked]));
 
     const txSales = await getSalesFromTransactions(days);
     const orderSales = txSales ? null : await getSalesFromOrders(days);
@@ -570,10 +586,10 @@ async function getLiveBestSellingBooks(options?: BookQueryOptions): Promise<Book
       const byPeriod = periodSales(b) - periodSales(a);
       if (byPeriod !== 0) return byPeriod;
 
-      const byCounter = (posSales.get(b.id) || 0) - (posSales.get(a.id) || 0);
+      const byCounter = (periodRank.get(a.id) ?? unranked) - (periodRank.get(b.id) ?? unranked);
       if (byCounter !== 0) return byCounter;
 
-      const byTrailingYear = (trailingSales.get(b.id) || 0) - (trailingSales.get(a.id) || 0);
+      const byTrailingYear = (trailingRank.get(a.id) ?? unranked) - (trailingRank.get(b.id) ?? unranked);
       if (byTrailingYear !== 0) return byTrailingYear;
 
       return sortKeyForTitle(a.title).localeCompare(sortKeyForTitle(b.title));
@@ -675,7 +691,7 @@ export async function getBooksCount(options?: BookQueryOptions): Promise<number>
   try {
     let query = supabase
       .from('books')
-      .select('*', { count: 'exact', head: true });
+      .select('id', { count: 'exact', head: true });
 
     query = applyFilters(query, options);
 
@@ -700,7 +716,7 @@ export async function getBookById(id: string): Promise<Book | null> {
   try {
     const { data, error } = await supabase
       .from('books')
-      .select('*')
+      .select(BOOK_COLUMNS)
       .eq('id', id)
       .single();
 
@@ -722,7 +738,7 @@ export async function getBookByIsbn(isbn: string): Promise<Book | null> {
   try {
     const { data, error } = await supabase
       .from('books')
-      .select('*')
+      .select(BOOK_COLUMNS)
       .eq('isbn', isbn)
       .single();
 
@@ -745,38 +761,7 @@ export async function getStaffPicks(limit: number = 10): Promise<Book[]> {
 }
 
 /**
- * Check if a book is in stock
- */
-export async function checkBookAvailability(id: string): Promise<{
-  available: boolean;
-  inStock: number;
-  reserved: number;
-}> {
-  try {
-    const { data, error } = await supabase
-      .from('books')
-      .select('inventory_count, reserved_count')
-      .eq('id', id)
-      .single();
-
-    if (error || !data) {
-      // Assume available for demo
-      return { available: true, inStock: 10, reserved: 0 };
-    }
-
-    const available = (data.inventory_count - data.reserved_count) > 0;
-    return {
-      available,
-      inStock: data.inventory_count,
-      reserved: data.reserved_count,
-    };
-  } catch (error) {
-    return { available: true, inStock: 10, reserved: 0 };
-  }
-}
-
-/**
- * Fetch bestselling books sorted by total_sold
+ * Fetch bestselling books
  */
 export async function getBestsellers(limit: number = 10): Promise<Book[]> {
   return getBooks({ sortBy: 'best-selling', limit });
@@ -907,9 +892,9 @@ export async function getRecommendations(book: Book, limit = 4): Promise<Book[]>
 
   // 1. More by this author.
   if (book.author) {
-    const { data } = await supabase.from('books').select('*')
+    const { data } = await supabase.from('books').select(BOOK_COLUMNS)
       .eq('author', book.author).neq('id', book.id)
-      .order('sales_past12', { ascending: false, nullsFirst: false }).limit(12);
+      .order('sales_rank_past12', { ascending: true, nullsFirst: false }).limit(12);
     take(data as SupabaseBook[] | null);
   }
 
@@ -917,9 +902,9 @@ export async function getRecommendations(book: Book, limit = 4): Promise<Book[]>
   //    the 'Literary' placeholder the mapper fills in for a missing one.
   if (picks.length < limit) {
     const [field, value] = book.genre && book.genre !== 'Literary' ? ['genre', book.genre] : ['category', book.category];
-    const { data } = await supabase.from('books').select('*')
+    const { data } = await supabase.from('books').select(BOOK_COLUMNS)
       .eq(field, value).neq('id', book.id)
-      .order('sales_past12', { ascending: false, nullsFirst: false }).limit(24);
+      .order('sales_rank_past12', { ascending: true, nullsFirst: false }).limit(24);
     take(data as SupabaseBook[] | null);
   }
 
