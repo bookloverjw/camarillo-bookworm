@@ -7,6 +7,8 @@
 
 export interface SeasonalFeature {
   id: string;
+  /** The collection whose books fill the homepage section while it's running. */
+  collection: string;
   to: string;
   title: string;
   blurb: string;
@@ -25,6 +27,7 @@ export const BANNED_BOOKS_WEEK: Record<number, { start: string; end: string; the
 export const SEASONAL_FEATURES: SeasonalFeature[] = [
   {
     id: 'hispanic-heritage-month',
+    collection: 'hispanic-heritage-month',
     to: '/collections/hispanic-heritage-month',
     title: 'Hispanic Heritage Month',
     blurb: 'Pura Belpré Award books by Latino writers and illustrators, from picture books to YA.',
@@ -34,6 +37,7 @@ export const SEASONAL_FEATURES: SeasonalFeature[] = [
   },
   {
     id: 'banned-books-week',
+    collection: 'banned-books',
     to: '/collections/banned-books',
     title: 'Banned Books Week',
     blurb: 'Celebrate the freedom to read with the books people keep trying to pull off library shelves.',
@@ -43,11 +47,13 @@ export const SEASONAL_FEATURES: SeasonalFeature[] = [
   },
   {
     id: 'read-if-you-dare',
+    collection: 'read-if-you-dare',
     to: '/collections/read-if-you-dare',
     title: 'Read If You Dare',
     blurb: 'Award-winning horror and gothic classics for spooky season.',
     cta: 'Browse horror',
-    dates: year => [`${year}-10-01`, `${year}-10-31`],
+    // Retail's spooky season starts mid-September, not on October 1.
+    dates: year => [`${year}-09-15`, `${year}-10-31`],
     leadDays: 7,
   },
 ];

@@ -29,8 +29,17 @@ const Banner = ({ f, large }: { f: ActiveFeature; large: boolean }) => (
  * Renders nothing between seasons. `only` limits it to a single feature, for
  * showing a collection's own banner on its page.
  */
-export const SeasonalBanners = ({ only, className = '' }: { only?: string; className?: string }) => {
-  const features = activeFeatures().filter(f => !only || f.id === only);
+export const SeasonalBanners = ({
+  only,
+  status,
+  className = '',
+}: {
+  only?: string;
+  /** Just the running features, or just the ones coming up. */
+  status?: 'now' | 'upcoming';
+  className?: string;
+}) => {
+  const features = activeFeatures().filter(f => (!only || f.id === only) && (!status || f.status === status));
   if (features.length === 0) return null;
   return (
     <div className={`grid gap-4 ${features.length > 1 ? 'md:grid-cols-2' : ''} ${features.length > 2 ? 'lg:grid-cols-3' : ''} ${className}`}>

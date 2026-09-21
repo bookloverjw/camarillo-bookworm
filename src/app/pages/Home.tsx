@@ -13,6 +13,8 @@ import { useBookModal } from '@/app/context/BookModalContext';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { SeasonalBanners } from '@/app/components/SeasonalBanners';
+import { activeFeatures, type ActiveFeature } from '@/lib/seasons';
+import { getCollection, type CollectionBook, type CuratedCollection } from '@/lib/collections';
 import { getHomepageBooks, type HomepageBook, type HomepageBooks, type Shelf } from '@/lib/homepageBooks';
 
 /**
@@ -143,6 +145,34 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
   );
 };
 
+const fromCollection = (book: CollectionBook, i: number): CarouselItem => ({
+  key: `${book.catalogId ?? book.isbn ?? book.title}-${i}`,
+  title: book.title,
+  author: book.author,
+  cover: book.cover ?? null,
+  isbn: book.isbn,
+  price: null,
+  catalogId: book.catalogId,
+  eyebrow: book.note,
+});
+
+/**
+ * A homepage-sized sample of a collection: take from each section in turn so
+ * Hispanic Heritage Month shows picture books, middle grade and YA rather than
+ * sixteen picture books, and put books with a cover ahead of placeholders.
+ */
+function sampleCollection(collection: CuratedCollection, count = 16): CollectionBook[] {
+  const queues = collection.sections.map(s => [...s.books.filter(b => b.cover), ...s.books.filter(b => !b.cover)]);
+  const out: CollectionBook[] = [];
+  while (out.length < count && queues.some(q => q.length)) {
+    for (const q of queues) {
+      const next = q.shift();
+      if (next && out.length < count) out.push(next);
+    }
+  }
+  return out;
+}
+
 export const Home = () => {
   const [activeFilter, setActiveFilter] = useState('Fiction');
   const { email, setEmail, isSubscribing, subscribe } = useNewsletterSignup('home');
@@ -153,6 +183,8 @@ export const Home = () => {
   // isn't available, in which case the sections fall back to our catalogue.
   const [lists, setLists] = useState<HomepageBooks | null>(null);
   const [shelf, setShelf] = useState<Shelf>('hardcover');
+  // Whatever the calendar is featuring right now, each with a sample of books.
+  const [seasonal, setSeasonal] = useState<{ feature: ActiveFeature; books: CollectionBook[] }[]>([]);
   const [events, setEvents] = useState<Event[]>([]);
 
   // Load data from Supabase on mount
@@ -194,6 +226,15 @@ export const Home = () => {
     loadBestsellers();
     loadEvents();
     getHomepageBooks().then(setLists);
+
+    const running = activeFeatures().filter(f => f.status === 'now');
+    Promise.all(
+      running.map(feature =>
+        getCollection(feature.collection)
+          .then(c => ({ feature, books: sampleCollection(c) }))
+          .catch(() => null), // a missing collection just doesn't get a section
+      ),
+    ).then(sections => setSeasonal(sections.filter((x): x is NonNullable<typeof x> => !!x && x.books.length > 0)));
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
@@ -236,10 +277,30 @@ export const Home = () => {
         </div>
       </section>
 
-      {/* Seasonal features - Heritage Month, Banned Books Week, spooky season -
-          shown only when the calendar calls for them */}
+      {/* In season: a shelf of books for each running feature - Heritage Month,
+          spooky season, the holidays - chosen by the calendar, not by hand */}
+      {seasonal.map(({ feature, books }) => (
+        <section key={feature.id} className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-16">
+          <div className="text-center mb-10">
+            <p className="text-xs font-bold uppercase tracking-[0.2em] text-accent mb-3">In season · {feature.range}</p>
+            <h2 className="section-title">
+              {feature.title}
+              {feature.theme && <>: “{feature.theme}”</>}
+            </h2>
+            <p className="text-muted-foreground mt-4 max-w-2xl mx-auto">{feature.blurb}</p>
+          </div>
+          <BookCarousel items={books.map(fromCollection)} />
+          <div className="mt-8 text-center">
+            <Link to={feature.to} className="inline-flex items-center text-primary text-sm font-medium hover:underline">
+              {feature.cta} <ArrowRight size={16} className="ml-1" />
+            </Link>
+          </div>
+        </section>
+      ))}
+
+      {/* Coming up: a teaser for features that start soon */}
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 mt-12 empty:hidden">
-        <SeasonalBanners />
+        <SeasonalBanners status="upcoming" />
       </div>
 
       {/* Bestsellers Section - this week's NYT lists, or our own sales ranking
