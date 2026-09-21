@@ -91,7 +91,7 @@ const Navbar = () => {
             {/* Logo */}
             {/* Set like the sign over the door: an italic "The", BOOKWORM in capitals */}
             <Link to="/" aria-label="The Bookworm - home" className="flex items-baseline gap-1.5 group font-serif text-white leading-tight whitespace-nowrap">
-              <span className="italic text-xl">The</span>
+              <span className="logo-the text-[2rem] leading-none">The</span>
               <span className="text-2xl uppercase tracking-[0.08em]">Bookworm</span>
             </Link>
 
@@ -377,7 +377,7 @@ const Footer = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-10">
           {/* About */}
           <div>
-            <h3 className="font-serif text-xl font-normal mb-4"><span className="italic">The</span> Bookworm</h3>
+            <h3 className="font-serif text-xl font-normal mb-4"><span className="logo-the text-[1.7rem] leading-none">The</span> Bookworm</h3>
             <p className="text-sm text-white/70 leading-relaxed mb-4">
               Camarillo's independent bookstore since 1973.
             </p>
