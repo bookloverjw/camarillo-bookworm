@@ -9,7 +9,7 @@
  */
 
 const STORE = {
-  name: 'Camarillo Bookworm',
+  name: 'The Bookworm',
   address: '93 E Daily Dr, Camarillo, CA 93010',
   phone: '(805) 482-1384',
   hours: 'Mon–Fri 10–6 · Sat 10–5 · Sun 12–5',
@@ -145,9 +145,14 @@ export async function buildNewsletter(origin: string, now = new Date()): Promise
   const html = `<!DOCTYPE html><html><body style="margin:0;padding:0;background:#f4f1ea">
 <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f4f1ea"><tr><td align="center" style="padding:24px 12px">
 <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:#ffffff;border-radius:8px;overflow:hidden">
-  <tr><td style="background:${GREEN};padding:28px 32px">
-    <a href="${origin}" style="font-family:Georgia,serif;font-size:28px;font-weight:bold;color:#ffffff;text-decoration:none">${STORE.name}</a>
-    <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#B7E4C7;margin-top:4px">Your neighborhood bookstore since 1973 · ${esc(dateLabel)}</div>
+  <tr><td style="background:${GREEN};padding:24px 32px">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+      <td valign="middle">
+        <a href="${origin}" style="font-family:Georgia,serif;font-size:28px;font-weight:bold;color:#ffffff;text-decoration:none"><i style="font-weight:normal">The</i> Bookworm</a>
+        <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#B7E4C7;margin-top:4px">Camarillo's independent bookstore since 1973 · ${esc(dateLabel)}</div>
+      </td>
+      <td valign="middle" align="right" width="120"><a href="${origin}"><img src="${origin}/brand/glasses-badge.png" width="112" height="63" alt="" style="display:block;border:0"></a></td>
+    </tr></table>
   </td></tr>
   ${parts.join('\n')}
   <tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#777">

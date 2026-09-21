@@ -2,7 +2,6 @@ import React from 'react';
 import { useSearchParams, Link } from 'react-router';
 import { CalendarDays, BookOpen, Sparkles, CheckCircle, Loader2 } from 'lucide-react';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
-import { STORE } from '@/lib/storeConfig';
 
 // Where the counter sign's QR code and event sign-up sheets point. ?src=
 // records where the signup came from (store, event...) alongside the email.
@@ -20,7 +19,8 @@ export const Newsletter = () => {
   return (
     <div className="bg-background">
       <section className="max-w-2xl mx-auto px-4 sm:px-6 py-14 sm:py-20 text-center">
-        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-4">The {STORE.name} newsletter</p>
+        <img src="/brand/mascot.png" alt="" width={900} height={940} className="w-40 sm:w-48 h-auto mx-auto mb-6" />
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-primary mb-4">The Bookworm newsletter</p>
         <h1 className="font-serif text-4xl sm:text-5xl font-bold text-foreground mb-5">Be first to hear</h1>
         <p className="text-lg text-muted-foreground mb-10">
           One short email from your neighborhood bookstore: who's visiting, what's new on the shelves, and what's worth waiting for.

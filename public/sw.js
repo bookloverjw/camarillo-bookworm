@@ -5,7 +5,7 @@ const CACHE_NAME = 'bookworm-v2';
 const PRECACHE_ASSETS = [
   '/',
   '/index.html',
-  '/favicon.svg',
+  '/favicon.png',
 ];
 
 // Install: pre-cache core shell
