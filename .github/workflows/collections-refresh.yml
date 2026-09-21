@@ -1,0 +1,67 @@
+# Monthly collections refresh: new book club picks, new award winners and
+# finalists, and catalogue links for every collection. Opens a pull request
+# for review (never merges on its own) and requests a review from the
+# store's account, which sends a GitHub email notification.
+#
+# Needs one repository setting: Settings > Actions > General > Workflow
+# permissions > "Allow GitHub Actions to create and approve pull requests".
+name: Refresh collections
+
+on:
+  schedule:
+    - cron: '23 14 3 * *'   # 3rd of each month, 14:23 UTC (early morning in California)
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  pull-requests: write
+
+concurrency:
+  group: collections-refresh
+  cancel-in-progress: false
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Install dependencies
+        run: pip install beautifulsoup4 lxml
+
+      - name: Refresh collections
+        run: python3 scripts/collections/refresh.py --summary "$RUNNER_TEMP/summary.md"
+
+      - name: Write the pull request description
+        run: |
+          {
+            echo "The monthly collections refresh found the changes below."
+            echo
+            cat "$RUNNER_TEMP/summary.md"
+            echo
+            echo "---"
+            echo "**Before merging:** check that new book club picks and award results look right."
+            echo "Vercel posts a preview link on this pull request so you can see the collections pages."
+            echo "Merging publishes the changes to the live site."
+            echo
+            echo "_Opened automatically by the Refresh collections workflow (runs on the 3rd of each month)._"
+          } > "$RUNNER_TEMP/body.md"
+          cat "$RUNNER_TEMP/summary.md" >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Open a pull request
+        uses: peter-evans/create-pull-request@v7
+        with:
+          branch: collections/monthly-refresh
+          delete-branch: true
+          add-paths: public/collections/*.json
+          commit-message: Monthly collections refresh
+          title: Monthly collections refresh
+          body-path: ${{ runner.temp }}/body.md
+          labels: collections
+          assignees: bookloverjw
+          reviewers: bookloverjw
