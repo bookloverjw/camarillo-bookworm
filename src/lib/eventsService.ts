@@ -61,10 +61,85 @@ function mapSupabaseEvent(sb: SupabaseEvent): Event {
   };
 }
 
+// ---------------------------------------------------------------------------
+// The store's Google Calendar is the source of truth for events. It's read
+// through /api/calendar-events (the calendar's public iCal feed); the
+// Supabase events table is only a fallback, and is currently empty.
+// ---------------------------------------------------------------------------
+
+interface CalendarEvent {
+  id: string;
+  title: string;
+  start: string;
+  end: string | null;
+  allDay: boolean;
+  description: string;
+  location: string;
+}
+
+function eventType(title: string, description = ''): Event['type'] {
+  const text = `${title} ${description}`.toLowerCase();
+  if (text.includes('story time') || text.includes('storytime')) return 'Kids Story Time';
+  if (text.includes('book club') || text.includes('bookclub')) return 'Book Club';
+  if (text.includes('workshop')) return 'Workshop';
+  if (text.includes('signing')) return 'Signing';
+  return 'Author Reading';
+}
+
+function eventLocation(location: string): Event['location'] {
+  return /virtual|zoom|online/i.test(location) ? 'Virtual' : 'In-store';
+}
+
+const clock = (d: Date) =>
+  d.toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit', hour12: true, timeZone: STORE_TIMEZONE });
+
+/** "5:30 – 7:00 PM", "10:30 AM – 12:00 PM", or "All day". */
+function timeRange(e: CalendarEvent) {
+  if (e.allDay) return 'All day';
+  const start = clock(new Date(e.start));
+  if (!e.end) return start;
+  const end = clock(new Date(e.end));
+  const [s, sm] = start.split(' ');
+  const [, em] = end.split(' ');
+  return sm === em ? `${s} – ${end}` : `${start} – ${end}`;
+}
+
+function mapCalendarEvent(e: CalendarEvent): Event {
+  const start = new Date(e.allDay ? `${e.start}T12:00:00` : e.start);
+  return {
+    id: e.id,
+    title: e.title,
+    date: e.allDay ? e.start : start.toLocaleDateString('en-CA', { timeZone: STORE_TIMEZONE }),
+    time: timeRange(e),
+    type: eventType(e.title, e.description),
+    location: eventLocation(e.location),
+    description: e.description,
+  };
+}
+
+let calendarRequest: Promise<Event[] | null> | null = null;
+
+/** The calendar's events, fetched once per page load; null if it can't be read. */
+function calendarEvents(): Promise<Event[] | null> {
+  calendarRequest ??= fetch('/api/calendar-events')
+    .then(r => (r.ok ? r.json() : null))
+    .then(body => (body?.events ? (body.events as CalendarEvent[]).map(mapCalendarEvent) : null))
+    .catch(() => null);
+  return calendarRequest;
+}
+
+const todayInStore = () => new Date().toLocaleDateString('en-CA', { timeZone: STORE_TIMEZONE });
+
 /**
- * Fetch upcoming published events from Supabase
+ * Upcoming events, soonest first.
  */
 export async function getUpcomingEvents(limit: number = 10): Promise<Event[]> {
+  const fromCalendar = await calendarEvents();
+  if (fromCalendar) {
+    const today = todayInStore();
+    return fromCalendar.filter(e => e.date >= today).slice(0, limit);
+  }
+
   try {
     const now = new Date().toISOString();
     const { data, error } = await supabase
@@ -87,9 +162,15 @@ export async function getUpcomingEvents(limit: number = 10): Promise<Event[]> {
 }
 
 /**
- * Fetch events for a specific month from Supabase
+ * Events in one month (month is 0-based), in the store's time zone.
  */
 export async function getEventsByMonth(year: number, month: number): Promise<Event[]> {
+  const fromCalendar = await calendarEvents();
+  if (fromCalendar) {
+    const prefix = `${year}-${String(month + 1).padStart(2, '0')}`;
+    return fromCalendar.filter(e => e.date.startsWith(prefix));
+  }
+
   try {
     const timeMin = new Date(year, month, 1).toISOString();
     const timeMax = new Date(year, month + 1, 0, 23, 59, 59).toISOString();

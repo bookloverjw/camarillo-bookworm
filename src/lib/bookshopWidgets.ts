@@ -72,3 +72,15 @@ export function generateDemoIsbn(bookId: string): string {
   // Real ISBNs are 13 digits starting with 978 or 979
   return `978${bookId.padStart(10, '0')}`;
 }
+
+/**
+ * A book's Goodreads page. Goodreads resolves /book/isbn/{ISBN} to the right
+ * edition, but an ISBN it doesn't know lands on an unrelated book - so only a
+ * real ISBN-13 gets that link; anything else (a POS SKU, a missing ISBN)
+ * gets a title-and-author search instead.
+ */
+export function getGoodreadsUrl(book: { isbn?: string | null; title: string; author?: string }): string {
+  const isbn = (book.isbn || '').replace(/[^0-9Xx]/g, '');
+  if (/^97[89]\d{10}$/.test(isbn)) return `https://www.goodreads.com/book/isbn/${isbn}`;
+  return `https://www.goodreads.com/search?q=${encodeURIComponent(`${book.title} ${book.author ?? ''}`.trim())}`;
+}

@@ -16,7 +16,7 @@ import { useAuth } from '@/app/context/AuthContext';
 import { supabase } from '@/lib/supabase';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { CriticReviews } from '@/app/components/CriticReviews';
-import { getLibroFmUrl } from '@/lib/bookshopWidgets';
+import { getLibroFmUrl, getGoodreadsUrl } from '@/lib/bookshopWidgets';
 
 export const BookDetail = () => {
   const { id } = useParams();
@@ -407,6 +407,15 @@ export const BookDetail = () => {
                   <Share2 size={18} />
                   <span>Share</span>
                 </button>
+                <a
+                  href={getGoodreadsUrl({ isbn: book.isbn, title: book.title, author: book.author })}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center space-x-2 text-sm font-bold text-primary hover:text-accent transition-colors"
+                >
+                  <ExternalLink size={16} />
+                  <span>Goodreads</span>
+                </a>
               </div>
             </div>
 

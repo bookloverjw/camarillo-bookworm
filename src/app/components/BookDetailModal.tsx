@@ -13,7 +13,7 @@ import { type Book } from '@/app/utils/data';
 import { getBookById, getRecommendations } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { stripHtmlTags } from '@/lib/stripHtml';
-import { getLibroFmUrl } from '@/lib/bookshopWidgets';
+import { getLibroFmUrl, getGoodreadsUrl } from '@/lib/bookshopWidgets';
 import { toast } from 'sonner';
 
 const StarRating = ({ rating }: { rating: number }) => (
@@ -179,6 +179,15 @@ export const BookDetailModal: React.FC = () => {
                         <p className="font-medium text-foreground">{book.isbn || 'N/A'}</p>
                       </div>
                     </div>
+
+                    <a
+                      href={getGoodreadsUrl({ isbn: book.isbn, title: book.title, author: book.author })}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                    >
+                      <ExternalLink size={14} /> See it on Goodreads
+                    </a>
 
                     {/* Purchase actions — priority: pickup > ship > bookshop/libro */}
                     {book.status === 'Preorder Closed' || book.status === 'Unavailable' ? (

@@ -7,7 +7,7 @@ import { BookAwards } from '@/app/components/AwardBadge';
 import { CriticReviews } from '@/app/components/CriticReviews';
 import { useBookModal } from '@/app/context/BookModalContext';
 import { getBookshopAffiliateUrl } from '@/app/context/CartContext';
-import { getBookshopSearchUrl } from '@/lib/bookshopWidgets';
+import { getBookshopSearchUrl, getGoodreadsUrl } from '@/lib/bookshopWidgets';
 
 /**
  * Quick view for a book we don't have in the catalogue. The catalogue is
@@ -85,6 +85,13 @@ export const ExternalBookModal: React.FC = () => {
                         : <>Or call <PhoneLink /> — we'll check our shelves, or order it in for you.</>}
                     </span>
                   </p>
+                  <a
+                    href={getGoodreadsUrl(book)}
+                    target="_blank" rel="noopener noreferrer"
+                    className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-primary transition-colors"
+                  >
+                    <ExternalLink size={14} /> See it on Goodreads
+                  </a>
                 </div>
               </div>
             </div>
