@@ -311,7 +311,9 @@ export const Home = () => {
   }, []);
 
   const filteredBooks = books.filter(b => b.category === activeFilter).slice(0, 8);
-  const preorders = books.filter(b => b.status === 'Preorder');
+  // The catalogue stopped syncing in February, so most of its "preorders" are
+  // out by now; only show ones whose release date is still ahead.
+  const preorders = books.filter(b => b.status === 'Preorder' && (!b.releaseDate || new Date(b.releaseDate) > new Date()));
   const staffPicks = books.filter(b => b.isStaffPick);
 
   return (

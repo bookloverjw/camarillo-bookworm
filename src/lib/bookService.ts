@@ -808,8 +808,8 @@ export interface UpcomingBook {
 /**
  * Forthcoming books by authors on the NYT lists and recent prize winners,
  * gathered weekly from ISBNdb (scripts/isbndb/refresh-coming-soon.mjs).
- * Empty until that job has run, in which case Coming Soon falls back to the
- * catalogue's own preorders.
+ * Until that job has run, the same idea built from Open Library's preorder
+ * records (api/coming-soon.ts) - fewer books, but all genuinely forthcoming.
  */
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
   const today = new Date().toISOString().slice(0, 10);
@@ -819,7 +819,16 @@ export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
     .gte('publication_date', today)
     .order('publication_date', { ascending: true })
     .limit(limit);
-  return error || !data ? [] : (data as UpcomingBook[]);
+  if (!error && data?.length) return data as UpcomingBook[];
+  // Until the ISBNdb job has run: Open Library's preorders, via /api/coming-soon.
+  try {
+    const r = await fetch('/api/coming-soon');
+    if (!r.ok) return [];
+    const { books } = (await r.json()) as { books?: UpcomingBook[] };
+    return (books ?? []).filter(b => b.publication_date >= today).slice(0, limit);
+  } catch {
+    return [];
+  }
 }
 
 
