@@ -2,7 +2,7 @@
 """Fill in missing covers from Google Books, newest books first.
 
   python3 scripts/catalog/google_covers.py --since 2021 [--limit 10] [--dry-run]
-  python3 scripts/catalog/google_covers.py --unknown-year [--limit ...]
+  python3 scripts/catalog/google_covers.py --since 2021 --also-unknown --max-lookups 700
 
 Only books that still have no cover_url and a real ISBN are touched, so it
 can stop and resume. Each cover is stored in the book-covers bucket (like
@@ -13,7 +13,7 @@ restricted to our website, so requests carry the site as their referer.
 Google allows ~1,000 lookups a day and 100 a minute; the site itself uses
 ~40-80 a day, so a run stops cleanly when the daily quota is reached.
 """
-import argparse, hashlib, json, re, struct, sys, time, urllib.error, urllib.parse, urllib.request
+import argparse, hashlib, json, os, re, sys, time, urllib.error, urllib.parse, urllib.request
 from catalog import CACHE, CTX, SUPABASE_URL, UA, _env_local, all_books, http, isbn_of, secret_key, write_headers
 
 PLACEHOLDER_MD5 = 'a64fa89d'  # Google's "image not available" (575x750, 9,103 bytes)
@@ -56,10 +56,12 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--since', type=int, help='only books first published in or after this year')
     ap.add_argument('--unknown-year', action='store_true', help='only books with no known publication year')
+    ap.add_argument('--also-unknown', action='store_true', help='with --since: books of unknown year too, after the dated ones')
+    ap.add_argument('--max-lookups', type=int, help='stop after this many Google lookups, leaving quota for the site')
     ap.add_argument('--limit', type=int, default=10**6)
     ap.add_argument('--dry-run', action='store_true')
     args = ap.parse_args()
-    gkey, skey = _env_local('GOOGLE_BOOKS_API_KEY'), secret_key()
+    gkey, skey = os.environ.get('GOOGLE_BOOKS_API_KEY') or _env_local('GOOGLE_BOOKS_API_KEY'), secret_key()
     if not gkey:
         sys.exit('Add GOOGLE_BOOKS_API_KEY to .env.local')
 
@@ -74,11 +76,13 @@ def main():
         if r.get('cover_url') or not isbn_of(r) or r.get('category') == 'Gifts':
             continue
         y = year(r)
-        if (args.unknown_year and y is None) or (args.since and y is not None and y >= args.since):
+        wanted = (args.unknown_year and y is None) or (args.since and y is not None and y >= args.since) \
+            or (args.also_unknown and y is None)
+        if wanted:
             # Newest first, by full date where we have one, in case the quota runs out.
             when = r.get('publication_date') or (f'{y}-00-00' if y else '')
             todo.append((when, r))
-    todo = [r for _, r in sorted(todo, key=lambda t: t[0], reverse=True)][:args.limit]
+    todo = [r for _, r in sorted(todo, key=lambda t: t[0], reverse=True)][:min(args.limit, args.max_lookups or args.limit)]
     print(f'{len(todo)} books to look up{" (dry run)" if args.dry_run else ""}')
 
     found = stored = 0
