@@ -255,9 +255,21 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   // Logout
   const logout = async (): Promise<void> => {
-    await supabase.auth.signOut();
+    // Signed out as far as this tab is concerned, right away: the server
+    // call that revokes the session can fail or hang, and must not leave
+    // someone looking signed in after they asked not to be.
     setUser(null);
     setSession(null);
+    try {
+      await Promise.race([
+        supabase.auth.signOut(),
+        new Promise<void>((resolve) => setTimeout(resolve, 4000)),
+      ]);
+    } catch (err) {
+      console.warn('Sign-out request failed; session cleared locally.', err);
+    }
+    // Whatever the server said, nothing of the session stays in this browser.
+    await supabase.auth.signOut({ scope: 'local' }).catch(() => {});
   };
 
   // Refresh session

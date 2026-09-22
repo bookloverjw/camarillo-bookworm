@@ -30,8 +30,8 @@ export const AccountLayout = () => {
     { name: 'Account Settings', path: '/account/settings', icon: Settings },
   ];
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout();
     navigate('/');
   };
 
