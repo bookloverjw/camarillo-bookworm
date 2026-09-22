@@ -155,6 +155,34 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
   return out;
 }
 
+/**
+ * What the weekly ISBNdb job found (scripts/isbndb/refresh-coming-soon.mjs),
+ * put through the same filters as the other sources: ISBNdb lists boxed
+ * sets, collector's editions and even figurines alongside new books.
+ */
+async function isbndbUpcoming(today: string, horizon: string): Promise<UpcomingBook[]> {
+  const q = new URLSearchParams({
+    select: 'isbn,title,author,publication_date,cover_url,msrp,reason,catalog_id',
+    publication_date: `gt.${today}`, order: 'publication_date.asc', limit: '200',
+  });
+  try {
+    const r = await fetch(`${SUPABASE_URL}/rest/v1/upcoming_books?${q}`, {
+      headers: { apikey: SUPABASE_PUBLISHABLE_KEY, Authorization: `Bearer ${SUPABASE_PUBLISHABLE_KEY}` },
+      signal: AbortSignal.timeout(5000),
+    });
+    if (!r.ok) return [];
+    const rows = (await r.json()) as UpcomingBook[];
+    return rows.filter(b => b.publication_date <= horizon && isPrintIsbn(b.isbn) && !SKIP.test(b.title) && !EDITION.test(b.title)
+      && !/figurine|poster|boxed|box set|\d-book|collection/i.test(b.title));
+  } catch {
+    return [];
+  }
+}
+
+// Public by design: the same values the browser uses (src/lib/supabase.ts).
+const SUPABASE_URL = 'https://lildbdxabljkoynvpflu.supabase.co';
+const SUPABASE_PUBLISHABLE_KEY = 'sb_publishable_h_B4nBpI9hTOycnv4Fj6Tw_epMD62aO';
+
 /** Run fn over items, a few at a time, to stay polite to Open Library. */
 async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, budgetMs = 40000): Promise<R[]> {
   const out: R[] = [];
@@ -234,12 +262,13 @@ export async function buildComingSoon(origin: string, now = new Date(), pace: Pa
     Math.max(5000, pace.budgetMs + 13000 - (Date.now() - started)))).flat();
   // A paperback, tie-in or reissue of an older book isn't coming soon: drop
   // anything Open Library says was first in print before this year.
-  const candidates = [...fromGoogle, ...fromOpenLibrary];
+  const fromIsbndb = await isbndbUpcoming(today, horizon);
+  const candidates = [...fromIsbndb, ...fromGoogle, ...fromOpenLibrary];
   const firstYears = await firstPublishedYears(candidates, 8000).catch(() => new Map<string, number>());
   const thisYear = Number(today.slice(0, 4));
   const found = candidates.filter(b => (firstYears.get(b.isbn) ?? thisYear) >= thisYear);
   lastSources = { googleKey: !!googleKey, google: fromGoogle.length, googleError, openLibrary: fromOpenLibrary.length,
-    reissuesDropped: candidates.length - found.length };
+    isbndb: fromIsbndb.length, reissuesDropped: candidates.length - found.length };
   const seen = new Set<string>();
   return found
     .sort((a, b) => a.publication_date.localeCompare(b.publication_date))

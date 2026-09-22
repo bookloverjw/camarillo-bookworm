@@ -53,6 +53,7 @@ for (let offset = 0; books.length < budget; offset += 1000) {
 console.log(`${books.length} books queued`);
 
 const changes = [];
+const held = [];
 let checked = 0, priced = 0, stopped = null;
 
 for (let i = 0; i < books.length; i += batchSize) {
@@ -71,6 +72,21 @@ for (let i = 0; i < books.length; i += batchSize) {
     // ISBNdb sometimes carries a zero or a stray non-USD figure; ignore the
     // implausible rather than write it over a real price.
     if (price > 0 && price < 1000) msrp.set(book.isbn13, Math.round(price * 100) / 100);
+  }
+
+  // ISBNdb's msrp is sometimes a collector's, library-binding or reseller
+  // figure ($96.89 for a $23 paperback). Hold back anything implausible for
+  // review instead of writing it: more than double or less than half the
+  // current price, or a first price above $60.
+  for (const b of batch) {
+    const now = msrp.get(b.isbn);
+    const before = Number(b.list_price ?? b.price) || 0;
+    if (now == null) continue;
+    const implausible = before > 0 ? now > before * 2 || now < before / 2 : now > 60;
+    if (implausible) {
+      held.push({ isbn: b.isbn, title: b.title, before: before.toFixed(2), isbndb: now.toFixed(2) });
+      msrp.delete(b.isbn);
+    }
   }
 
   const updates = batch.map(b => ({ id: b.id, price: msrp.get(b.isbn) ?? null }));
@@ -95,11 +111,14 @@ changes.sort((a, b) => Number(b.change) - Number(a.change));
 const csv = ['isbn,title,before,after,change',
   ...changes.map(c => [c.isbn, `"${c.title.replace(/"/g, '""')}"`, c.before, c.after, c.change].join(','))].join('\n');
 await writeFile('price-changes.csv', `${csv}\n`);
+await writeFile('price-held.csv', ['isbn,title,current,isbndb',
+  ...held.map(h => [h.isbn, `"${h.title.replace(/"/g, '""')}"`, h.before, h.isbndb].join(','))].join('\n') + '\n');
 
 const up = changes.filter(c => Number(c.change) > 0);
 await summary([
   `### List prices${dryRun ? ' (dry run - nothing written)' : ''}`,
   `Checked **${checked}** books, **${priced}** had a list price in ISBNdb${stopped ? ` - stopped early: ${stopped}` : ''}.`,
   `**${changes.length}** changed: ${up.length} up, ${changes.length - up.length} down. Full list in \`price-changes.csv\`.`,
+  `**${held.length}** held back as implausible (more than double or under half the current price, or a first price over $60) - see \`price-held.csv\`.`,
   ...(up.length ? ['', '| Book | Was | Now |', '|---|---|---|', ...up.slice(0, 15).map(c => `| ${c.title} | $${c.before} | $${c.after} |`)] : []),
 ].join('\n'));

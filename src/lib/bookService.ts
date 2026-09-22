@@ -872,17 +872,9 @@ export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
 }
 
 async function upcomingFromFeeds(today: string, limit: number): Promise<UpcomingBook[]> {
-  const { data, error } = await supabase
-    .from('upcoming_books')
-    .select('*')
-    .gte('publication_date', today)
-    .order('publication_date', { ascending: true })
-    .limit(limit);
-  if (!error && data?.length) return data as UpcomingBook[];
-  // The table doesn't exist until the ISBNdb job's migration has run; that's
-  // expected, not worth a console error on every visit.
-  if (error && error.code !== 'PGRST205') console.warn('upcoming_books:', error.message);
-  // Until the ISBNdb job has run: Open Library's preorders, via /api/coming-soon.
+  // /api/coming-soon merges every source - ISBNdb's weekly upcoming_books,
+  // Google Books and Open Library - and filters out reissues, tie-ins and
+  // placeholders, so the page never reads upcoming_books directly.
   try {
     const r = await fetch('/api/coming-soon');
     if (!r.ok) return [];

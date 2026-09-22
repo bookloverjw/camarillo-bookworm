@@ -51,7 +51,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: price-changes-${{ github.run_id }}
-          path: price-changes.csv
+          path: |
+            price-changes.csv
+            price-held.csv
           if-no-files-found: ignore
           retention-days: 90
 
