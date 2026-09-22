@@ -12,6 +12,7 @@ const STORE = {
   name: 'The Bookworm',
   address: '93 E Daily Dr, Camarillo, CA 93010',
   phone: '(805) 482-1384',
+  phoneTel: 'tel:+18054821384',
   hours: 'Mon–Fri 10–6 · Sat 10–5 · Sun 12–5',
 };
 const TIMEZONE = 'America/Los_Angeles';
@@ -133,7 +134,7 @@ export async function buildNewsletter(origin: string, now = new Date()): Promise
     parts.push(section('Coming soon - reserve yours', upcoming.map((b) => {
       const date = new Date(`${b.publication_date}T12:00:00Z`).toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: 'UTC' });
       return bookRow(b.catalog_id ? bookLink(origin, b.isbn, b.catalog_id) : bookshop(b.isbn), b.cover_url, b.title, b.author, `Out ${date}`);
-    }).join('') + `<p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333">Call us at ${STORE.phone} or stop by and we'll hold a copy for you.</p>`));
+    }).join('') + `<p style="margin:0;font-family:Helvetica,Arial,sans-serif;font-size:14px;color:#333">Call us at <a href="${STORE.phoneTel}" style="color:${GREEN};font-weight:bold;text-decoration:none">${STORE.phone}</a> or stop by and we'll hold a copy for you.</p>`));
   }
 
   const dateLabel = now.toLocaleDateString('en-US', { month: 'long', day: 'numeric', timeZone: TIMEZONE });
@@ -157,7 +158,7 @@ export async function buildNewsletter(origin: string, now = new Date()): Promise
   ${parts.join('\n')}
   <tr><td style="padding:32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#777">
     <hr style="border:none;border-top:1px solid #e5e0d5;margin:0 0 18px">
-    ${STORE.name} · ${STORE.address} · ${STORE.phone}<br>${STORE.hours}<br>
+    ${STORE.name} · ${STORE.address} · <a href="${STORE.phoneTel}" style="color:#777">${STORE.phone}</a><br>${STORE.hours}<br>
     You're getting this because you signed up at camarillobookworm.com or in the store.
     <a href="{{{RESEND_UNSUBSCRIBE_URL}}}" style="color:#777">Unsubscribe</a>
   </td></tr>
