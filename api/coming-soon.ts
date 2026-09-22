@@ -179,7 +179,16 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, bu
 /** Where the last build's books came from, for diagnosing a thin list. */
 let lastSources: Record<string, unknown> = {};
 
-export async function buildComingSoon(origin: string, now = new Date()): Promise<UpcomingBook[]> {
+/**
+ * Google Books allows about 100 lookups a minute, and there are ~150 authors.
+ * The live function has under a minute, so it checks the first ones (the
+ * perennial bestsellers come first); the build-time snapshot, with time to
+ * spare, checks them all at a pace Google accepts.
+ */
+export interface Pace { concurrency: number; delayMs: number; budgetMs: number }
+const LIVE_PACE: Pace = { concurrency: 2, delayMs: 600, budgetMs: 25000 };
+
+export async function buildComingSoon(origin: string, now = new Date(), pace: Pace = LIVE_PACE): Promise<UpcomingBook[]> {
   const today = now.toISOString().slice(0, 10);
   const h = new Date(now); h.setUTCMonth(h.getUTCMonth() + 8);
   const horizon = h.toISOString().slice(0, 10);
@@ -212,13 +221,16 @@ export async function buildComingSoon(origin: string, now = new Date()): Promise
   // Google first when there's a key: it's fast and far more complete.
   let googleError: string | null = null;
   const fromGoogle = googleKey
-    ? (await pool(queue, 4, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon).catch(err => {
-        googleError ??= (err as Error).message;
-        throw err;
-      }), 25000)).flat()
+    ? (await pool(queue, pace.concurrency, async ([n, why]) => {
+        await new Promise(done => setTimeout(done, pace.delayMs));
+        return googleForAuthor(googleKey, n, why, today, horizon).catch(err => {
+          googleError ??= (err as Error).message;
+          throw err;
+        });
+      }, pace.budgetMs)).flat()
     : [];
   const fromOpenLibrary = (await pool(queue, 8, ([n, why]) => forAuthor(n, why, today, horizon),
-    Math.max(5000, 38000 - (Date.now() - started)))).flat();
+    Math.max(5000, pace.budgetMs + 13000 - (Date.now() - started)))).flat();
   // A paperback, tie-in or reissue of an older book isn't coming soon: drop
   // anything Open Library says was first in print before this year.
   const candidates = [...fromGoogle, ...fromOpenLibrary];

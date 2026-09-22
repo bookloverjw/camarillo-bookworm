@@ -291,10 +291,15 @@ export const Home = () => {
     // live list (which can take most of a minute to build after a deploy).
     setUpcoming(pinnedUpcoming());
     let live = false;
-    getUpcomingSnapshot().then(books => { if (!live && books.length) setUpcoming(books); });
+    let snapshotCount = 0;
+    getUpcomingSnapshot().then(books => {
+      snapshotCount = books.length;
+      if (!live && books.length) setUpcoming(books);
+    });
     getUpcomingBooks().then(books => {
-      // The live list only replaces the snapshot if it found as much.
-      if (books.length > pinnedUpcoming().length) { live = true; setUpcoming(books); }
+      // The live list checks fewer authors than the build-time snapshot, so
+      // it only takes over when it found at least as much.
+      if (books.length > pinnedUpcoming().length && books.length >= snapshotCount) { live = true; setUpcoming(books); }
     }).catch(() => {});
 
     // At most three seasonal shelves; December can have four features running.

@@ -20,9 +20,11 @@ try {
     bundle: true, platform: 'node', format: 'esm', outfile: BUNDLE.pathname, logLevel: 'error',
   });
   const { buildComingSoon } = await import(pathToFileURL(BUNDLE.pathname).href);
+  // No time limit at build time, so every author gets checked, at a pace
+  // Google Books' per-minute quota accepts (~90 a minute).
   const books = await Promise.race([
-    buildComingSoon('https://www.camarillobookworm.com'),
-    new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), 90_000)),
+    buildComingSoon('https://www.camarillobookworm.com', new Date(), { concurrency: 1, delayMs: 650, budgetMs: 150_000 }),
+    new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), 200_000)),
   ]);
   if (books.length >= 3) {
     await writeFile(OUT, JSON.stringify({ generatedAt: new Date().toISOString(), books }));
