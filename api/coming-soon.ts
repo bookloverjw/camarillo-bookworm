@@ -178,6 +178,7 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, bu
 
 /** Where the last build's books came from, for diagnosing a thin list. */
 let lastSources: Record<string, unknown> = {};
+export const comingSoonSources = () => lastSources;
 
 /**
  * Google Books allows about 100 lookups a minute, and there are ~150 authors.
