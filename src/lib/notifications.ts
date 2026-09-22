@@ -46,6 +46,20 @@ export async function setNewsletter(subscribed: boolean): Promise<void> {
   if (!r.ok) throw new Error((await r.json().catch(() => ({})))?.error || `newsletter-preference ${r.status}`);
 }
 
+export interface AuthorMatch { author: string; book_count: number }
+
+/**
+ * Authors in the catalogue matching a rough name - accents ignored,
+ * misspellings tolerated (supabase/author-search.sql). [] until that
+ * function exists.
+ */
+export async function searchAuthors(q: string): Promise<AuthorMatch[]> {
+  if (q.trim().length < 2) return [];
+  const { data, error } = await supabase.rpc('search_authors', { q: q.trim(), max_rows: 8 });
+  if (error) return [];
+  return (data ?? []).map((r: { author: string; book_count: number }) => ({ author: r.author, book_count: Number(r.book_count) }));
+}
+
 export interface AuthorFollow { id: string; author: string }
 
 export async function listFollows(customerId: string): Promise<AuthorFollow[]> {

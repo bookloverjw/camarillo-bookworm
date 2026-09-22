@@ -7,7 +7,6 @@ import { BookCover } from '@/app/components/BookCover';
 import { PhoneLink } from '@/app/components/PhoneLink';
 import { BookAwards } from '@/app/components/AwardBadge';
 import { CriticReviews } from '@/app/components/CriticReviews';
-import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { WishlistButton } from '@/app/components/WishlistButton';
 import { useBookModal, type ExternalBook } from '@/app/context/BookModalContext';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -32,6 +31,24 @@ export const BookQuickView: React.FC = () => {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'missing'>('idle');
 
   const catalogId = view?.catalogId;
+  // A description for books that arrived without one (forthcoming titles,
+  // some award winners), from Open Library by ISBN. Best-effort.
+  const [fetchedDescription, setFetchedDescription] = useState<string | null>(null);
+  const externalIsbn = view?.book && !view.book.description ? view.book.isbn : undefined;
+  useEffect(() => {
+    setFetchedDescription(null);
+    if (!externalIsbn) return;
+    let cancelled = false;
+    (async () => {
+      const ol = (path: string) => fetch(`https://openlibrary.org${path}.json`).then(r => (r.ok ? r.json() : null)).catch(() => null);
+      const text = (d: unknown) => (typeof d === 'string' ? d : (d as { value?: string })?.value) ?? null;
+      const edition = await ol(`/isbn/${externalIsbn}`);
+      let description = text(edition?.description);
+      if (!description && edition?.works?.[0]?.key) description = text((await ol(edition.works[0].key))?.description);
+      if (!cancelled && description) setFetchedDescription(description.replace(/\r?\n+/g, '\n').replace(/\*\*?|__/g, '').trim());
+    })();
+    return () => { cancelled = true; };
+  }, [externalIsbn]);
 
   // Going anywhere - the sign-in page from the wishlist prompt, a full-details
   // link - means the quick view should be gone when you get there.
@@ -80,7 +97,7 @@ export const BookQuickView: React.FC = () => {
   // What to show: the loaded catalogue book, or the external one as given
   const shown: ExternalBook | null = book
     ? { title: book.title, author: book.author, isbn: book.isbn, cover: book.cover, price: book.price, description: stripHtmlTags(book.description), note: displayGenre(book.category, book.genre) ?? book.category }
-    : view?.book ?? null;
+    : view?.book ? { ...view.book, description: view.book.description || fetchedDescription || undefined } : null;
 
   const bookshopUrl = shown
     ? shown.isbn ? getBookshopAffiliateUrl(shown.isbn) : getBookshopSearchUrl(`${shown.title} ${shown.author}`)
@@ -149,10 +166,10 @@ export const BookQuickView: React.FC = () => {
 
                     <BookAwards id={book?.id} isbn={shown.isbn} author={shown.author} title={shown.title} />
 
-                    {book && (
+                    {(book || shown.isbn) && (
                       <div className="flex gap-6 pt-3 border-t border-border text-sm">
-                        <div><p className="text-muted-foreground">Format</p><p className="font-medium text-foreground">{book.type}</p></div>
-                        <div><p className="text-muted-foreground">ISBN</p><p className="font-medium text-foreground">{book.isbn || 'N/A'}</p></div>
+                        {book && <div><p className="text-muted-foreground">Format</p><p className="font-medium text-foreground">{book.type}</p></div>}
+                        {shown.isbn && <div><p className="text-muted-foreground">ISBN</p><p className="font-medium text-foreground">{shown.isbn}</p></div>}
                       </div>
                     )}
 
@@ -173,7 +190,6 @@ export const BookQuickView: React.FC = () => {
                              className="flex items-center justify-center gap-2 w-full px-5 py-3 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">
                             <ExternalLink size={16} /> {shown.forthcoming ? 'Preorder on Bookshop.org' : 'Order on Bookshop.org'}
                           </a>
-                          {book && <p className="text-xs text-muted-foreground text-center"><BookshopBuyNote status={book.status} /></p>}
                         </>
                       )}
                       <p className="flex items-start gap-2 text-sm text-muted-foreground">
@@ -184,8 +200,8 @@ export const BookQuickView: React.FC = () => {
                             : <>Or call <PhoneLink /> — we'll check our shelves, or order it in for you.</>}
                         </span>
                       </p>
+                      {shown.isbn && <div className="pt-1"><WishlistButton book={shown} /></div>}
                       <div className="flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
-                        {shown.isbn && <WishlistButton book={shown} />}
                         {book && (
                           <Link to={`/book/${book.id}`} onClick={closeModal} className="inline-flex items-center gap-1.5 text-muted-foreground hover:text-primary transition-colors">
                             <ExternalLink size={14} /> Full details

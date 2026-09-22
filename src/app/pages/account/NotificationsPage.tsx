@@ -5,7 +5,7 @@ import { toast } from 'sonner';
 import { useAuth } from '@/app/context/AuthContext';
 import {
   DEFAULT_PREFERENCES, getPreferences, savePreferences, setNewsletter,
-  listFollows, followAuthor, unfollowAuthor, type NotificationPreferences, type AuthorFollow,
+  listFollows, followAuthor, unfollowAuthor, searchAuthors, type NotificationPreferences, type AuthorFollow, type AuthorMatch,
 } from '@/lib/notifications';
 
 const SWITCHES: { key: keyof NotificationPreferences; icon: React.ElementType; title: string; text: string; live?: boolean }[] = [
@@ -30,6 +30,19 @@ export const NotificationsPage = () => {
   const [prefs, setPrefs] = useState<NotificationPreferences | null>(null);
   const [follows, setFollows] = useState<AuthorFollow[]>([]);
   const [newAuthor, setNewAuthor] = useState('');
+  const [matches, setMatches] = useState<AuthorMatch[]>([]);
+  const [searching, setSearching] = useState(false);
+
+  // Suggestions from the catalogue as they type, a beat after the last key
+  useEffect(() => {
+    const q = newAuthor.trim();
+    if (q.length < 2) { setMatches([]); return; }
+    setSearching(true);
+    const t = setTimeout(() => {
+      searchAuthors(q).then(setMatches).finally(() => setSearching(false));
+    }, 250);
+    return () => clearTimeout(t);
+  }, [newAuthor]);
   const [busy, setBusy] = useState<string | null>(null);
   const [unavailable, setUnavailable] = useState(false);
 
@@ -64,12 +77,13 @@ export const NotificationsPage = () => {
     }
   };
 
-  const add = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!user || !newAuthor.trim()) return;
+  const add = async (e: React.FormEvent | null, name = newAuthor) => {
+    e?.preventDefault();
+    if (!user || !name.trim()) return;
     setBusy('follow');
+    setMatches([]);
     try {
-      const added = await followAuthor(user.id, newAuthor);
+      const added = await followAuthor(user.id, name);
       if (added) setFollows(f => [...f, added].sort((a, b) => a.author.localeCompare(b.author)));
       else toast.info('Already following them.');
       setNewAuthor('');
@@ -121,16 +135,35 @@ export const NotificationsPage = () => {
         <p className="text-sm text-muted-foreground mb-5">
           We'll let you know when they have a new book coming. You can also follow an author from any book's page.
         </p>
-        <form onSubmit={add} className="flex gap-2 mb-5">
-          <input
-            value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} placeholder="Add an author, e.g. Louise Erdrich"
-            disabled={unavailable}
-            className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary disabled:opacity-50"
-          />
-          <button type="submit" disabled={unavailable || busy === 'follow' || !newAuthor.trim()}
-                  className="inline-flex items-center gap-1.5 bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-primary/90 disabled:opacity-50">
-            {busy === 'follow' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Follow
-          </button>
+        <form onSubmit={add} className="relative mb-5">
+          <div className="flex gap-2">
+            <input
+              value={newAuthor} onChange={(e) => setNewAuthor(e.target.value)} placeholder="Start typing an author's name…"
+              disabled={unavailable} autoComplete="off" aria-autocomplete="list" aria-expanded={matches.length > 0}
+              className="flex-1 px-4 py-2.5 rounded-lg border border-border bg-white text-sm outline-none focus:border-primary disabled:opacity-50"
+            />
+            <button type="submit" disabled={unavailable || busy === 'follow' || !newAuthor.trim()}
+                    className="inline-flex items-center gap-1.5 bg-primary text-white px-4 py-2.5 rounded-lg text-sm font-bold hover:bg-primary/90 disabled:opacity-50">
+              {busy === 'follow' ? <Loader2 size={16} className="animate-spin" /> : <Plus size={16} />} Follow
+            </button>
+          </div>
+          {(matches.length > 0 || searching) && newAuthor.trim().length >= 2 && (
+            <ul role="listbox" className="absolute left-0 right-0 sm:right-auto sm:w-96 mt-1 bg-white border border-border rounded-xl shadow-lg overflow-hidden z-10">
+              {matches.map(m => (
+                <li key={m.author}>
+                  <button type="button" onClick={() => add(null, m.author)}
+                          className="w-full flex items-center justify-between gap-4 px-4 py-2.5 text-left text-sm hover:bg-muted">
+                    <span className="font-medium text-primary">{m.author}</span>
+                    <span className="text-xs text-muted-foreground shrink-0">{m.book_count} {m.book_count === 1 ? 'book' : 'books'} in our catalogue</span>
+                  </button>
+                </li>
+              ))}
+              {searching && matches.length === 0 && <li className="px-4 py-2.5 text-sm text-muted-foreground">Searching…</li>}
+              {!searching && matches.length > 0 && (
+                <li className="px-4 py-2 text-[11px] text-muted-foreground border-t border-border">Not listed? Press Follow to add "{newAuthor.trim()}" as typed.</li>
+              )}
+            </ul>
+          )}
         </form>
         {follows.length === 0 ? (
           <p className="text-sm text-muted-foreground">No authors yet. <Link to="/shop" className="text-primary underline">Find a favourite</Link> and tap "Follow" on their book.</p>
