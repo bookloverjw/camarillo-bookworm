@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router';
 import {
+  Heart,
   BookX, Clapperboard, Award as AwardIcon, Ghost, Sun, Users, Sparkles, Library, MapPin, Feather, Gift, CalendarDays,
   PartyPopper, Megaphone, Clover, Venus, Egg, PenLine, BookOpen, Flower2, GraduationCap, Rainbow, Umbrella, Backpack,
   Drumstick, Flame, TreePine,
@@ -9,6 +10,7 @@ import { BookCover } from '@/app/components/BookCover';
 import { SeasonalBanners } from '@/app/components/SeasonalBanners';
 import { getAwards, getCollection, type CollectionBook } from '@/lib/collections';
 import { SEASONAL_FEATURES } from '@/lib/seasons';
+import { getMostWished } from '@/lib/mostWished';
 
 interface Tile {
   to: string;
@@ -92,6 +94,16 @@ export const Collections = () => {
         });
       }
       setTiles([...out, ...(curated as (Tile | null)[]).filter((t): t is Tile => !!t)]);
+    });
+
+    // What readers are saving - a tile once a few books are on wishlists
+    getMostWished().then(books => {
+      if (books.length < 3) return;
+      setTiles(tiles => [{
+        to: '/collections/most-wished', title: 'Most Wished For', icon: Heart,
+        tagline: 'The books our customers are saving to their wishlists.',
+        covers: withCovers(books.map(b => ({ title: b.title, author: b.author, isbn: b.isbn, cover: b.cover ?? undefined, catalogId: b.catalogId ?? undefined }))),
+      }, ...tiles]);
     });
 
     Promise.all(seasonalInCalendarOrder().map(slug =>

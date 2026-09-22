@@ -42,5 +42,9 @@
   "/newsletter": {
     "title": "Newsletter",
     "description": "Be first to hear about author events, signings and book clubs at Camarillo Bookworm, plus the week's new books - one short email from your neighborhood bookstore."
+  },
+  "/collections/most-wished": {
+    "title": "Most Wished For",
+    "description": "The books Camarillo readers are saving to their wishlists at The Bookworm - see what your neighbors are hoping to read next."
   }
 }

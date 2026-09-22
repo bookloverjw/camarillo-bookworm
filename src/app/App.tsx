@@ -32,6 +32,7 @@ import { GiftCards } from '@/app/pages/GiftCards';
 import { About } from '@/app/pages/About';
 import { Contact } from '@/app/pages/Contact';
 import { Newsletter } from '@/app/pages/Newsletter';
+import { MostWished } from '@/app/pages/MostWished';
 import { useNewsletterSignup } from '@/app/hooks/useNewsletterSignup';
 import { ReadAlikes } from '@/app/pages/ReadAlikes';
 import { Cart } from '@/app/pages/Cart';
@@ -556,6 +557,7 @@ export default function App() {
                 <Route path="/about" element={<About />} />
                 <Route path="/read-alikes" element={<ReadAlikes />} />
                 <Route path="/collections" element={<Collections />} />
+                <Route path="/collections/most-wished" element={<MostWished />} />
                 <Route path="/collections/awards" element={<AwardsPage />} />
                 <Route path="/collections/awards/:awardId" element={<AwardsPage />} />
                 <Route path="/collections/:slug" element={<CollectionPage />} />

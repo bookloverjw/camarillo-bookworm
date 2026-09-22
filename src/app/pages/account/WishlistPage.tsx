@@ -29,7 +29,7 @@ export const WishlistPage = () => {
       <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
         <div>
           <h2 className="text-3xl font-serif font-bold text-primary mb-2">My Wishlist</h2>
-          <p className="text-muted-foreground">Books you've saved - tap the heart on any book to add it here.</p>
+          <p className="text-muted-foreground">Books you've saved - tap the heart on any book to add it here. <Link to="/collections/most-wished" className="text-primary underline">See what other readers want</Link></p>
         </div>
         <div className="flex items-center bg-muted rounded-xl p-1 border border-border self-start">
           <button onClick={() => setViewMode('grid')} aria-label="Grid view" className={`p-2 rounded-lg transition-all ${viewMode === 'grid' ? 'bg-white shadow-sm text-primary' : 'text-muted-foreground'}`}><Grid size={16} /></button>
