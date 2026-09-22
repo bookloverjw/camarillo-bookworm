@@ -7,8 +7,9 @@
  * It copies the list the live site already built (usually straight from the
  * edge cache) rather than building one: builds happen many times a day, and
  * each full build costs ~150 Google Books lookups against a daily quota. A
- * shorter list never replaces a longer one, and a failure never fails the
- * build - the committed snapshot stays (the page drops anything released).
+ * list under half the saved one's length (an outage) doesn't replace it, and
+ * a failure never fails the build - the committed snapshot stays (the page
+ * drops anything already released).
  */
 import { readFile, writeFile } from 'node:fs/promises';
 
@@ -24,7 +25,9 @@ try {
   if (!response.ok) throw new Error(`live list returned ${response.status}`);
   const live = await response.json();
   const books = upcoming(live.books);
-  if (books.length >= Math.max(3, upcoming(previous.books).length)) {
+  // A shorter live list is normal (the filters tighten, books come out); one
+  // under half the saved list's length looks like an outage, so keep the saved one.
+  if (books.length >= Math.max(3, Math.ceil(upcoming(previous.books).length / 2))) {
     await writeFile(OUT, JSON.stringify({ generatedAt: new Date().toISOString(), sources: live.sources, books }));
     console.log(`coming-soon snapshot: ${books.length} books`, JSON.stringify(live.sources ?? {}));
   } else {
