@@ -97,7 +97,8 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (listId) return listId;
     const { data, error } = await supabase
       .from('wishlists')
-      .insert({ customer_id: user!.id, name: LIST_NAME, is_public: false })
+      // Timestamps set here: the table doesn't fill them in itself.
+      .insert({ customer_id: user!.id, name: LIST_NAME, is_public: false, created_at: new Date().toISOString(), updated_at: new Date().toISOString() })
       .select('id').single();
     if (error) throw error;
     setListId(data.id);
@@ -128,7 +129,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     try {
       const id = await ensureList();
       const { data, error } = await supabase.from('wishlist_items')
-        .insert({ wishlist_id: id, isbn: book.isbn, title: book.title, author: book.author, cover_url: book.cover ?? null, price: book.price ?? null })
+        .insert({ wishlist_id: id, isbn: book.isbn, title: book.title, author: book.author, cover_url: book.cover ?? null, price: book.price ?? null, added_at: new Date().toISOString() })
         .select('id,added_at').single();
       if (error && error.code !== '23505') throw error;
       if (data) setItems(prev => [{ ...book, id: data.id, added_at: data.added_at }, ...prev]);
@@ -137,7 +138,8 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       });
     } catch (err) {
       console.error('Wishlist error:', err);
-      toast.error("Couldn't save that. Please try again.");
+      const detail = (err as { message?: string })?.message;
+      toast.error("Couldn't save that. Please try again.", detail ? { description: detail } : undefined);
     }
   }, [user, isbns, remove, ensureList, navigate, location.pathname]);
 
