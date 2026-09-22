@@ -39,16 +39,23 @@ if (budget < 1) {
   process.exit(0);
 }
 
-// The stalest books with a real ISBN-13. Sidelines (stickers, totes) carry
-// UPCs and internal SKUs, which ISBNdb doesn't know.
+// Books with a real ISBN-13 (sidelines carry UPCs and internal SKUs, which
+// ISBNdb doesn't know): first any with no price at all - books added from
+// the collections come in without one - then the stalest.
+const ISBN13 = `isbn=match.${encodeURIComponent('^97[89][0-9]{10}$')}`;
 const books = [];
-for (let offset = 0; books.length < budget; offset += 1000) {
-  const page = await supabase(
-    `books?select=id,isbn,title,price,list_price&isbn=match.${encodeURIComponent('^97[89][0-9]{10}$')}` +
-      `&order=list_price_checked_at.asc.nullsfirst,id.asc&offset=${offset}&limit=${Math.min(1000, budget - books.length)}`,
-  );
-  books.push(...page);
-  if (page.length < 1000) break;
+const seen = new Set();
+for (const filter of ['price=eq.0&list_price=is.null&list_price_checked_at=is.null', '']) {
+  for (let offset = 0; books.length < budget; offset += 1000) {
+    const page = await supabase(
+      `books?select=id,isbn,title,price,list_price&${ISBN13}${filter ? `&${filter}` : ''}` +
+        `&order=list_price_checked_at.asc.nullsfirst,id.asc&offset=${offset}&limit=1000`,
+    );
+    for (const b of page) {
+      if (books.length < budget && !seen.has(b.id)) { seen.add(b.id); books.push(b); }
+    }
+    if (page.length < 1000) break;
+  }
 }
 console.log(`${books.length} books queued`);
 
