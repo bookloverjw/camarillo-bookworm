@@ -50,11 +50,34 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!supabaseUser) return null;
 
     // Fetch customer profile from our customers table
-    const { data: customer } = await supabase
+    let { data: customer } = await supabase
       .from('customers')
       .select('*')
       .eq('id', supabaseUser.id)
-      .single();
+      .maybeSingle();
+
+    // No row yet: the one written at signup runs before the email is
+    // confirmed and doesn't always land. Wishlists and orders link to this
+    // row, so make sure a signed-in customer has one.
+    if (!customer) {
+      const { data: created, error } = await supabase
+        .from('customers')
+        .insert({
+          id: supabaseUser.id,
+          email: supabaseUser.email || '',
+          first_name: supabaseUser.user_metadata?.first_name || '',
+          last_name: supabaseUser.user_metadata?.last_name || '',
+          email_verified: supabaseUser.email_confirmed_at !== null,
+          phone_verified: supabaseUser.phone_confirmed_at !== null,
+          marketing_opt_in: false,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        })
+        .select('*')
+        .single();
+      if (error && error.code !== '23505') console.error('Could not create the customer record:', error.message);
+      customer = created ?? null;
+    }
 
     return {
       id: supabaseUser.id,
