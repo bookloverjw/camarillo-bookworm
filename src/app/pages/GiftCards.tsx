@@ -6,7 +6,7 @@ import { useNavigate } from 'react-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 import { useCart } from '@/app/context/CartContext';
-import { STORE_ORDERING_ENABLED } from '@/lib/features';
+import { GIFT_CARD_BALANCES_ARE_LIVE, STORE_ORDERING_ENABLED } from '@/lib/features';
 import { STORE } from '@/lib/storeConfig';
 import { PhoneLink } from '@/app/components/PhoneLink';
 import {
@@ -48,7 +48,9 @@ const GiftCardInStoreNotice = () => (
     </div>
 
     <p className="text-sm text-muted-foreground mt-6">
-      Already have a card? Check its balance on the right — that works today.
+      {GIFT_CARD_BALANCES_ARE_LIVE
+        ? 'Already have a card? Check its balance on the right — that works today.'
+        : 'Already have a card? Call or stop by and we\'ll tell you its balance.'}
     </p>
   </div>
 );
@@ -387,6 +389,26 @@ export const GiftCards = () => {
                 <h3 className="text-xl font-bold text-primary mb-2 flex items-center">
                   <Info size={20} className="mr-2 text-accent" /> Check Balance
                 </h3>
+                {!GIFT_CARD_BALANCES_ARE_LIVE ? (
+                  <>
+                    <p className="text-sm text-muted-foreground mb-6">
+                      Online balances aren't up to date yet, so we'd rather give you the real number.
+                      Call us or stop by the shop and we'll look up your card's balance right away.
+                    </p>
+                    <a
+                      href={STORE.phoneTel}
+                      className="w-full bg-white text-primary border-2 border-primary py-3 rounded-lg font-bold hover:bg-primary hover:text-white transition-all flex items-center justify-center space-x-2"
+                    >
+                      <Phone size={18} />
+                      <span>Call {STORE.phone}</span>
+                    </a>
+                    <p className="text-xs text-muted-foreground mt-4 flex items-start gap-2">
+                      <MapPin size={14} className="shrink-0 mt-0.5" />
+                      {STORE.address.full}
+                    </p>
+                  </>
+                ) : (
+                <>
                 <p className="text-sm text-muted-foreground mb-8">Enter your gift card details to see your remaining balance.</p>
 
                 <form onSubmit={checkBalance} className="space-y-6">
@@ -449,6 +471,8 @@ export const GiftCards = () => {
                     <p className="text-xs font-bold uppercase tracking-widest text-accent mb-1">Current Balance</p>
                     <p className="text-3xl font-bold text-primary">${balanceResult.toFixed(2)}</p>
                   </motion.div>
+                )}
+                </>
                 )}
               </div>
             </div>

@@ -22,6 +22,16 @@ export const STORE_ORDERING_ENABLED = false;
 export const INVENTORY_STATUS_IS_LIVE = false;
 
 /**
+ * Gift card balances live in the same database, which isn't kept in step
+ * with the register yet: a card spent in the shop since February would show
+ * its old balance online. Until it is, the Gift Cards page sends people to
+ * the store for their balance instead of looking it up.
+ *
+ * Flip this to true once gift card redemptions sync from the POS.
+ */
+export const GIFT_CARD_BALANCES_ARE_LIVE = false;
+
+/**
  * True when a title should be bought through Bookshop.org rather than added to
  * the store's own cart. "Available to Order" titles always went this way, since
  * the store doesn't hold them.
