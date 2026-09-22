@@ -15,6 +15,12 @@ const safeStorage = {
 };
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
+  global: {
+    // A request that hasn't answered in 20s is not going to: fail it, so the
+    // page can show "try again" rather than a spinner until someone reloads.
+    fetch: (input, init) =>
+      fetch(input, { ...init, signal: init?.signal ?? AbortSignal.timeout(20000) }),
+  },
   auth: {
     autoRefreshToken: true,
     persistSession: true,

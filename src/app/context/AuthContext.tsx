@@ -116,18 +116,32 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     initAuth();
 
     // Listen for auth changes
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(async (event, newSession) => {
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, newSession) => {
       console.log('Auth state change:', event);
       setSession(newSession);
 
-      if (newSession?.user) {
-        const authUser = await transformUser(newSession.user);
-        setUser(authUser);
-      } else {
+      if (!newSession?.user) {
         setUser(null);
+        setIsLoading(false);
+        return;
       }
+      // The hourly token refresh changes nothing about who the customer is.
+      if (event === 'TOKEN_REFRESHED') return;
 
-      setIsLoading(false);
+      // Supabase warns against calling its client inside this callback: the
+      // callback holds the auth state, and a query from within it waits on
+      // that state - every later query then queued behind it until a reload.
+      // Load the profile once the callback has returned.
+      const user = newSession.user;
+      setTimeout(async () => {
+        try {
+          setUser(await transformUser(user));
+        } catch (err) {
+          console.error('Could not load the customer profile:', err);
+        } finally {
+          setIsLoading(false);
+        }
+      }, 0);
     });
 
     return () => {
