@@ -119,7 +119,11 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
   const q = new URLSearchParams({
     q: `inauthor:"${name}"`, orderBy: 'newest', maxResults: '20', printType: 'books', langRestrict: 'en', key,
   });
-  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, { signal: AbortSignal.timeout(8000) });
+  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, {
+    // The key is restricted to our website; server-side calls carry no referer unless we send it.
+    headers: { Referer: 'https://www.camarillobookworm.com/' },
+    signal: AbortSignal.timeout(8000),
+  });
   if (!r.ok) {
     const detail = await r.json().then(b => b?.error?.message as string | undefined).catch(() => undefined);
     throw new Error(`Google Books ${r.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`);
