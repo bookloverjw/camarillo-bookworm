@@ -2,6 +2,7 @@ import React from 'react';
 import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
 import type { CollectionBook } from '@/lib/collections';
+import { WishlistButton } from '@/app/components/WishlistButton';
 
 /**
  * A book in a collection. Titles we carry open the quick view on our own
@@ -41,20 +42,21 @@ export const CollectionBookCard = ({
     </>
   );
 
-  if (book.catalogId) {
-    return (
-      <button onClick={() => openModal(book.catalogId!)} className="group text-left w-full">
+  const open = () =>
+    book.catalogId
+      ? openModal(book.catalogId)
+      : openExternal({ title: book.title, author: book.author, isbn: book.isbn, cover: book.cover, note: book.note });
+
+  // The heart sits beside the card's button, not inside it: nested buttons
+  // aren't valid, and a tap on the heart shouldn't open the book.
+  return (
+    <div className="relative">
+      <button onClick={open} className="group text-left w-full">
         {body}
       </button>
-    );
-  }
-
-  return (
-    <button
-      onClick={() => openExternal({ title: book.title, author: book.author, isbn: book.isbn, cover: book.cover, note: book.note })}
-      className="group text-left w-full"
-    >
-      {body}
-    </button>
+      {book.isbn && (
+        <WishlistButton icon book={{ isbn: book.isbn, title: book.title, author: book.author, cover: book.cover }} className="absolute top-2 right-2" />
+      )}
+    </div>
   );
 };

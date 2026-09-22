@@ -6,6 +6,7 @@ import { getStaffMembersWithPicks, type StaffMemberWithPicks } from '@/lib/staff
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
+import { WishlistButton } from '@/app/components/WishlistButton';
 
 export const StaffPicks = () => {
   const [staffWithPicks, setStaffWithPicks] = useState<StaffMemberWithPicks[] | null>(null);
@@ -112,10 +113,11 @@ export const StaffPicks = () => {
                       <div className="text-5xl font-serif font-bold text-accent/20 shrink-0 tabular-nums">
                         {String(i + 1).padStart(2, '0')}
                       </div>
-                      <div className="w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md overflow-hidden transition-transform group-hover:-translate-y-2">
-                        <Link to={`/book/${book.id}`}>
+                      <div className="relative w-32 aspect-[2/3] shrink-0 rounded-lg shadow-md transition-transform group-hover:-translate-y-2">
+                        <Link to={`/book/${book.id}`} className="block w-full h-full rounded-lg overflow-hidden">
                           <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
                         </Link>
+                        {book.isbn && <WishlistButton icon book={{ isbn: book.isbn, title: book.title, author: book.author, cover: book.cover, price: book.price }} className="absolute top-2 right-2" />}
                       </div>
                       <div className="flex-1 py-2">
                         <Link to={`/book/${book.id}`}>

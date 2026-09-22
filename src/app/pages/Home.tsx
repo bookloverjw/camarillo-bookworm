@@ -7,6 +7,7 @@ import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
 import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, getUpcomingSnapshot, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
 import { releaseLabel } from '@/app/components/ForthcomingBookCard';
+import { WishlistButton } from '@/app/components/WishlistButton';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -76,7 +77,7 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
     }
   };
 
-  const cardClass = 'flex-shrink-0 w-[140px] group/book text-left cursor-pointer';
+  const cardClass = 'w-[140px] group/book text-left cursor-pointer';
 
   const cardBody = (item: CarouselItem) => (
     <>
@@ -128,25 +129,29 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
         style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
       >
         {items.map((item) =>
-          item.catalogId ? (
-            <button key={item.key} onClick={() => openModal(item.catalogId!)} className={cardClass}>
-              {cardBody(item)}
-            </button>
-          ) : (
-            // Not in our catalogue: our own quick view, not a jump to Bookshop,
-            // so the reader can still choose to call us.
-            <button
-              key={item.key}
-              onClick={() => openExternal({
-                title: item.title, author: item.author, isbn: item.isbn, cover: item.cover,
-                note: item.eyebrow, description: item.description, price: item.price,
-                forthcoming: item.forthcoming,
-              })}
-              className={cardClass}
-            >
-              {cardBody(item)}
-            </button>
-          ),
+          <div key={item.key} className="relative flex-shrink-0">
+            {item.catalogId ? (
+              <button onClick={() => openModal(item.catalogId!)} className={cardClass}>
+                {cardBody(item)}
+              </button>
+            ) : (
+              // Not in our catalogue: our own quick view, not a jump to Bookshop,
+              // so the reader can still choose to call us.
+              <button
+                onClick={() => openExternal({
+                  title: item.title, author: item.author, isbn: item.isbn, cover: item.cover,
+                  note: item.eyebrow, description: item.description, price: item.price,
+                  forthcoming: item.forthcoming,
+                })}
+                className={cardClass}
+              >
+                {cardBody(item)}
+              </button>
+            )}
+            {item.isbn && (
+              <WishlistButton icon book={{ isbn: item.isbn, title: item.title, author: item.author, cover: item.cover, price: item.price }} className="absolute top-2 right-2" />
+            )}
+          </div>
         )}
       </div>
     </div>

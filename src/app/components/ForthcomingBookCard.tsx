@@ -2,6 +2,7 @@ import React from 'react';
 import { BookCover } from '@/app/components/BookCover';
 import { useBookModal } from '@/app/context/BookModalContext';
 import type { UpcomingBook } from '@/lib/bookService';
+import { WishlistButton } from '@/app/components/WishlistButton';
 
 /**
  * "Out Oct 14". A month-only release date is stored as the 1st, so a date on
@@ -32,10 +33,11 @@ export const ForthcomingBookCard = ({ book }: { book: UpcomingBook }) => {
         });
 
   return (
+    <div className="relative">
     <button onClick={open} className="group text-left w-full flex flex-col">
       <div className="relative aspect-[2/3] mb-4 overflow-hidden rounded-xl shadow-lg bg-muted/30 transition-all group-hover:-translate-y-1 group-hover:shadow-xl">
         <BookCover src={book.cover_url} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
-        <div className="absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest bg-purple-50 text-purple-700 border-purple-100">
+        <div className="absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest bg-purple-50 text-purple-700 border-purple-100">
           {when}
         </div>
       </div>
@@ -43,5 +45,7 @@ export const ForthcomingBookCard = ({ book }: { book: UpcomingBook }) => {
       <p className="text-muted-foreground text-xs italic mb-1">by {book.author}</p>
       {book.reason && <p className="text-[11px] text-muted-foreground/80 leading-snug line-clamp-2">{book.reason}</p>}
     </button>
+    <WishlistButton icon book={{ isbn: book.isbn, title: book.title, author: book.author, cover: book.cover_url, price: book.msrp }} className="absolute top-2 right-2" />
+    </div>
   );
 };

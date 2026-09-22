@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { X, ExternalLink, Phone, Store, Truck, Headphones, Loader2 } from 'lucide-react';
-import { Link } from 'react-router';
+import { Link, useLocation } from 'react-router';
 import { toast } from 'sonner';
 import { BookCover } from '@/app/components/BookCover';
 import { PhoneLink } from '@/app/components/PhoneLink';
@@ -32,6 +32,11 @@ export const BookQuickView: React.FC = () => {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'missing'>('idle');
 
   const catalogId = view?.catalogId;
+
+  // Going anywhere - the sign-in page from the wishlist prompt, a full-details
+  // link - means the quick view should be gone when you get there.
+  const { pathname } = useLocation();
+  useEffect(() => { closeModal(); }, [pathname]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Load a catalogue book. Never spins forever: a lookup that fails or finds
   // nothing shows a way out (the full page, which has its own fallbacks).
