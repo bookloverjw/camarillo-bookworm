@@ -813,34 +813,48 @@ const PINNED_UPCOMING: UpcomingBook[] = [
   },
 ];
 
+/** How far ahead the Coming Soon shelves look. */
+const UPCOMING_MONTHS = 6;
+
+/** Today and the horizon as YYYY-MM-DD, in the store's terms. */
+function upcomingWindow() {
+  const today = new Date().toISOString().slice(0, 10);
+  const h = new Date();
+  h.setUTCMonth(h.getUTCMonth() + UPCOMING_MONTHS);
+  return { today, horizon: h.toISOString().slice(0, 10) };
+}
+
+/** Still to come, and within the window. */
+const inWindow = ({ today, horizon }: { today: string; horizon: string }) =>
+  (b: UpcomingBook) => b.publication_date > today && b.publication_date <= horizon;
+
 /** The pinned books still to come - available instantly, before the feeds answer. */
-export const pinnedUpcoming = () =>
-  PINNED_UPCOMING.filter(b => b.publication_date > new Date().toISOString().slice(0, 10));
+export const pinnedUpcoming = () => PINNED_UPCOMING.filter(inWindow(upcomingWindow()));
 
 /**
  * The Coming Soon list saved at build time (public/coming-soon.json): the
  * pinned books plus the snapshot, instantly, while the live list loads.
  */
 export async function getUpcomingSnapshot(limit = 40): Promise<UpcomingBook[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  const window = upcomingWindow();
   const pinned = pinnedUpcoming();
   try {
     const r = await fetch('/coming-soon.json');
     const { books } = r.ok ? ((await r.json()) as { books?: UpcomingBook[] }) : { books: [] };
     const seen = new Set(pinned.map(b => b.title.toLowerCase()));
-    return [...pinned, ...(books ?? []).filter(b => b.publication_date > today && !seen.has(b.title.toLowerCase()))].slice(0, limit);
+    return [...pinned, ...(books ?? []).filter(inWindow(window)).filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
   } catch {
     return pinned;
   }
 }
 
 export async function getUpcomingBooks(limit = 40): Promise<UpcomingBook[]> {
-  const today = new Date().toISOString().slice(0, 10);
+  const window = upcomingWindow();
   const pinned = pinnedUpcoming();
   const seen = new Set(pinned.map(b => b.title.toLowerCase()));
   const withPinned = (books: UpcomingBook[]) =>
-    [...pinned, ...books.filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
-  return withPinned(await upcomingFromFeeds(today, limit));
+    [...pinned, ...books.filter(inWindow(window)).filter(b => !seen.has(b.title.toLowerCase()))].slice(0, limit);
+  return withPinned(await upcomingFromFeeds(window.today, limit));
 }
 
 async function upcomingFromFeeds(today: string, limit: number): Promise<UpcomingBook[]> {
@@ -851,6 +865,9 @@ async function upcomingFromFeeds(today: string, limit: number): Promise<Upcoming
     .order('publication_date', { ascending: true })
     .limit(limit);
   if (!error && data?.length) return data as UpcomingBook[];
+  // The table doesn't exist until the ISBNdb job's migration has run; that's
+  // expected, not worth a console error on every visit.
+  if (error && error.code !== 'PGRST205') console.warn('upcoming_books:', error.message);
   // Until the ISBNdb job has run: Open Library's preorders, via /api/coming-soon.
   try {
     const r = await fetch('/api/coming-soon');

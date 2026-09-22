@@ -6,6 +6,7 @@ import { Link } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book, type Event } from '@/app/utils/data';
 import { getBooks, getStaffPicks, getBestsellers, getUpcomingBooks, getUpcomingSnapshot, pinnedUpcoming, type UpcomingBook } from '@/lib/bookService';
+import { releaseLabel } from '@/app/components/ForthcomingBookCard';
 import { getUpcomingEvents } from '@/lib/eventsService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { BookshopSearchBox } from '@/app/components/BookshopWidget';
@@ -151,17 +152,6 @@ const BookCarousel = ({ items }: { items: CarouselItem[] }) => {
     </div>
   );
 };
-
-/**
- * "Out Oct 14". A month-only release date is stored as the 1st, so a date on
- * the 1st reads "Out in October" rather than claiming a day we don't know.
- */
-function releaseLabel(iso: string) {
-  const d = new Date(`${iso}T12:00:00`);
-  return d.getDate() === 1
-    ? `Out in ${d.toLocaleDateString('en-US', { month: 'long' })}`
-    : `Out ${d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`;
-}
 
 const fromUpcoming = (book: UpcomingBook): CarouselItem => ({
   key: book.isbn,

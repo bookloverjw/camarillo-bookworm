@@ -4,7 +4,8 @@ import { Filter, Search, ChevronLeft, ChevronRight, ShoppingBag, ExternalLink, G
 import { Link, useSearchParams } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { type Book } from '@/app/utils/data';
-import { getBooks, getBooksCount, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
+import { getBooks, getBooksCount, getUpcomingSnapshot, getUpcomingBooks, pinnedUpcoming, type UpcomingBook, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
+import { ForthcomingBookCard } from '@/app/components/ForthcomingBookCard';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -326,15 +327,6 @@ const FilterContent = ({
                 <span className="group-hover:text-primary transition-colors">In Stock at Store</span>
               </label>
             )}
-            <label className="flex items-center space-x-3 text-sm text-muted-foreground cursor-pointer group">
-              <input
-                type="checkbox"
-                className="w-4 h-4 rounded border-border text-accent focus:ring-accent"
-                checked={availabilityFilters.preorder}
-                onChange={(e) => setAvailabilityFilters({ ...availabilityFilters, preorder: e.target.checked })}
-              />
-              <span className="group-hover:text-primary transition-colors">Online Preorder</span>
-            </label>
           </div>
         </div>
       </div>
@@ -379,13 +371,19 @@ export const Shop = () => {
   const [activeFormat, setActiveFormat] = useState<string>('All');
   const [activeTopic, setActiveTopic] = useState<KidsTopic | null>(null);
   const [sortBy, setSortBy] = useState<SortOption>('newest');
-  const [newestTab, setNewestTab] = useState<'released' | 'preorders'>('released');
+  // /shop?filter=preorder (the homepage's link) opens straight onto Coming Soon.
+  const [newestTab, setNewestTab] = useState<'released' | 'preorders'>(filterParam === 'preorder' ? 'preorders' : 'released');
   const [bestsellerPeriod, setBestsellerPeriod] = useState<BestsellerPeriod>('month');
   const [bestsellerCategory, setBestsellerCategory] = useState<BestsellerCategory>('all');
   const [searchQuery, setSearchQuery] = useState(searchParams.get('search') || '');
   const [showMobileFilters, setShowMobileFilters] = useState(false);
   const [priceRange, setPriceRange] = useState<[number, number]>([0, 100]);
   const [availabilityFilters, setAvailabilityFilters] = useState({ inStock: false, preorder: false });
+  // Coming Soon: forthcoming books from the feeds, not the catalogue's stale
+  // preorder flags - the POS sync stopped in February, so every catalogue
+  // "preorder" is long since out.
+  const [upcoming, setUpcoming] = useState<UpcomingBook[]>([]);
+  const [isLoadingUpcoming, setIsLoadingUpcoming] = useState(false);
 
   // Pagination state
   const [currentPage, setCurrentPage] = useState(1);
@@ -421,11 +419,6 @@ export const Shop = () => {
     if (availabilityFilters.inStock) options.inStockOnly = true;
     if (availabilityFilters.preorder) options.preorderOnly = true;
 
-    // Newest arrivals with preorder tab
-    if (sortBy === 'newest' && newestTab === 'preorders') {
-      options.preorderOnly = true;
-    }
-
     // Bestseller period + category
     if (sortBy === 'best-selling') {
       options.bestsellerPeriod = bestsellerPeriod;
@@ -458,10 +451,30 @@ export const Shop = () => {
     }
   }, [buildFilterOptions]);
 
+  const showUpcoming = sortBy === 'newest' && newestTab === 'preorders';
+
   // Load books when filters or pagination changes
   useEffect(() => {
-    loadBooks();
-  }, [loadBooks]);
+    if (!showUpcoming) loadBooks();
+  }, [loadBooks, showUpcoming]);
+
+  // Coming Soon: pinned releases at once, then the build-time snapshot, then
+  // the live list (which can take most of a minute to build after a deploy).
+  useEffect(() => {
+    if (!showUpcoming) return;
+    let cancelled = false;
+    let live = false;
+    setUpcoming(pinnedUpcoming());
+    setIsLoadingUpcoming(true);
+    getUpcomingSnapshot(60).then(books => {
+      if (!cancelled && !live && books.length) { setUpcoming(books); setIsLoadingUpcoming(false); }
+    });
+    getUpcomingBooks(60).then(books => {
+      if (cancelled) return;
+      if (books.length > pinnedUpcoming().length) { live = true; setUpcoming(books); }
+    }).catch(() => {}).finally(() => { if (!cancelled) setIsLoadingUpcoming(false); });
+    return () => { cancelled = true; };
+  }, [showUpcoming]);
 
   // Reset to page 1 when filters change
   useEffect(() => {
@@ -662,7 +675,7 @@ export const Shop = () => {
                     : 'bg-muted text-muted-foreground hover:text-primary'
                 }`}
               >
-                Preorders
+                Coming Soon
               </button>
             </div>
           )}
@@ -771,7 +784,9 @@ export const Shop = () => {
 
           {/* Results count */}
           <div className="mb-6 text-sm text-muted-foreground">
-            {isLoading ? (
+            {showUpcoming ? (
+              <span>{upcoming.length} books on the way</span>
+            ) : isLoading ? (
               <span>Loading...</span>
             ) : totalItems === 0 ? (
               <span>No books found</span>
@@ -783,14 +798,38 @@ export const Shop = () => {
           </div>
 
           {/* Loading state */}
-          {isLoading && (
+          {!showUpcoming && isLoading && (
             <div className="flex items-center justify-center py-24">
               <Loader2 className="animate-spin text-primary mr-3" size={32} />
               <span className="text-muted-foreground">Loading books...</span>
             </div>
           )}
 
-          {!isLoading && <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12' : 'grid-cols-1 gap-4'}`}>
+          {showUpcoming && (
+            <div>
+              <p className="text-sm text-muted-foreground mb-8">
+                New books on the way in the next six months from bestselling and prizewinning authors. Preorder through Bookshop.org, or call us to reserve a copy.
+              </p>
+              {isLoadingUpcoming && upcoming.length === 0 ? (
+                <div className="flex items-center justify-center py-20">
+                  <Loader2 className="animate-spin text-primary mr-3" size={24} />
+                  <span className="text-muted-foreground">Finding what's coming...</span>
+                </div>
+              ) : upcoming.length === 0 ? (
+                <div className="text-center py-32 bg-muted/20 rounded-3xl border border-dashed border-border">
+                  <Calendar size={48} className="mx-auto text-muted-foreground mb-6 opacity-20" />
+                  <h3 className="text-2xl font-serif font-bold text-primary mb-3">Nothing on the calendar yet</h3>
+                  <p className="text-muted-foreground max-w-sm mx-auto">Check back soon, or call us about any book you're waiting for.</p>
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12">
+                  {upcoming.map(book => <ForthcomingBookCard key={book.isbn} book={book} />)}
+                </div>
+              )}
+            </div>
+          )}
+
+          {!showUpcoming && !isLoading && <div className={`grid ${viewMode === 'grid' ? 'grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-x-8 gap-y-12' : 'grid-cols-1 gap-4'}`}>
             {books.map(book => (
               <motion.div
                 key={book.id}
@@ -906,7 +945,7 @@ export const Shop = () => {
             ))}
           </div>}
 
-          {!isLoading && books.length === 0 && (
+          {!showUpcoming && !isLoading && books.length === 0 && (
             <div className="text-center py-32 bg-muted/20 rounded-3xl border border-dashed border-border">
               <Search size={48} className="mx-auto text-muted-foreground mb-6 opacity-20" />
               <h3 className="text-2xl font-serif font-bold text-primary mb-3">No results found</h3>
@@ -929,7 +968,7 @@ export const Shop = () => {
           )}
 
           {/* Pagination */}
-          {!isLoading && books.length > 0 && totalPages > 1 && (
+          {!showUpcoming && !isLoading && books.length > 0 && totalPages > 1 && (
             <div className="mt-24 pt-12 border-t border-border flex flex-col sm:flex-row justify-center items-center gap-6">
               <div className="flex items-center space-x-2">
                 {/* Previous button */}
