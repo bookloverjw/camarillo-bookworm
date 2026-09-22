@@ -1,0 +1,47 @@
+# Fills in missing book covers from Google Books, newest books first.
+#
+# Needs two repository secrets (Settings > Secrets and variables > Actions):
+#   GOOGLE_BOOKS_API_KEY  Google Cloud > APIs & Services > Credentials
+#   SUPABASE_SECRET_KEY   Supabase dashboard > Project Settings > API keys
+#
+# Google allows ~1,000 lookups a day; the site's own Coming Soon uses 40-80,
+# so a run takes at most 800 and stops. Books already covered are skipped,
+# so each night picks up where the last left off and the job quietly does
+# nothing once every book has a cover.
+name: Book covers
+
+on:
+  schedule:
+    - cron: '40 11 * * *'   # daily, ~4:40am Pacific
+  workflow_dispatch:
+    inputs:
+      max_lookups:
+        description: Most Google lookups to make
+        type: string
+        default: '800'
+      dry_run:
+        description: Look without storing anything
+        type: boolean
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  covers:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - name: Fill in missing covers
+        working-directory: scripts/catalog
+        env:
+          GOOGLE_BOOKS_API_KEY: ${{ secrets.GOOGLE_BOOKS_API_KEY }}
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: >-
+          python3 -u google_covers.py --since 2021 --also-unknown
+          --max-lookups ${{ inputs.max_lookups || 800 }}
+          ${{ inputs.dry_run && '--dry-run' || '' }}
