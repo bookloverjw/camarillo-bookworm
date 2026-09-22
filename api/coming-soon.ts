@@ -62,7 +62,7 @@ const titleKey = (t: string) => fold(mainTitle(t).split(':')[0].replace(/\(.*$/,
 const isPrintIsbn = (i: string) => /^(97[89][01]|9798)\d{9}$/.test(i);
 
 /** New editions of books already out, and publishers' placeholders - not new books. */
-const EDITION = /tie-in|deluxe|anniversary|collector|special edition|\bedition\b|\billustrated\b|\bPB\b|paperback|untitled|\(graphic novel\)|plush|silicone|short story|\s\d+$/i;
+const EDITION = /tie-in|deluxe|anniversary|collector|special edition|\bedition\b|\billustrated\b|printed edges|sprayed edges|stenciled edges|\bsigned\b|\bPB\b|paperback|untitled|\(graphic novel\)|plush|silicone|short story|\s\d+$/i;
 
 /** ISBNdb writes "Salt - A World History" and "Bride - Bride #1": the title is the part before " - ". */
 const mainTitle = (t: string) => t.split(/\s+-\s+/)[0];
