@@ -9,7 +9,7 @@ export const STORE = {
   name: 'Camarillo Bookworm',
   phone: '(805) 482-1384',
   phoneTel: 'tel:+18054821384',
-  email: 'hello@camarillobookworm.com',
+  email: 'sales@camarillobookworm.com',
   address: {
     line1: '93 E Daily Dr',
     city: 'Camarillo',

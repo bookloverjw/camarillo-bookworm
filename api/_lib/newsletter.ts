@@ -149,8 +149,8 @@ export async function buildNewsletter(origin: string, now = new Date()): Promise
   <tr><td style="background:${GREEN};padding:24px 32px">
     <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
       <td valign="middle">
-        <a href="${origin}" style="font-family:Georgia,serif;font-size:28px;font-weight:bold;color:#ffffff;text-decoration:none"><i style="font-weight:normal">The</i> Bookworm</a>
-        <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#B7E4C7;margin-top:4px">Camarillo's independent bookstore since 1973 · ${esc(dateLabel)}</div>
+        <a href="${origin}" style="text-decoration:none"><img src="${origin}/brand/wordmark-white.png" width="250" height="37" alt="The Bookworm" style="display:block;border:0"></a>
+        <div style="font-family:Helvetica,Arial,sans-serif;font-size:13px;color:#B7E4C7;margin-top:8px">Camarillo's independent bookstore since 1973 · ${esc(dateLabel)}</div>
       </td>
       <td valign="middle" align="right" width="120"><a href="${origin}"><img src="${origin}/brand/glasses-badge.png" width="112" height="63" alt="" style="display:block;border:0"></a></td>
     </tr></table>

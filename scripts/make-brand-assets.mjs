@@ -37,6 +37,23 @@ await render('public/icon-512.png', 512, 512, tile(512));
 await render('public/brand/glasses.png', 600, 290, `<img src="${glasses}" style="width:100%">`);
 await render('public/brand/glasses-badge.png', 150, 84, `<div style="width:150px;height:84px;box-sizing:border-box;border-radius:42px;background:#fff;display:flex;align-items:center;justify-content:center"><img src="${glasses}" style="width:80%"></div>`, { scale: 2 });
 
+// The wordmark as set in the site header - script "The", BOOKWORM in spaced
+// serif capitals - as a white-on-transparent image for email headers, where
+// web fonts can't be relied on. 2x for sharp text on phones.
+{
+  const page = await browser.newPage({ viewport: { width: 300, height: 44 }, deviceScaleFactor: 2 });
+  await page.setContent(`<html><head><link href="https://fonts.googleapis.com/css2?family=Crimson+Pro:wght@400&family=Italianno&display=swap" rel="stylesheet">
+<style>body{margin:0;width:300px;height:44px;display:flex;align-items:baseline;gap:6px;color:#fff;white-space:nowrap;line-height:1}
+.the{font-family:Italianno;font-size:44px}.name{font-family:'Crimson Pro',serif;font-size:31px;letter-spacing:.08em;text-transform:uppercase}</style></head>
+<body><span class="the">The</span><span class="name">Bookworm</span></body></html>`, { waitUntil: 'networkidle' });
+  await page.evaluate(() => document.fonts.ready);
+  const width = await page.evaluate(() => Math.ceil(document.body.scrollWidth));
+  await page.setViewportSize({ width, height: 44 });
+  await page.screenshot({ path: new URL('public/brand/wordmark-white.png', root).pathname, omitBackground: true });
+  console.log(`wordmark-white.png ${width}x44`);
+  await page.close();
+}
+
 // Link-preview image (Facebook, iMessage, Slack...)
 {
   const page = await browser.newPage({ viewport: { width: 1200, height: 630 } });

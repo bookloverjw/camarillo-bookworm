@@ -24,7 +24,7 @@ import type { VercelRequest, VercelResponse } from '@vercel/node';
 import { buildNewsletter } from './_lib/newsletter.js';
 
 const SITE_URL = 'https://www.camarillobookworm.com';
-const DEFAULT_REPLY_TO = 'hello@camarillobookworm.com';
+const DEFAULT_REPLY_TO = 'sales@camarillobookworm.com';
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   if (req.method !== 'GET') return res.status(405).json({ error: 'Method not allowed' });

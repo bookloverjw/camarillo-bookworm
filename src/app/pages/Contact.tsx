@@ -87,13 +87,13 @@ export const Contact = () => {
                   </div>
                 </a>
                 <a
-                  href="mailto:hello@camarillobookworm.com"
+                  href={`mailto:${STORE.email}`}
                   className="flex items-start space-x-6 p-6 bg-white rounded-2xl border border-border hover:border-accent transition-colors group"
                 >
                   <div className="p-4 bg-accent/10 rounded-xl text-accent group-hover:bg-accent group-hover:text-white transition-all"><Mail size={24} /></div>
                   <div>
                     <p className="text-xs font-bold uppercase tracking-widest text-muted-foreground mb-1">Email Us</p>
-                    <p className="text-xl font-bold text-primary">hello@camarillobookworm.com</p>
+                    <p className="text-xl font-bold text-primary">{STORE.email}</p>
                   </div>
                 </a>
                 <a
