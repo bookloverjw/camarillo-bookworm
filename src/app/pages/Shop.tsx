@@ -6,6 +6,7 @@ import { BookCover } from '@/app/components/BookCover';
 import { type Book } from '@/app/utils/data';
 import { getBooks, getBooksCount, getUpcomingSnapshot, getUpcomingBooks, pinnedUpcoming, type UpcomingBook, type SortOption, type BestsellerPeriod, type BestsellerCategory, type BookQueryOptions } from '@/lib/bookService';
 import { ForthcomingBookCard } from '@/app/components/ForthcomingBookCard';
+import { WishlistButton } from '@/app/components/WishlistButton';
 import { getLibroFmUrl } from '@/lib/bookshopWidgets';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
@@ -845,10 +846,11 @@ export const Shop = () => {
                   <div className={`relative aspect-[2/3] overflow-hidden rounded-xl shadow-lg transition-all group-hover:-translate-y-1 group-hover:shadow-xl ${viewMode === 'list' ? 'm-0' : 'mb-5'}`}>
                     <BookCover src={book.cover} isbn={book.isbn} title={book.title} author={book.author} className="w-full h-full object-contain" />
                     {INVENTORY_STATUS_IS_LIVE && (
-                      <div className={`absolute top-2 right-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
+                      <div className={`absolute top-2 left-2 px-2 py-0.5 rounded text-[8px] font-bold border backdrop-blur-md uppercase tracking-widest ${getStatusBadge(book.status)}`}>
                         {book.status}
                       </div>
                     )}
+                    {book.isbn && <WishlistButton icon book={{ isbn: book.isbn, title: book.title, author: book.author, cover: book.cover, price: book.price }} className="absolute top-2 right-2" />}
                   </div>
                 </Link>
 

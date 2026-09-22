@@ -1,10 +1,11 @@
 import React, { createContext, useContext, useState, useCallback } from 'react';
 
 /**
- * A book that isn't in our catalogue - most of the NYT lists, many award and
- * collection titles, forthcoming books. It still gets a quick view, so a
- * reader can choose between Bookshop.org and calling us to check the shelf
- * or order it, rather than being sent straight off the site.
+ * A book for the quick view. Books from our catalogue arrive as a catalogId
+ * and are loaded by the view; everything else - most of the NYT lists, many
+ * award and collection titles, forthcoming books - comes with what we know
+ * about it, so a reader can still choose between Bookshop.org and calling us
+ * rather than being sent straight off the site.
  */
 export interface ExternalBook {
   title: string;
@@ -20,11 +21,13 @@ export interface ExternalBook {
   forthcoming?: boolean;
 }
 
+export type QuickView = { catalogId: string; book?: undefined } | { catalogId?: undefined; book: ExternalBook };
+
 interface BookModalContextType {
-  bookId: string | null;
-  isOpen: boolean;
-  openModal: (bookId: string) => void;
-  external: ExternalBook | null;
+  view: QuickView | null;
+  /** A book in our catalogue, by id. */
+  openModal: (catalogId: string) => void;
+  /** A book we don't carry. */
   openExternal: (book: ExternalBook) => void;
   closeModal: () => void;
 }
@@ -32,33 +35,25 @@ interface BookModalContextType {
 const BookModalContext = createContext<BookModalContextType | undefined>(undefined);
 
 export const BookModalProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const [bookId, setBookId] = useState<string | null>(null);
-  const [isOpen, setIsOpen] = useState(false);
-  const [external, setExternal] = useState<ExternalBook | null>(null);
+  const [view, setView] = useState<QuickView | null>(null);
 
-  const openModal = useCallback((id: string) => {
-    setExternal(null);
-    setBookId(id);
-    setIsOpen(true);
+  const openModal = useCallback((catalogId: string) => {
+    setView({ catalogId });
     document.body.style.overflow = 'hidden';
   }, []);
 
   const openExternal = useCallback((book: ExternalBook) => {
-    setIsOpen(false);
-    setBookId(null);
-    setExternal(book);
+    setView({ book });
     document.body.style.overflow = 'hidden';
   }, []);
 
   const closeModal = useCallback(() => {
-    setIsOpen(false);
-    setBookId(null);
-    setExternal(null);
+    setView(null);
     document.body.style.overflow = '';
   }, []);
 
   return (
-    <BookModalContext.Provider value={{ bookId, isOpen, openModal, external, openExternal, closeModal }}>
+    <BookModalContext.Provider value={{ view, openModal, openExternal, closeModal }}>
       {children}
     </BookModalContext.Provider>
   );

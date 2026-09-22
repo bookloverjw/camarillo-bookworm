@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useParams, Link, useNavigate } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
+import { WishlistButton } from '@/app/components/WishlistButton';
 import { snippet, setJsonLd, SITE_URL } from '@/lib/seo';
 import { displayGenre } from '@/lib/genres';
 import { STORE } from '@/lib/storeConfig';
@@ -9,14 +10,13 @@ import { buysThroughBookshop, INVENTORY_STATUS_IS_LIVE } from '@/lib/features';
 import { BookshopBuyNote } from '@/app/components/BookshopBuyNote';
 import { BookAwards } from '@/app/components/AwardBadge';
 import { motion } from 'framer-motion';
-import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Heart, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
+import { ShoppingBag, Truck, Store, ExternalLink, ArrowLeft, Share2, Quote, CheckCircle, AlertCircle, Clock, Calendar, Loader2, Headphones } from 'lucide-react';
 import { BOOKS, type Book } from '@/app/utils/data';
 import { getBookById, getRecommendations } from '@/lib/bookService';
 import { ImageWithFallback } from '@/app/components/figma/ImageWithFallback';
 import { toast } from 'sonner';
 import { useCart, getBookshopAffiliateUrl } from '@/app/context/CartContext';
 import { useAuth } from '@/app/context/AuthContext';
-import { supabase } from '@/lib/supabase';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { CriticReviews } from '@/app/components/CriticReviews';
 import { getLibroFmUrl, getGoodreadsUrl } from '@/lib/bookshopWidgets';
@@ -29,8 +29,6 @@ export const BookDetail = () => {
   const [book, setBook] = useState<Book | null>(null);
   const [recommendations, setRecommendations] = useState<Book[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [isAddingToWishlist, setIsAddingToWishlist] = useState(false);
-  const [isInWishlist, setIsInWishlist] = useState(false);
 
   useDocumentTitle(
     book ? `${book.title} by ${book.author}` : null,
@@ -162,79 +160,6 @@ export const BookDetail = () => {
         },
       }
     );
-  };
-
-  const handleAddToWishlist = async () => {
-    if (!user) {
-      toast.error('Please sign in to add to wishlist', {
-        action: {
-          label: 'Sign In',
-          onClick: () => navigate('/login?redirect=/book/' + book.id),
-        },
-      });
-      return;
-    }
-
-    setIsAddingToWishlist(true);
-
-    try {
-      // Get or create default wishlist
-      let { data: wishlist } = await supabase
-        .from('wishlists')
-        .select('id')
-        .eq('customer_id', user.id)
-        .eq('name', 'My Wishlist')
-        .single();
-
-      if (!wishlist) {
-        const { data: newWishlist, error: createError } = await supabase
-          .from('wishlists')
-          .insert({
-            customer_id: user.id,
-            name: 'My Wishlist',
-            is_public: false,
-            created_at: new Date().toISOString(),
-            updated_at: new Date().toISOString(),
-          })
-          .select()
-          .single();
-
-        if (createError) throw createError;
-        wishlist = newWishlist;
-      }
-
-      // Add item to wishlist
-      const { error: itemError } = await supabase.from('wishlist_items').insert({
-        wishlist_id: wishlist.id,
-        isbn: bookIsbn,
-        title: book.title,
-        author: book.author,
-        cover_url: book.cover,
-        price: book.price,
-        added_at: new Date().toISOString(),
-      });
-
-      if (itemError) {
-        if (itemError.code === '23505') {
-          toast.info('Already in your wishlist!');
-        } else {
-          throw itemError;
-        }
-      } else {
-        setIsInWishlist(true);
-        toast.success('Added to wishlist!', {
-          action: {
-            label: 'View Wishlist',
-            onClick: () => navigate('/account/wishlist'),
-          },
-        });
-      }
-    } catch (err) {
-      console.error('Wishlist error:', err);
-      toast.error('Failed to add to wishlist. Please try again.');
-    } finally {
-      setIsAddingToWishlist(false);
-    }
   };
 
   const handleShare = async () => {
@@ -415,20 +340,7 @@ export const BookDetail = () => {
               )}
 
               <div className="flex items-center justify-between pt-4 border-t border-border">
-                <button
-                  onClick={handleAddToWishlist}
-                  disabled={isAddingToWishlist}
-                  className={`flex items-center space-x-2 text-sm font-bold transition-colors ${
-                    isInWishlist ? 'text-accent' : 'text-primary hover:text-accent'
-                  } disabled:opacity-50`}
-                >
-                  {isAddingToWishlist ? (
-                    <Loader2 size={18} className="animate-spin" />
-                  ) : (
-                    <Heart size={18} className={isInWishlist ? 'fill-current' : ''} />
-                  )}
-                  <span>{isInWishlist ? 'In Wishlist' : 'Add to Wishlist'}</span>
-                </button>
+                <WishlistButton book={{ isbn: bookIsbn, title: book.title, author: book.author, cover: book.cover, price: book.price }} />
                 <button
                   onClick={handleShare}
                   className="flex items-center space-x-2 text-sm font-bold text-primary hover:text-accent transition-colors"

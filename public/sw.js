@@ -1,5 +1,5 @@
 // Bump this on breaking cache-strategy changes; old caches are purged on activate.
-const CACHE_NAME = 'bookworm-v2';
+const CACHE_NAME = 'bookworm-v3';
 
 // Core assets to pre-cache on install
 const PRECACHE_ASSETS = [
@@ -49,13 +49,14 @@ self.addEventListener('fetch', (event) => {
     fetch(request)
       .then((response) => {
         if (response.ok) {
-          const clone = response.clone();
+          // Clone now: by the time the cache opens, the page has consumed the
+          // original's body and cloning it throws.
+          const forCache = response.clone();
+          const forShell = request.mode === 'navigate' ? response.clone() : null;
           caches.open(CACHE_NAME).then((cache) => {
-            cache.put(request, clone);
+            cache.put(request, forCache);
             // Keep the offline navigation fallback fresh too
-            if (request.mode === 'navigate') {
-              cache.put('/index.html', response.clone());
-            }
+            if (forShell) cache.put('/index.html', forShell);
           });
         }
         return response;

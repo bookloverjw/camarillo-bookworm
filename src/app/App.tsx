@@ -13,8 +13,8 @@ import { AuthProvider, useAuth } from '@/app/context/AuthContext';
 import { CartProvider, useCart } from '@/app/context/CartContext';
 import { ThemeProvider, useTheme } from '@/app/context/ThemeContext';
 import { BookModalProvider } from '@/app/context/BookModalContext';
-import { BookDetailModal } from '@/app/components/BookDetailModal';
-import { ExternalBookModal } from '@/app/components/ExternalBookModal';
+import { BookQuickView } from '@/app/components/BookQuickView';
+import { WishlistProvider } from '@/app/context/WishlistContext';
 import { AuthPage } from '@/app/pages/auth/AuthPage';
 import { AccountLayout } from '@/app/pages/account/AccountLayout';
 import { DashboardPage } from '@/app/pages/account/DashboardPage';
@@ -537,6 +537,7 @@ export default function App() {
       <CartProvider>
         <BookModalProvider>
         <BrowserRouter>
+          <WishlistProvider>
           <ScrollToTop />
           <AnalyticsTracker />
           <div className="min-h-screen flex flex-col font-sans selection:bg-accent/30 bg-background text-foreground">
@@ -592,10 +593,10 @@ export default function App() {
             </main>
 
             <Footer />
-            <BookDetailModal />
-            <ExternalBookModal />
+            <BookQuickView />
             <Toaster position="bottom-right" richColors />
           </div>
+          </WishlistProvider>
         </BrowserRouter>
         </BookModalProvider>
       </CartProvider>
