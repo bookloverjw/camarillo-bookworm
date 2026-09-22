@@ -130,6 +130,17 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     });
 
     if (!error && data.user) {
+      // Ticking the box means the newsletter: the same signup as the
+      // newsletter forms (Supabase record + Resend list). Best-effort - a
+      // failure here shouldn't stop the account being created.
+      if (marketingOptIn) {
+        fetch('/api/newsletter-subscribe', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ email, source: 'account-signup' }),
+        }).catch(() => {});
+      }
+
       // Create customer record in our database
       await supabase.from('customers').upsert({
         id: data.user.id,

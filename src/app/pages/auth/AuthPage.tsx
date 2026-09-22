@@ -418,7 +418,7 @@ export const AuthPage = () => {
                           className="mt-1 w-4 h-4 rounded border-border text-accent focus:ring-accent"
                         />
                         <span className="text-xs text-muted-foreground group-hover:text-primary transition-colors leading-relaxed">
-                          I'd like to receive news about events and special promotions.
+                          Send me the newsletter: author events, book clubs and the week's new books.
                         </span>
                       </label>
                       <label className="flex items-start space-x-3 cursor-pointer group">
