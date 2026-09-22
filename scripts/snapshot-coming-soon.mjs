@@ -19,7 +19,7 @@ try {
     entryPoints: [new URL('../api/coming-soon.ts', import.meta.url).pathname],
     bundle: true, platform: 'node', format: 'esm', outfile: BUNDLE.pathname, logLevel: 'error',
   });
-  const { buildComingSoon } = await import(pathToFileURL(BUNDLE.pathname).href);
+  const { buildComingSoon, comingSoonSources } = await import(pathToFileURL(BUNDLE.pathname).href);
   // No time limit at build time, so every author gets checked, at a pace
   // Google Books' per-minute quota accepts (~90 a minute).
   const books = await Promise.race([
@@ -27,10 +27,10 @@ try {
     new Promise((_, reject) => setTimeout(() => reject(new Error('timed out')), 200_000)),
   ]);
   if (books.length >= 3) {
-    await writeFile(OUT, JSON.stringify({ generatedAt: new Date().toISOString(), books }));
-    console.log(`coming-soon snapshot: ${books.length} books`);
+    await writeFile(OUT, JSON.stringify({ generatedAt: new Date().toISOString(), sources: comingSoonSources(), books }));
+    console.log(`coming-soon snapshot: ${books.length} books`, JSON.stringify(comingSoonSources()));
   } else {
-    console.warn(`coming-soon snapshot: only ${books.length} books found; keeping the previous snapshot`);
+    console.warn(`coming-soon snapshot: only ${books.length} books found; keeping the previous snapshot`, JSON.stringify(comingSoonSources()));
   }
 } catch (err) {
   console.warn(`coming-soon snapshot skipped (${err.message}); keeping the previous snapshot`);
