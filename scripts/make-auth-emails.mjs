@@ -42,7 +42,7 @@ const shell = (heading, body, closing) => `<!DOCTYPE html><html><body style="mar
   <tr><td style="padding:24px 32px 32px;font-family:Helvetica,Arial,sans-serif;font-size:12px;line-height:1.6;color:#777">
     <hr style="border:none;border-top:1px solid #e5e0d5;margin:0 0 16px">
     The Bookworm · 93 E Daily Dr, Camarillo, CA 93010 · <a href="tel:+18054821384" style="color:#777">(805) 482-1384</a><br>
-    Questions? Write to <a href="mailto:hello@camarillobookworm.com" style="color:#777">hello@camarillobookworm.com</a> - this mailbox isn't monitored.
+    Questions? Write to <a href="mailto:sales@camarillobookworm.com" style="color:#777">sales@camarillobookworm.com</a> - this mailbox isn't monitored.
   </td></tr>
 </table></td></tr></table></body></html>
 `;
