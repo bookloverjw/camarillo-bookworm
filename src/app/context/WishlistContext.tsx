@@ -38,6 +38,21 @@ const WishlistContext = createContext<WishlistContextType | undefined>(undefined
 
 const LIST_NAME = 'My Wishlist';
 
+// The book someone tapped the heart on before signing in, saved for them
+// once they have. Session storage, wrapped: it can be blocked or full.
+const PENDING_KEY = 'wishlist:pending';
+const stash = (book: WishlistBook | null) => {
+  try { book ? sessionStorage.setItem(PENDING_KEY, JSON.stringify(book)) : sessionStorage.removeItem(PENDING_KEY); } catch { /* storage unavailable */ }
+};
+const takeStash = (): WishlistBook | null => {
+  try {
+    const raw = sessionStorage.getItem(PENDING_KEY);
+    if (!raw) return null;
+    sessionStorage.removeItem(PENDING_KEY);
+    return JSON.parse(raw) as WishlistBook;
+  } catch { return null; }
+};
+
 export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
   const { user } = useAuth();
   const navigate = useNavigate();
@@ -45,6 +60,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [listId, setListId] = useState<string | null>(null);
   const [items, setItems] = useState<WishlistEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [pendingAdd, setPendingAdd] = useState<WishlistBook | null>(null);
 
   // Load the list whenever the signed-in user changes
   useEffect(() => {
@@ -66,6 +82,9 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
         setItems((data ?? []).map(r => ({ id: r.id, isbn: r.isbn, title: r.title, author: r.author, cover: r.cover_url, price: r.price, added_at: r.added_at })));
       }
       setIsLoaded(true);
+      // Finish what they started before signing in
+      const pending = takeStash();
+      if (pending) setPendingAdd(pending);
     })().catch(() => { if (!cancelled) setIsLoaded(true); });
     return () => { cancelled = true; };
   }, [user]);
@@ -98,6 +117,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
 
   const toggle = useCallback(async (book: WishlistBook) => {
     if (!user) {
+      stash(book);
       toast('Sign in to save books to your wishlist', {
         action: { label: 'Sign in', onClick: () => navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`) },
       });
@@ -120,6 +140,13 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
       toast.error("Couldn't save that. Please try again.");
     }
   }, [user, isbns, remove, ensureList, navigate, location.pathname]);
+
+  // Runs once the list is loaded and toggle has the fresh membership set
+  useEffect(() => {
+    if (!pendingAdd || !isLoaded || !user) return;
+    setPendingAdd(null);
+    if (!isbns.has(pendingAdd.isbn)) toggle(pendingAdd);
+  }, [pendingAdd, isLoaded, user, isbns, toggle]);
 
   return (
     <WishlistContext.Provider value={{ items, isLoaded, has, toggle, remove }}>
