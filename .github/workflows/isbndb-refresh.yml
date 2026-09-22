@@ -35,7 +35,7 @@ jobs:
       github.event.schedule == '17 10 * * *' ||
       (github.event_name == 'workflow_dispatch' && inputs.job != 'coming-soon')
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 60   # ISBNdb, plus up to 1,500 Bookshop.org checks at one a second
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
@@ -54,6 +54,7 @@ jobs:
           path: |
             price-changes.csv
             price-held.csv
+            out-of-print.csv
           if-no-files-found: ignore
           retention-days: 90
 
