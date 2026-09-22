@@ -3,6 +3,7 @@ import { useParams, Link, useNavigate } from 'react-router';
 import { BookCover } from '@/app/components/BookCover';
 import { useDocumentTitle } from '@/app/hooks/useDocumentTitle';
 import { WishlistButton } from '@/app/components/WishlistButton';
+import { FollowAuthorButton } from '@/app/components/FollowAuthorButton';
 import { snippet, setJsonLd, SITE_URL } from '@/lib/seo';
 import { displayGenre } from '@/lib/genres';
 import { STORE } from '@/lib/storeConfig';
@@ -339,8 +340,9 @@ export const BookDetail = () => {
                 </div>
               )}
 
-              <div className="flex items-center justify-between pt-4 border-t border-border">
+              <div className="flex flex-wrap items-center gap-x-6 gap-y-3 pt-4 border-t border-border">
                 <WishlistButton book={{ isbn: bookIsbn, title: book.title, author: book.author, cover: book.cover, price: book.price }} />
+                {book.author && <FollowAuthorButton author={book.author} />}
                 <button
                   onClick={handleShare}
                   className="flex items-center space-x-2 text-sm font-bold text-primary hover:text-accent transition-colors"

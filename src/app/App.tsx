@@ -21,6 +21,7 @@ import { DashboardPage } from '@/app/pages/account/DashboardPage';
 import { WishlistPage } from '@/app/pages/account/WishlistPage';
 import { OrderHistoryPage } from '@/app/pages/account/OrderHistoryPage';
 import { SettingsPage } from '@/app/pages/account/SettingsPage';
+import { NotificationsPage } from '@/app/pages/account/NotificationsPage';
 
 // Pages
 import { Home } from '@/app/pages/Home';
@@ -584,11 +585,7 @@ export default function App() {
                     <h3 className="text-xl font-serif font-bold text-primary mb-2">Payment Methods</h3>
                     <p className="text-muted-foreground">Securely store your payment information.</p>
                   </div>} />
-                  <Route path="notifications" element={<div className="p-12 text-center bg-white rounded-3xl border border-border mt-8">
-                    <Bell size={48} className="mx-auto text-muted-foreground mb-4 opacity-20" />
-                    <h3 className="text-xl font-serif font-bold text-primary mb-2">Notifications</h3>
-                    <p className="text-muted-foreground">Choose how you want to hear from us.</p>
-                  </div>} />
+                  <Route path="notifications" element={<NotificationsPage />} />
                   <Route path="settings" element={<SettingsPage />} />
                 </Route>
               </Routes>

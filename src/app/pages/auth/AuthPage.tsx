@@ -9,13 +9,13 @@ type AuthMethod = 'email' | 'phone';
 type AuthStep = 'form' | 'verify' | 'forgot-password' | 'reset-sent';
 
 export const AuthPage = () => {
+  const [searchParams] = useSearchParams();
   const [isLogin, setIsLogin] = useState(searchParams.get('mode') !== 'signup');
   const [method, setMethod] = useState<AuthMethod>('email');
   const [showPassword, setShowPassword] = useState(false);
   const [step, setStep] = useState<AuthStep>('form');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [searchParams] = useSearchParams();
 
   // Form fields
   const [email, setEmail] = useState('');

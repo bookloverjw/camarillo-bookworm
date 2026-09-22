@@ -14,18 +14,23 @@ import {
 } from 'lucide-react';
 import { motion } from 'motion/react';
 import { useAuth } from '@/app/context/AuthContext';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
 
 export const AccountLayout = () => {
   const { user, logout } = useAuth();
   const location = useLocation();
   const navigate = useNavigate();
 
+  // Orders, addresses and payment methods only mean something once ordering
+  // from the store itself is switched on (src/lib/features.ts).
   const menuItems = [
     { name: 'Account Overview', path: '/account', icon: User },
     { name: 'My Wishlist', path: '/account/wishlist', icon: Heart },
-    { name: 'Order History', path: '/account/orders', icon: History },
-    { name: 'Saved Addresses', path: '/account/addresses', icon: MapPin },
-    { name: 'Payment Methods', path: '/account/payments', icon: CreditCard },
+    ...(STORE_ORDERING_ENABLED ? [
+      { name: 'Order History', path: '/account/orders', icon: History },
+      { name: 'Saved Addresses', path: '/account/addresses', icon: MapPin },
+      { name: 'Payment Methods', path: '/account/payments', icon: CreditCard },
+    ] : []),
     { name: 'Notification Preferences', path: '/account/notifications', icon: Bell },
     { name: 'Account Settings', path: '/account/settings', icon: Settings },
   ];
@@ -108,7 +113,7 @@ export const AccountLayout = () => {
               <History size={16} />
               <span className="text-[10px] font-bold uppercase tracking-widest">Community Member</span>
             </div>
-            <p className="text-xs text-primary/70 leading-relaxed font-medium">Supporting Camarillo Bookworm since 2024</p>
+            <p className="text-xs text-primary/70 leading-relaxed font-medium">Supporting The Bookworm since {new Date(user.memberSince).getFullYear()}</p>
           </div>
         </aside>
 

@@ -11,6 +11,8 @@ type AuthUser = {
   verified: boolean;
   emailVerified: boolean;
   phoneVerified: boolean;
+  /** ISO date the account was created. */
+  memberSince: string;
 };
 
 type AuthContextType = {
@@ -88,6 +90,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       verified: supabaseUser.email_confirmed_at !== null || supabaseUser.phone_confirmed_at !== null,
       emailVerified: supabaseUser.email_confirmed_at !== null,
       phoneVerified: supabaseUser.phone_confirmed_at !== null,
+      memberSince: customer?.created_at || supabaseUser.created_at,
     };
   };
 

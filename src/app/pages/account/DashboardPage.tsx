@@ -5,12 +5,8 @@ import { useAuth } from '@/app/context/AuthContext';
 import { Link } from 'react-router';
 import { getTodayHours } from '@/lib/storeHours';
 import { supabase } from '@/lib/supabase';
-
-interface DashboardStats {
-  wishlistCount: number;
-  orderCount: number;
-  eventCount: number;
-}
+import { useWishlist } from '@/app/context/WishlistContext';
+import { STORE_ORDERING_ENABLED } from '@/lib/features';
 
 interface RecentOrder {
   orderNumber: string;
@@ -20,61 +16,43 @@ interface RecentOrder {
 
 export const DashboardPage = () => {
   const { user } = useAuth();
-  const [stats, setStats] = useState<DashboardStats>({ wishlistCount: 0, orderCount: 0, eventCount: 0 });
-  const [recentOrder, setRecentOrder] = useState<RecentOrder | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const { items: wishlist, isLoaded: wishlistLoaded } = useWishlist();
+  // Each number arrives on its own; null means still loading.
+  const [orderCount, setOrderCount] = useState<number | null>(null);
+  const [eventCount, setEventCount] = useState<number | null>(null);
+  const [recentOrder, setRecentOrder] = useState<RecentOrder | null | undefined>(undefined);
 
   useEffect(() => {
-    if (!user?.id) { setIsLoading(false); return; }
+    if (!user?.id) return;
+    const id = user.id;
+    let cancelled = false;
 
-    async function loadDashboard() {
-      try {
-        // Fetch counts in parallel
-        const [wishlistRes, ordersRes, eventsRes, recentOrderRes] = await Promise.all([
-          supabase.from('wishlist_items').select('id', { count: 'exact', head: true })
-            .in('wishlist_id',
-              (await supabase.from('wishlists').select('id').eq('customer_id', user!.id)).data?.map(w => w.id) || []
-            ),
-          supabase.from('orders').select('id', { count: 'exact', head: true })
-            .eq('customer_id', user!.id),
-          supabase.from('event_registrations').select('id', { count: 'exact', head: true })
-            .eq('customer_id', user!.id),
-          supabase.from('orders').select('order_number, status, order_items(title)')
-            .eq('customer_id', user!.id)
-            .order('created_at', { ascending: false })
-            .limit(1)
-            .single(),
-        ]);
+    supabase.from('event_registrations').select('id', { count: 'exact', head: true }).eq('customer_id', id)
+      .then(({ count }) => { if (!cancelled) setEventCount(count ?? 0); }, () => { if (!cancelled) setEventCount(0); });
 
-        setStats({
-          wishlistCount: wishlistRes.count || 0,
-          orderCount: ordersRes.count || 0,
-          eventCount: eventsRes.count || 0,
+    if (!STORE_ORDERING_ENABLED) return () => { cancelled = true; };
+    supabase.from('orders').select('id', { count: 'exact', head: true }).eq('customer_id', id)
+      .then(({ count }) => { if (!cancelled) setOrderCount(count ?? 0); }, () => { if (!cancelled) setOrderCount(0); });
+    supabase.from('orders').select('order_number, status, order_items(title)').eq('customer_id', id)
+      .order('created_at', { ascending: false }).limit(1).maybeSingle()
+      .then(({ data }) => {
+        if (cancelled) return;
+        if (!data) { setRecentOrder(null); return; }
+        const order = data as any;
+        setRecentOrder({
+          orderNumber: order.order_number || '—',
+          status: order.status || 'Processing',
+          firstItemTitle: order.order_items?.[0]?.title || 'Order',
         });
+      }, () => { if (!cancelled) setRecentOrder(null); });
 
-        if (recentOrderRes.data) {
-          const order = recentOrderRes.data as any;
-          const items = order.order_items || [];
-          setRecentOrder({
-            orderNumber: order.order_number || '—',
-            status: order.status || 'Processing',
-            firstItemTitle: items[0]?.title || 'Order',
-          });
-        }
-      } catch (err) {
-        console.error('Dashboard load error:', err);
-      } finally {
-        setIsLoading(false);
-      }
-    }
-
-    loadDashboard();
+    return () => { cancelled = true; };
   }, [user?.id]);
 
   const statCards = [
-    { label: 'Wishlist Items', value: stats.wishlistCount, icon: Heart, color: 'text-pink-500', bg: 'bg-pink-50' },
-    { label: 'Past Orders', value: stats.orderCount, icon: Package, color: 'text-blue-500', bg: 'bg-blue-50' },
-    { label: 'Events RSVP', value: stats.eventCount, icon: Calendar, color: 'text-purple-500', bg: 'bg-purple-50' },
+    { label: 'Wishlist Items', value: wishlistLoaded ? wishlist.length : null, icon: Heart, color: 'text-pink-500', bg: 'bg-pink-50', to: '/account/wishlist' },
+    ...(STORE_ORDERING_ENABLED ? [{ label: 'Past Orders', value: orderCount, icon: Package, color: 'text-blue-500', bg: 'bg-blue-50', to: '/account/orders' }] : []),
+    { label: 'Events RSVP', value: eventCount, icon: Calendar, color: 'text-purple-500', bg: 'bg-purple-50', to: '/events' },
   ];
 
   const getStatusBadge = (status: string) => {
@@ -94,7 +72,7 @@ export const DashboardPage = () => {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+      <div className={`grid grid-cols-1 gap-6 ${statCards.length === 3 ? 'md:grid-cols-3' : 'md:grid-cols-2'}`}>
         {statCards.map((stat) => (
           <motion.div
             key={stat.label}
@@ -106,7 +84,7 @@ export const DashboardPage = () => {
             </div>
             <div>
               <p className="text-2xl font-bold text-primary">
-                {isLoading ? <Loader2 size={20} className="animate-spin" /> : stat.value}
+                {stat.value === null ? <Loader2 size={20} className="animate-spin" /> : stat.value}
               </p>
               <p className="text-xs text-muted-foreground uppercase tracking-widest font-bold">{stat.label}</p>
             </div>
@@ -115,8 +93,8 @@ export const DashboardPage = () => {
       </div>
 
       <div className="grid grid-cols-1 xl:grid-cols-2 gap-8">
-        {/* Recent Order */}
-        <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
+        {/* Recent Order - once ordering from the store is on */}
+        {STORE_ORDERING_ENABLED && <div className="bg-white rounded-2xl border border-border shadow-sm overflow-hidden">
           <div className="p-6 border-b border-border flex justify-between items-center">
             <h3 className="font-bold text-primary flex items-center">
               <Package size={18} className="mr-2 text-accent" />
@@ -127,7 +105,7 @@ export const DashboardPage = () => {
             </Link>
           </div>
           <div className="p-6">
-            {isLoading ? (
+            {recentOrder === undefined ? (
               <div className="flex items-center justify-center py-4">
                 <Loader2 size={24} className="animate-spin text-muted-foreground" />
               </div>
@@ -150,7 +128,7 @@ export const DashboardPage = () => {
               <p className="text-sm text-muted-foreground py-4">No orders yet. <Link to="/shop" className="text-accent hover:underline">Browse the shop</Link> to get started!</p>
             )}
           </div>
-        </div>
+        </div>}
 
         {/* Home Store Info */}
         <div className="bg-primary text-white rounded-2xl p-8 relative overflow-hidden">
@@ -159,9 +137,9 @@ export const DashboardPage = () => {
               <MapPin size={20} className="text-accent" />
               <span className="text-[10px] font-bold uppercase tracking-[0.2em] text-accent">Your Local Bookstore</span>
             </div>
-            <h3 className="text-2xl font-serif font-bold mb-2">Camarillo Bookworm</h3>
+            <h3 className="text-2xl font-serif font-bold mb-2">The Bookworm</h3>
             <p className="text-sm text-white/70 mb-8 max-w-xs leading-relaxed">
-              Serving our community since 1973. Your local hub for literature and connection.
+              Camarillo's independent bookstore since 1973.
             </p>
             <div className="space-y-3">
               <div className="flex justify-between text-xs border-b border-white/10 pb-2">
