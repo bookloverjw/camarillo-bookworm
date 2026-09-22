@@ -1,6 +1,9 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate, useLocation } from 'react-router';
 import { toast } from 'sonner';
+import { motion, AnimatePresence } from 'framer-motion';
+import { X, Heart } from 'lucide-react';
+import { BookCover } from '@/app/components/BookCover';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/app/context/AuthContext';
 
@@ -61,6 +64,8 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const [items, setItems] = useState<WishlistEntry[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [pendingAdd, setPendingAdd] = useState<WishlistBook | null>(null);
+  // The book a signed-out reader tried to save: shown in the sign-in prompt
+  const [prompt, setPrompt] = useState<WishlistBook | null>(null);
 
   // Load the list whenever the signed-in user changes
   useEffect(() => {
@@ -119,9 +124,7 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
   const toggle = useCallback(async (book: WishlistBook) => {
     if (!user) {
       stash(book);
-      toast('Sign in to save books to your wishlist', {
-        action: { label: 'Sign in', onClick: () => navigate(`/login?redirect=${encodeURIComponent(location.pathname)}`) },
-      });
+      setPrompt(book);
       return;
     }
     if (!book.isbn) { toast.error("This book can't be saved yet."); return; }
@@ -150,9 +153,49 @@ export const WishlistProvider: React.FC<{ children: React.ReactNode }> = ({ chil
     if (!isbns.has(pendingAdd.isbn)) toggle(pendingAdd);
   }, [pendingAdd, isLoaded, user, isbns, toggle]);
 
+  const goSignIn = (mode?: 'signup') => {
+    setPrompt(null);
+    const redirect = encodeURIComponent(location.pathname + location.search);
+    navigate(`/login?redirect=${redirect}${mode ? '&mode=signup' : ''}`);
+  };
+
   return (
     <WishlistContext.Provider value={{ items, isLoaded, has, toggle, remove }}>
       {children}
+      <AnimatePresence>
+        {prompt && (
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 z-[300] flex items-end sm:items-center justify-center bg-black/50 p-0 sm:p-6"
+            onClick={() => setPrompt(null)}
+            role="dialog" aria-modal="true" aria-label="Sign in to save to your wishlist"
+          >
+            <motion.div
+              initial={{ y: 40, opacity: 0 }} animate={{ y: 0, opacity: 1 }} exit={{ y: 40, opacity: 0 }}
+              transition={{ duration: 0.2 }}
+              className="relative w-full sm:max-w-md rounded-t-2xl sm:rounded-2xl bg-background shadow-2xl p-6 sm:p-8"
+              onClick={e => e.stopPropagation()}
+            >
+              <button onClick={() => setPrompt(null)} aria-label="Close" className="absolute top-3 right-3 p-2 rounded-full hover:bg-muted"><X size={18} /></button>
+              <div className="flex gap-5 items-start">
+                <div className="w-20 shrink-0 aspect-[2/3] rounded-lg overflow-hidden shadow-md bg-muted/30">
+                  <BookCover src={prompt.cover} isbn={prompt.isbn} title={prompt.title} author={prompt.author} className="w-full h-full object-contain" />
+                </div>
+                <div className="min-w-0">
+                  <p className="inline-flex items-center gap-1.5 text-[11px] font-bold uppercase tracking-wider text-red-500 mb-2"><Heart size={12} className="fill-current" /> Wishlist</p>
+                  <h2 className="text-xl font-serif font-bold text-primary leading-tight">Save <span className="italic">{prompt.title}</span> for later?</h2>
+                  <p className="text-sm text-muted-foreground mt-2">Sign in and we'll add it to your wishlist. Your list follows you between visits and devices.</p>
+                </div>
+              </div>
+              <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <button onClick={() => goSignIn()} className="flex-1 px-5 py-3 bg-primary text-white rounded-lg text-sm font-bold hover:bg-primary/90 transition-colors">Sign in</button>
+                <button onClick={() => goSignIn('signup')} className="flex-1 px-5 py-3 border-2 border-primary text-primary rounded-lg text-sm font-bold hover:bg-primary hover:text-white transition-colors">Create an account</button>
+              </div>
+              <p className="text-xs text-muted-foreground text-center mt-4">Free, and takes a minute.</p>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </WishlistContext.Provider>
   );
 };
