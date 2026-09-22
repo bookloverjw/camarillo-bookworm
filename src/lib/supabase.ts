@@ -3,11 +3,28 @@ import { createClient } from '@supabase/supabase-js';
 const supabaseUrl = 'https://lildbdxabljkoynvpflu.supabase.co';
 const supabaseAnonKey = 'sb_publishable_h_B4nBpI9hTOycnv4Fj6Tw_epMD62aO';
 
+// Session storage that can't throw. Safari (private windows, or with
+// cross-site tracking prevention in some contexts) refuses localStorage with
+// "Access to storage is not allowed", which took the whole client down with
+// it; fall back to memory for the tab instead.
+const memory = new Map<string, string>();
+const safeStorage = {
+  getItem: (key: string) => { try { return localStorage.getItem(key); } catch { return memory.get(key) ?? null; } },
+  setItem: (key: string, value: string) => { try { localStorage.setItem(key, value); } catch { memory.set(key, value); } },
+  removeItem: (key: string) => { try { localStorage.removeItem(key); } catch { memory.delete(key); } },
+};
+
 export const supabase = createClient(supabaseUrl, supabaseAnonKey, {
   auth: {
     autoRefreshToken: true,
     persistSession: true,
     detectSessionInUrl: true,
+    storage: safeStorage,
+    // The client coordinates token access across tabs with navigator.locks.
+    // On Safari/iOS that lock times out under a few concurrent requests and
+    // every one of them fails with "AbortError: signal is aborted without
+    // reason". One tab at a time is the realistic case here; skip the lock.
+    lock: async <R>(_name: string, _acquireTimeout: number, fn: () => Promise<R>) => fn(),
   },
 });
 
