@@ -56,13 +56,16 @@ export function exactDate(s: string): string | null {
 const fold = (s: string) =>
   s.normalize('NFKD').replace(/[̀-ͯ]/g, '').toLowerCase().replace(/[^a-z0-9 ]/g, ' ').replace(/\s+/g, ' ').trim();
 
-const titleKey = (t: string) => fold(t.split(':')[0].replace(/\(.*$/, '')).replace(/^(the|a|an) /, '');
+const titleKey = (t: string) => fold(mainTitle(t).split(':')[0].replace(/\(.*$/, '')).replace(/^(the|a|an) /, '');
 
 /** US/UK ISBN-13s: 978-0, 978-1, and the newer US 979-8 block. */
 const isPrintIsbn = (i: string) => /^(97[89][01]|9798)\d{9}$/.test(i);
 
 /** New editions of books already out, and publishers' placeholders - not new books. */
-const EDITION = /tie-in|deluxe|anniversary|collector|special edition|\bedition\b|\bPB\b|paperback|untitled|\(graphic novel\)|\s\d+$/i;
+const EDITION = /tie-in|deluxe|anniversary|collector|special edition|\bedition\b|\billustrated\b|\bPB\b|paperback|untitled|\(graphic novel\)|plush|silicone|short story|\s\d+$/i;
+
+/** ISBNdb writes "Salt - A World History" and "Bride - Bride #1": the title is the part before " - ". */
+const mainTitle = (t: string) => t.split(/\s+-\s+/)[0];
 
 const SKIP = /box(ed)? set|collection|books? set|\bset\b|omnibus|coloring|calendar|journal|summary|study guide|\/|\bvol(ume)?\.? ?\d+ ?- ?\d+/i;
 
@@ -264,7 +267,8 @@ export async function buildComingSoon(origin: string, now = new Date(), pace: Pa
   // anything Open Library says was first in print before this year.
   const fromIsbndb = await isbndbUpcoming(today, horizon);
   const candidates = [...fromIsbndb, ...fromGoogle, ...fromOpenLibrary];
-  const firstYears = await firstPublishedYears(candidates, 8000).catch(() => new Map<string, number>());
+  const firstYears = await firstPublishedYears(candidates.map(b => ({ ...b, title: mainTitle(b.title) })), 8000)
+    .catch(() => new Map<string, number>());
   const thisYear = Number(today.slice(0, 4));
   const found = candidates.filter(b => (firstYears.get(b.isbn) ?? thisYear) >= thisYear);
   lastSources = { googleKey: !!googleKey, google: fromGoogle.length, googleError, openLibrary: fromOpenLibrary.length,
