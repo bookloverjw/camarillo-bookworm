@@ -120,7 +120,10 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
     q: `inauthor:"${name}"`, orderBy: 'newest', maxResults: '20', printType: 'books', langRestrict: 'en', key,
   });
   const r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, { signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw new Error(`Google Books ${r.status}`);
+  if (!r.ok) {
+    const detail = await r.json().then(b => b?.error?.message as string | undefined).catch(() => undefined);
+    throw new Error(`Google Books ${r.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`);
+  }
   const { items = [] } = (await r.json()) as { items?: Volume[] };
   const out: UpcomingBook[] = [];
   for (const { volumeInfo: v } of items) {
@@ -158,6 +161,9 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, bu
   return out;
 }
 
+/** Where the last build's books came from, for diagnosing a thin list. */
+let lastSources: Record<string, unknown> = {};
+
 export async function buildComingSoon(origin: string, now = new Date()): Promise<UpcomingBook[]> {
   const today = now.toISOString().slice(0, 10);
   const h = new Date(now); h.setUTCMonth(h.getUTCMonth() + 8);
@@ -189,12 +195,17 @@ export async function buildComingSoon(origin: string, now = new Date()): Promise
   const started = Date.now();
   const googleKey = process.env.GOOGLE_BOOKS_API_KEY;
   // Google first when there's a key: it's fast and far more complete.
+  let googleError: string | null = null;
   const fromGoogle = googleKey
-    ? (await pool(queue, 10, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon), 20000)).flat()
+    ? (await pool(queue, 10, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon).catch(err => {
+        googleError ??= (err as Error).message;
+        throw err;
+      }), 20000)).flat()
     : [];
   const fromOpenLibrary = (await pool(queue, 8, ([n, why]) => forAuthor(n, why, today, horizon),
     Math.max(5000, 40000 - (Date.now() - started)))).flat();
   const found = [...fromGoogle, ...fromOpenLibrary];
+  lastSources = { googleKey: !!googleKey, google: fromGoogle.length, googleError, openLibrary: fromOpenLibrary.length };
   const seen = new Set<string>();
   return found
     .sort((a, b) => a.publication_date.localeCompare(b.publication_date))
@@ -215,7 +226,7 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Cache-Control', books.length
       ? 'public, s-maxage=86400, stale-while-revalidate=604800'
       : 'public, s-maxage=600');
-    return res.status(200).json({ books });
+    return res.status(200).json({ books, sources: lastSources });
   } catch (err) {
     console.error('coming-soon failed', err);
     res.setHeader('Cache-Control', 'public, s-maxage=300');
