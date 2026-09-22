@@ -47,6 +47,19 @@ const BOOK_COLUMNS = [
   'sales_rank_mtd', 'sales_rank_ytd', 'sales_rank_past12',
 ].join(',');
 
+/**
+ * The shop's tabs and the catalogue categories each one covers. The catalogue
+ * files books under specific shelves (Mystery, Biography...), so a tab that
+ * matched only "Fiction" or "Nonfiction" missed most of its books.
+ */
+export const CATEGORY_GROUPS: Record<string, string[]> = {
+  Fiction: ['Fiction', 'Mystery', 'Thriller', 'Romance', 'Fantasy', 'Sci-Fi', 'Historical Fiction', 'Graphic Novels'],
+  Nonfiction: ['Nonfiction', 'Biography', 'History', 'Science', 'Self-Help', 'Religion', 'Cooking'],
+  Kids: ['Kids', 'Picture Books', 'Chapter Books'],
+  YA: ['YA'],
+  Gifts: ['Gifts'],
+};
+
 export interface SupabaseBook {
   id: string;
   isbn: string;
@@ -175,10 +188,11 @@ function sortKeyForTitle(title: string): string {
  */
 function applyFilters(query: any, options?: BookQueryOptions) {
   if (options?.category && options.category !== 'All') {
-    query = query.eq('category', options.category);
+    query = query.in('category', CATEGORY_GROUPS[options.category] ?? [options.category]);
   }
   if (options?.genre && options.genre !== 'All' && !options.genre.startsWith('All ')) {
-    query = query.eq('genre', options.genre);
+    // A shelf like "Biography" is a category for some books and only a POS genre for others.
+    query = query.or(`genre.eq.${options.genre},category.eq.${options.genre}`);
   }
   if (options?.format && options.format !== 'All') {
     query = query.eq('book_type', options.format);
@@ -902,9 +916,10 @@ export async function getRecommendations(book: Book, limit = 4): Promise<Book[]>
   //    the 'Literary' placeholder the mapper fills in for a missing one.
   if (picks.length < limit) {
     const [field, value] = book.genre && book.genre !== 'Literary' ? ['genre', book.genre] : ['category', book.category];
-    const { data } = await supabase.from('books').select(BOOK_COLUMNS)
-      .eq(field, value).neq('id', book.id)
-      .order('sales_rank_past12', { ascending: true, nullsFirst: false }).limit(24);
+    let query = supabase.from('books').select(BOOK_COLUMNS).eq(field, value).neq('id', book.id);
+    // Merchandise only suggests merchandise, and books never suggest it.
+    query = book.category === 'Gifts' ? query.eq('category', 'Gifts') : query.neq('category', 'Gifts');
+    const { data } = await query.order('sales_rank_past12', { ascending: true, nullsFirst: false }).limit(24);
     take(data as SupabaseBook[] | null);
   }
 

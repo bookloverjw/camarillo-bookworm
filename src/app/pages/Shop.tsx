@@ -16,7 +16,8 @@ const BISAC_GENRES: Record<string, string[]> = {
   'Fiction': ['All Fiction', 'Literary', 'Graphic Novels', 'Mystery', 'Thriller', 'Romance', 'Sci-Fi', 'Fantasy', 'Historical', 'Contemporary'],
   'Nonfiction': ['All Nonfiction', 'Biography', 'Cooking', 'History', 'Self-Help', 'Science', 'True Crime', 'Religion', 'Art'],
   'Kids': ['All Kids', 'Picture Books', 'Graphic Novels', 'Early Readers', 'Middle Grade', 'Nonfiction'],
-  'YA': ['All YA', 'Graphic Novels', 'Contemporary', 'Fantasy', 'Sci-Fi', 'Dystopian', 'Romance']
+  'YA': ['All YA', 'Graphic Novels', 'Contemporary', 'Fantasy', 'Sci-Fi', 'Dystopian', 'Romance'],
+  'Gifts': ['All Gifts'],
 };
 
 interface KidsTopic {
@@ -482,7 +483,7 @@ export const Shop = () => {
     setCurrentPage(1);
   };
 
-  const categories = ['Fiction', 'Nonfiction', 'Kids', 'YA'];
+  const categories = ['Fiction', 'Nonfiction', 'Kids', 'YA', 'Gifts'];
   const formats = ['All', 'Hardcover', 'Paperback', 'Audiobook'];
 
   const getStatusBadge = (status: string) => {
