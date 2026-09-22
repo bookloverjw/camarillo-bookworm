@@ -1,12 +1,18 @@
 -- ============================================================
 -- Camarillo Bookworm - Consolidated RLS lockdown
 -- ============================================================
--- Run this in the Supabase SQL Editor. It REPLACES the three
--- earlier policy files (rls-policies.sql, rls-policies-fixed.sql,
--- rls-policies-v2.sql), which have been deleted from the repo.
+-- Run this in the Supabase SQL Editor.
+--
+-- As of 2026-09-21 this had never been applied to production. What was
+-- there instead: dashboard-template policies - customers, addresses,
+-- orders, gift cards, newsletter emails and wishlists readable AND
+-- writable by anyone holding the publishable key (it ships in the browser),
+-- and a batch of tables open to any signed-up account.
 --
 -- Model:
---   - Catalog tables (books, events, staff, rankings): public read only.
+--   - Catalog tables (books, events, staff, picks): public read only.
+--     (What columns of books are readable is a separate, column-level
+--     matter: books-public-columns-2-lockdown.sql.)
 --   - Customer-owned tables (customers, addresses, orders, transactions,
 --     wishlists, registrations): anyone may INSERT where guest checkout
 --     needs it; reads and updates are scoped to the signed-in owner
@@ -19,21 +25,34 @@
 --   - Inventory: NO direct client writes. The browser calls the atomic
 --     functions below (reserve/release/confirm), which are race-safe
 --     and keep books.reserved_count consistent.
+--   - Back-office tables the website never touches (inventory, products,
+--     purchase orders, special orders, order_payments): active staff
+--     (is_active_staff(), from the inventory app) and the service role
+--     only. "Any signed-in user" is not a boundary - anyone can sign up.
+--   - The inventory app's own tables (inventory_sessions, *_devices,
+--     *_scan_events) and store_credentials / store_settings /
+--     credential_audit_log already have proper policies. NOT TOUCHED.
 --
 -- Known behavior changes (intentional):
 --   - Guest checkout can no longer look up an existing customer by
 --     email; it just creates a new customer row. (The old lookup was
 --     the same hole that let anyone dump the customer list.)
+--   - The browser can no longer insert gift_cards rows. The gift card
+--     page already carries on without the row ("continue anyway for
+--     demo"); real issuing needs a server.
 --   - scripts/enrich-book-tags.mjs can no longer write books with the
 --     anon key; run it with the service-role key instead.
+--
+-- Undo (all of it): re-run the previous policies from the dashboard's
+-- history, or per table: CREATE POLICY ... USING (true).
 -- ============================================================
 
 -- ------------------------------------------------------------
 -- 0. Run as one transaction
 -- ------------------------------------------------------------
--- Section 0 drops every policy before section 1 recreates them. If the
--- script fails in between, RLS is on with nothing allowed and the site
--- goes dark - so either all of this lands or none of it does.
+-- Section 0 drops every managed policy before section 1 recreates them.
+-- If the script fails in between, RLS is on with nothing allowed and the
+-- site goes dark - so either all of this lands or none of it does.
 BEGIN;
 
 -- confirm_reservation() below writes books.total_sold. The column is
@@ -43,53 +62,76 @@ ALTER TABLE books ADD COLUMN IF NOT EXISTS total_sold INTEGER DEFAULT 0;
 CREATE INDEX IF NOT EXISTS idx_books_total_sold ON books(total_sold DESC);
 
 -- ------------------------------------------------------------
--- 0b. Drop every existing policy in public schema (clean slate)
+-- 0b. Clean slate - on the tables this file manages only
 -- ------------------------------------------------------------
+-- The inventory app's tables and the credentials/settings tables keep
+-- their existing (already correct) policies.
+DROP TABLE IF EXISTS _managed;
+CREATE TEMP TABLE _managed (tbl text PRIMARY KEY);
+INSERT INTO _managed VALUES
+  ('books'), ('events'), ('staff_members'), ('staff_picks'),
+  ('customers'), ('customer_addresses'),
+  ('orders'), ('order_items'), ('transactions'), ('transaction_items'),
+  ('wishlists'), ('wishlist_items'), ('event_registrations'),
+  ('newsletter_subscribers'), ('contact_submissions'),
+  ('gift_cards'), ('gift_card_transactions'),
+  ('inventory_reservations'),
+  -- back-office tables: staff / service role only
+  ('inventory'), ('products'), ('product_variants'),
+  ('purchase_orders'), ('purchase_order_items'), ('special_orders'),
+  ('order_payments');
+
+-- Only tables that exist: this database and the migration files have
+-- drifted before, and CREATE POLICY on a missing table aborts the lot.
+DELETE FROM _managed m
+WHERE NOT EXISTS (SELECT 1 FROM information_schema.tables
+                  WHERE table_schema = 'public' AND table_name = m.tbl);
+
 DO $$
 DECLARE
   pol RECORD;
 BEGIN
   FOR pol IN
-    SELECT schemaname, tablename, policyname
-    FROM pg_policies
-    WHERE schemaname = 'public'
-      AND policyname NOT ILIKE '%bestseller%'  -- keep add-bestseller-rankings.sql policies
+    SELECT p.schemaname, p.tablename, p.policyname
+    FROM pg_policies p JOIN _managed m ON m.tbl = p.tablename
+    WHERE p.schemaname = 'public'
   LOOP
     EXECUTE format('DROP POLICY IF EXISTS %I ON %I.%I',
                    pol.policyname, pol.schemaname, pol.tablename);
   END LOOP;
+
+  FOR pol IN SELECT tbl FROM _managed LOOP
+    EXECUTE format('ALTER TABLE public.%I ENABLE ROW LEVEL SECURITY', pol.tbl);
+  END LOOP;
 END $$;
 
--- Helper to enable RLS only when the table exists
-CREATE OR REPLACE FUNCTION _enable_rls_if_exists(tbl text)
-RETURNS void AS $$
+-- Policies below are created only where the table exists.
+CREATE OR REPLACE FUNCTION pg_temp.policy(p_table text, p_sql text)
+RETURNS void LANGUAGE plpgsql AS $$
 BEGIN
-  IF EXISTS (SELECT FROM information_schema.tables
-             WHERE table_schema = 'public' AND table_name = tbl) THEN
-    EXECUTE format('ALTER TABLE %I ENABLE ROW LEVEL SECURITY', tbl);
+  IF EXISTS (SELECT 1 FROM _managed WHERE tbl = p_table) THEN
+    EXECUTE p_sql;
   END IF;
 END;
-$$ LANGUAGE plpgsql;
-
-SELECT _enable_rls_if_exists(t) FROM unnest(ARRAY[
-  'books', 'events', 'staff_members', 'staff_picks',
-  'customers', 'customer_addresses',
-  'orders', 'order_items', 'transactions', 'transaction_items',
-  'wishlists', 'wishlist_items', 'event_registrations',
-  'newsletter_subscribers', 'contact_submissions',
-  'gift_cards', 'gift_card_transactions',
-  'inventory_reservations'
-]) AS t;
-
-DROP FUNCTION _enable_rls_if_exists(text);
+$$;
 
 -- ------------------------------------------------------------
 -- 1. Public read-only catalog
 -- ------------------------------------------------------------
-CREATE POLICY "public read books"   ON books          FOR SELECT USING (true);
-CREATE POLICY "public read events"  ON events         FOR SELECT USING (true);
-CREATE POLICY "public read staff"   ON staff_members  FOR SELECT USING (true);
-CREATE POLICY "public read picks"   ON staff_picks    FOR SELECT USING (true);
+-- Which columns of books are readable is set by column grants
+-- (books-public-columns-2-lockdown.sql); this policy only says every row is.
+SELECT pg_temp.policy('books',
+  $p$CREATE POLICY "public read books" ON books FOR SELECT USING (true)$p$);
+-- Drafts stay private. The site already filters on is_published itself.
+SELECT pg_temp.policy('events',
+  $p$CREATE POLICY "public read events" ON events FOR SELECT USING (is_published = true)$p$);
+-- Former staff stay private. (show_on_website exists too, but nothing on
+-- the site reads it and the old effective rule ignored it; flip to
+-- "AND show_on_website = true" once it is known to be filled in.)
+SELECT pg_temp.policy('staff_members',
+  $p$CREATE POLICY "public read staff" ON staff_members FOR SELECT USING (is_active = true)$p$);
+SELECT pg_temp.policy('staff_picks',
+  $p$CREATE POLICY "public read picks" ON staff_picks FOR SELECT USING (true)$p$);
 -- No INSERT/UPDATE/DELETE policies: catalog writes are service-role only
 -- (POS sync, enrichment scripts, admin tools).
 
@@ -97,102 +139,132 @@ CREATE POLICY "public read picks"   ON staff_picks    FOR SELECT USING (true);
 -- 2. Customers - own row only
 -- ------------------------------------------------------------
 -- Guest checkout inserts customer rows without a session; keep INSERT open.
-CREATE POLICY "public insert customers" ON customers FOR INSERT
-  WITH CHECK (true);
-CREATE POLICY "own read customers" ON customers FOR SELECT
-  USING (id::text = (SELECT auth.uid())::text);
-CREATE POLICY "own update customers" ON customers FOR UPDATE
-  USING (id::text = (SELECT auth.uid())::text)
-  WITH CHECK (id::text = (SELECT auth.uid())::text);
+SELECT pg_temp.policy('customers', $p$
+  CREATE POLICY "public insert customers" ON customers FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('customers', $p$
+  CREATE POLICY "own read customers" ON customers FOR SELECT
+    USING (id::text = (SELECT auth.uid())::text)$p$);
+SELECT pg_temp.policy('customers', $p$
+  CREATE POLICY "own update customers" ON customers FOR UPDATE
+    USING (id::text = (SELECT auth.uid())::text)
+    WITH CHECK (id::text = (SELECT auth.uid())::text)$p$);
 
-CREATE POLICY "own addresses" ON customer_addresses FOR ALL
-  USING (customer_id::text = (SELECT auth.uid())::text)
-  WITH CHECK (customer_id::text = (SELECT auth.uid())::text);
+SELECT pg_temp.policy('customer_addresses', $p$
+  CREATE POLICY "own addresses" ON customer_addresses FOR ALL
+    USING (customer_id::text = (SELECT auth.uid())::text)
+    WITH CHECK (customer_id::text = (SELECT auth.uid())::text)$p$);
 
 -- ------------------------------------------------------------
 -- 3. Orders & financial records - insert for checkout, read own
 -- ------------------------------------------------------------
-CREATE POLICY "public insert orders" ON orders FOR INSERT
-  WITH CHECK (true);
-CREATE POLICY "own read orders" ON orders FOR SELECT
-  USING (customer_id::text = (SELECT auth.uid())::text);
+SELECT pg_temp.policy('orders', $p$
+  CREATE POLICY "public insert orders" ON orders FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('orders', $p$
+  CREATE POLICY "own read orders" ON orders FOR SELECT
+    USING (customer_id::text = (SELECT auth.uid())::text)$p$);
 -- No UPDATE policy: status changes are service-role only.
 
-CREATE POLICY "public insert order_items" ON order_items FOR INSERT
-  WITH CHECK (true);
-CREATE POLICY "own read order_items" ON order_items FOR SELECT
-  USING (EXISTS (
-    SELECT 1 FROM orders o
-    WHERE o.id = order_items.order_id
-      AND o.customer_id::text = (SELECT auth.uid())::text
-  ));
+SELECT pg_temp.policy('order_items', $p$
+  CREATE POLICY "public insert order_items" ON order_items FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('order_items', $p$
+  CREATE POLICY "own read order_items" ON order_items FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM orders o
+      WHERE o.id = order_items.order_id
+        AND o.customer_id::text = (SELECT auth.uid())::text
+    ))$p$);
 
-DO $$
-BEGIN
-  IF EXISTS (SELECT FROM information_schema.tables
-             WHERE table_schema = 'public' AND table_name = 'transactions') THEN
-    CREATE POLICY "public insert transactions" ON transactions FOR INSERT
-      WITH CHECK (true);
-    CREATE POLICY "own read transactions" ON transactions FOR SELECT
-      USING (customer_id::text = (SELECT auth.uid())::text);
-  END IF;
-  IF EXISTS (SELECT FROM information_schema.tables
-             WHERE table_schema = 'public' AND table_name = 'transaction_items') THEN
-    CREATE POLICY "public insert transaction_items" ON transaction_items FOR INSERT
-      WITH CHECK (true);
-    CREATE POLICY "own read transaction_items" ON transaction_items FOR SELECT
-      USING (EXISTS (
-        SELECT 1 FROM transactions t
-        WHERE t.id = transaction_items.transaction_id
-          AND t.customer_id::text = (SELECT auth.uid())::text
-      ));
-  END IF;
-END $$;
+SELECT pg_temp.policy('transactions', $p$
+  CREATE POLICY "public insert transactions" ON transactions FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('transactions', $p$
+  CREATE POLICY "own read transactions" ON transactions FOR SELECT
+    USING (customer_id::text = (SELECT auth.uid())::text)$p$);
+SELECT pg_temp.policy('transaction_items', $p$
+  CREATE POLICY "public insert transaction_items" ON transaction_items FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('transaction_items', $p$
+  CREATE POLICY "own read transaction_items" ON transaction_items FOR SELECT
+    USING (EXISTS (
+      SELECT 1 FROM transactions t
+      WHERE t.id = transaction_items.transaction_id
+        AND t.customer_id::text = (SELECT auth.uid())::text
+    ))$p$);
 
 -- ------------------------------------------------------------
 -- 4. Wishlists - owner only
 -- ------------------------------------------------------------
-CREATE POLICY "own wishlists" ON wishlists FOR ALL
-  USING (customer_id::text = (SELECT auth.uid())::text)
-  WITH CHECK (customer_id::text = (SELECT auth.uid())::text);
-
-CREATE POLICY "own wishlist_items" ON wishlist_items FOR ALL
-  USING (EXISTS (
-    SELECT 1 FROM wishlists w
-    WHERE w.id = wishlist_items.wishlist_id
-      AND w.customer_id::text = (SELECT auth.uid())::text
-  ))
-  WITH CHECK (EXISTS (
-    SELECT 1 FROM wishlists w
-    WHERE w.id = wishlist_items.wishlist_id
-      AND w.customer_id::text = (SELECT auth.uid())::text
-  ));
+SELECT pg_temp.policy('wishlists', $p$
+  CREATE POLICY "own wishlists" ON wishlists FOR ALL
+    USING (customer_id::text = (SELECT auth.uid())::text)
+    WITH CHECK (customer_id::text = (SELECT auth.uid())::text)$p$);
+SELECT pg_temp.policy('wishlist_items', $p$
+  CREATE POLICY "own wishlist_items" ON wishlist_items FOR ALL
+    USING (EXISTS (
+      SELECT 1 FROM wishlists w
+      WHERE w.id = wishlist_items.wishlist_id
+        AND w.customer_id::text = (SELECT auth.uid())::text
+    ))
+    WITH CHECK (EXISTS (
+      SELECT 1 FROM wishlists w
+      WHERE w.id = wishlist_items.wishlist_id
+        AND w.customer_id::text = (SELECT auth.uid())::text
+    ))$p$);
 
 -- ------------------------------------------------------------
 -- 5. Event registrations - anyone can register, read own
 -- ------------------------------------------------------------
-CREATE POLICY "public insert registrations" ON event_registrations FOR INSERT
-  WITH CHECK (true);
-CREATE POLICY "own read registrations" ON event_registrations FOR SELECT
-  USING (customer_id::text = (SELECT auth.uid())::text);
+SELECT pg_temp.policy('event_registrations', $p$
+  CREATE POLICY "public insert registrations" ON event_registrations FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('event_registrations', $p$
+  CREATE POLICY "own read registrations" ON event_registrations FOR SELECT
+    USING (customer_id::text = (SELECT auth.uid())::text)$p$);
 
 -- ------------------------------------------------------------
 -- 6. Forms - insert only
 -- ------------------------------------------------------------
-CREATE POLICY "public insert newsletter" ON newsletter_subscribers FOR INSERT
-  WITH CHECK (true);
-CREATE POLICY "public insert contact" ON contact_submissions FOR INSERT
-  WITH CHECK (true);
+SELECT pg_temp.policy('newsletter_subscribers', $p$
+  CREATE POLICY "public insert newsletter" ON newsletter_subscribers FOR INSERT WITH CHECK (true)$p$);
+SELECT pg_temp.policy('contact_submissions', $p$
+  CREATE POLICY "public insert contact" ON contact_submissions FOR INSERT WITH CHECK (true)$p$);
 -- Duplicate newsletter emails raise 23505 (already handled in the app);
 -- keep a unique index on the email column. If the table already holds
 -- duplicates the index cannot be built - warn and carry on rather than
 -- aborting the whole lockdown over a mailing list.
 DO $$
 BEGIN
-  CREATE UNIQUE INDEX IF NOT EXISTS uq_newsletter_email
-    ON newsletter_subscribers (lower(email));
+  IF EXISTS (SELECT 1 FROM _managed WHERE tbl = 'newsletter_subscribers') THEN
+    CREATE UNIQUE INDEX IF NOT EXISTS uq_newsletter_email
+      ON newsletter_subscribers (lower(email));
+  END IF;
 EXCEPTION WHEN unique_violation THEN
   RAISE WARNING 'uq_newsletter_email not created: newsletter_subscribers already contains duplicate emails. De-duplicate, then create the index separately.';
+END $$;
+
+-- ------------------------------------------------------------
+-- 6b. Back office - active staff and service role only
+-- ------------------------------------------------------------
+-- These carried the dashboard template "Enable all for authenticated
+-- users". The website never reads them. If the inventory app's
+-- is_active_staff() exists, staff keep full access; otherwise they are
+-- service-role only until it does (RLS on, no policies = denied).
+DO $$
+DECLARE
+  t text;
+BEGIN
+  IF NOT EXISTS (SELECT 1 FROM pg_proc p JOIN pg_namespace n ON n.oid = p.pronamespace
+                 WHERE n.nspname = 'public' AND p.proname = 'is_active_staff') THEN
+    RAISE WARNING 'is_active_staff() not found: back-office tables are service-role only.';
+    RETURN;
+  END IF;
+  FOR t IN
+    SELECT tbl FROM _managed WHERE tbl IN (
+      'inventory', 'products', 'product_variants', 'purchase_orders',
+      'purchase_order_items', 'special_orders', 'order_payments',
+      -- the POS side of the sales tables, alongside the customer policies above
+      'transactions', 'transaction_items')
+  LOOP
+    EXECUTE format('CREATE POLICY "staff all" ON public.%I FOR ALL TO authenticated '
+                   'USING (is_active_staff()) WITH CHECK (is_active_staff())', t);
+  END LOOP;
 END $$;
 
 -- ------------------------------------------------------------
@@ -475,6 +547,7 @@ GRANT EXECUTE ON FUNCTION cleanup_expired_reservations() TO anon, authenticated;
 DO $$
 DECLARE
   missing text[];
+  open_pol text[];
 BEGIN
   SELECT array_agg(f) INTO missing
   FROM unnest(ARRAY[
@@ -487,15 +560,28 @@ BEGIN
     JOIN pg_namespace n ON n.oid = p.pronamespace
     WHERE n.nspname = 'public' AND p.proname = f
   );
-
   IF missing IS NOT NULL THEN
     RAISE EXCEPTION 'Functions missing after lockdown: %', missing;
   END IF;
+
+  -- No managed table may let everyone read, change or delete rows -
+  -- only the catalog is public, and only for reading.
+  SELECT array_agg(tablename || '.' || policyname) INTO open_pol
+  FROM pg_policies p JOIN _managed m ON m.tbl = p.tablename
+  WHERE p.schemaname = 'public'
+    AND p.qual = 'true'
+    AND p.cmd IN ('SELECT', 'UPDATE', 'DELETE', 'ALL')
+    AND p.tablename NOT IN ('books', 'staff_picks');
+  IF open_pol IS NOT NULL THEN
+    RAISE EXCEPTION 'Still open to everyone: %', open_pol;
+  END IF;
 END $$;
 
-SELECT tablename, policyname, cmd
+SELECT tablename, policyname, cmd, roles::text, qual AS using_expr
 FROM pg_policies
 WHERE schemaname = 'public'
-ORDER BY tablename, policyname;
+ORDER BY tablename, cmd, policyname;
+
+DROP TABLE _managed;
 
 COMMIT;
