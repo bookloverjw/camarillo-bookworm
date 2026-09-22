@@ -16,6 +16,8 @@
  * fills the upcoming_books table, the site prefers that.
  */
 
+import { firstPublishedYears } from './_lib/firstPublished.js';
+
 import { PERENNIAL } from './_lib/prominentAuthors.js';
 
 export interface UpcomingBook {
@@ -59,6 +61,9 @@ const titleKey = (t: string) => fold(t.split(':')[0].replace(/\(.*$/, '')).repla
 /** US/UK ISBN-13s: 978-0, 978-1, and the newer US 979-8 block. */
 const isPrintIsbn = (i: string) => /^(97[89][01]|9798)\d{9}$/.test(i);
 
+/** New editions of books already out, and publishers' placeholders - not new books. */
+const EDITION = /tie-in|deluxe|anniversary|collector|special edition|\bedition\b|\bPB\b|paperback|untitled|\(graphic novel\)|\s\d+$/i;
+
 const SKIP = /box(ed)? set|collection|books? set|\bset\b|omnibus|coloring|calendar|journal|summary|study guide|\/|\bvol(ume)?\.? ?\d+ ?- ?\d+/i;
 
 interface Doc {
@@ -86,7 +91,7 @@ async function forAuthor(name: string, reason: string, today: string, horizon: s
   const out: UpcomingBook[] = [];
   const thisYear = Number(today.slice(0, 4));
   for (const d of docs) {
-    if (SKIP.test(d.title)) continue;
+    if (SKIP.test(d.title) || EDITION.test(d.title)) continue;
     if ((d.first_publish_year ?? 0) < thisYear) continue;
     if (d.language && !d.language.includes('eng')) continue;
     // This author has to be the book's main author: listed first, not a
@@ -119,8 +124,21 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
   const q = new URLSearchParams({
     q: `inauthor:"${name}"`, orderBy: 'newest', maxResults: '20', printType: 'books', langRestrict: 'en', key,
   });
-  const r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, { signal: AbortSignal.timeout(8000) });
-  if (!r.ok) throw new Error(`Google Books ${r.status}`);
+  let r: Response | undefined;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    r = await fetch(`https://www.googleapis.com/books/v1/volumes?${q}`, {
+      // The key is restricted to our website; server-side calls carry no referer unless we send it.
+      headers: { Referer: 'https://www.camarillobookworm.com/' },
+      signal: AbortSignal.timeout(8000),
+    });
+    if (r.status !== 429) break;
+    await new Promise(done => setTimeout(done, 2000 * (attempt + 1))); // per-minute quota
+  }
+  if (!r) throw new Error('Google Books: no response');
+  if (!r.ok) {
+    const detail = await r.json().then(b => b?.error?.message as string | undefined).catch(() => undefined);
+    throw new Error(`Google Books ${r.status}${detail ? `: ${detail.slice(0, 160)}` : ''}`);
+  }
   const { items = [] } = (await r.json()) as { items?: Volume[] };
   const out: UpcomingBook[] = [];
   for (const { volumeInfo: v } of items) {
@@ -128,7 +146,7 @@ async function googleForAuthor(key: string, name: string, reason: string, today:
     // An exact day, still ahead, within the horizon.
     if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || date <= today || date > horizon) continue;
     if (v.language && v.language !== 'en') continue;
-    if (SKIP.test(v.title) || fold(v.authors?.[0] ?? '') !== fold(name)) continue;
+    if (SKIP.test(v.title) || EDITION.test(v.title) || fold(v.authors?.[0] ?? '') !== fold(name)) continue;
     const isbn = (v.industryIdentifiers ?? []).map(x => x.identifier).find(isPrintIsbn);
     if (!isbn) continue;
     const thumb = v.imageLinks?.thumbnail?.replace(/^http:/, 'https:').replace(/&edge=curl/, '');
@@ -157,6 +175,9 @@ async function pool<T, R>(items: T[], size: number, fn: (x: T) => Promise<R>, bu
   if (failures || i < items.length) console.warn(`coming-soon: ${failures} failed, ${items.length - i} skipped for time`);
   return out;
 }
+
+/** Where the last build's books came from, for diagnosing a thin list. */
+let lastSources: Record<string, unknown> = {};
 
 export async function buildComingSoon(origin: string, now = new Date()): Promise<UpcomingBook[]> {
   const today = now.toISOString().slice(0, 10);
@@ -189,12 +210,23 @@ export async function buildComingSoon(origin: string, now = new Date()): Promise
   const started = Date.now();
   const googleKey = process.env.GOOGLE_BOOKS_API_KEY;
   // Google first when there's a key: it's fast and far more complete.
+  let googleError: string | null = null;
   const fromGoogle = googleKey
-    ? (await pool(queue, 10, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon), 20000)).flat()
+    ? (await pool(queue, 4, ([n, why]) => googleForAuthor(googleKey, n, why, today, horizon).catch(err => {
+        googleError ??= (err as Error).message;
+        throw err;
+      }), 25000)).flat()
     : [];
   const fromOpenLibrary = (await pool(queue, 8, ([n, why]) => forAuthor(n, why, today, horizon),
-    Math.max(5000, 40000 - (Date.now() - started)))).flat();
-  const found = [...fromGoogle, ...fromOpenLibrary];
+    Math.max(5000, 38000 - (Date.now() - started)))).flat();
+  // A paperback, tie-in or reissue of an older book isn't coming soon: drop
+  // anything Open Library says was first in print before this year.
+  const candidates = [...fromGoogle, ...fromOpenLibrary];
+  const firstYears = await firstPublishedYears(candidates, 8000).catch(() => new Map<string, number>());
+  const thisYear = Number(today.slice(0, 4));
+  const found = candidates.filter(b => (firstYears.get(b.isbn) ?? thisYear) >= thisYear);
+  lastSources = { googleKey: !!googleKey, google: fromGoogle.length, googleError, openLibrary: fromOpenLibrary.length,
+    reissuesDropped: candidates.length - found.length };
   const seen = new Set<string>();
   return found
     .sort((a, b) => a.publication_date.localeCompare(b.publication_date))
@@ -215,7 +247,7 @@ export default async function handler(req: any, res: any) {
     res.setHeader('Cache-Control', books.length
       ? 'public, s-maxage=86400, stale-while-revalidate=604800'
       : 'public, s-maxage=600');
-    return res.status(200).json({ books });
+    return res.status(200).json({ books, sources: lastSources });
   } catch (err) {
     console.error('coming-soon failed', err);
     res.setHeader('Cache-Control', 'public, s-maxage=300');

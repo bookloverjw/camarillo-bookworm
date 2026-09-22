@@ -6,7 +6,8 @@ export interface Book {
   author: string;
   price: number;
   cover: string;
-  category: 'Fiction' | 'Nonfiction' | 'Kids' | 'YA';
+  // The four main shelves, Gifts, or a specific one (Biography, Mystery...) from the catalogue.
+  category: 'Fiction' | 'Nonfiction' | 'Kids' | 'YA' | 'Gifts' | (string & {});
   genre: string; // BISAC Genre
   type: 'Hardcover' | 'Paperback' | 'Audiobook';
   status: 'In Store' | 'Only 1 Left' | 'Available to Order' | 'Preorder' | 'Preorder Closed' | 'Unavailable';
