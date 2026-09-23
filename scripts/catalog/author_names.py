@@ -116,7 +116,6 @@ def _truncation_rule(a, b):
     return 'shortened'
 
 
-
 def _shuffled_subset(a, b):
     """All of the shorter name's words are in the longer one, out of order: the
     POS keeping the surname and dropping the given name, "Marquez Garcia" for
@@ -240,7 +239,7 @@ def canonical(counts, endorsed=()):
         t = tokens(raw)
         s = 0
         if fold(raw) != raw.lower():
-            s += 4                                           # Garc\u00eda, not Garcia
+            s += 4                                           # the accents the POS drops
         s += sum(3 for w in t if len(w) == 1 and re.search(r'\b' + re.escape(w) + r'\.', raw, re.I))
         s += 2 * any(c in raw for c in APOSTROPHES)          # O'Dell
         if letters and letters != letters.upper():
@@ -283,6 +282,26 @@ def merge_lookup(path=MANUAL_FIXES):
     return {' '.join(tokens(k)): v for k, v in merges.items()}
 
 
+def _dump(data):
+    """manual_fixes.json the way it is written by hand: one book per line, and
+    the merges one spelling per line, so a diff shows what actually changed."""
+    def one(k, v, indent):
+        return ' ' * indent + json.dumps(k, ensure_ascii=False) + ': ' + json.dumps(v, ensure_ascii=False)
+
+    out, keys = ['{'], list(data)
+    for i, k in enumerate(keys):
+        tail = ',' if i < len(keys) - 1 else ''
+        if k == MERGE_KEY:
+            out.append(f'  {json.dumps(k)}: {{')
+            items = list(data[k].items())
+            for j, (variant, canon) in enumerate(items):
+                out.append(one(variant, canon, 4) + (',' if j < len(items) - 1 else ''))
+            out.append('  }' + tail)
+        else:
+            out.append(one(k, data[k], 2) + tail)
+    return '\n'.join(out + ['}']) + '\n'
+
+
 def record_merges(pairs, path=MANUAL_FIXES):
     """Add variant -> canonical to manual_fixes.json, leaving every hand-checked
     book fix in it untouched."""
@@ -290,29 +309,35 @@ def record_merges(pairs, path=MANUAL_FIXES):
     merges = dict(data.get(MERGE_KEY) or {})
     merges.update(pairs)
     data[MERGE_KEY] = dict(sorted(merges.items()))
-    path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + '\n')
+    path.write_text(_dump(data))
     return len(merges)
 
 
-def canonical_author(raw, known, merges=None):
+def canonical_author(raw, known=None, merges=None):
     """The spelling to file a newly imported book under.
 
     `known` is {spelling: book_count} for the authors already in the catalogue;
-    `merges` the variant -> canonical map from manual_fixes.json. Only the rules
-    that don't need a human eye are trusted here - anything less certain keeps
-    the name it came with."""
+    leave it out and the catalogue's own fuzzy search (search_authors) is asked
+    about this one name instead. `merges` is the variant -> canonical map from
+    manual_fixes.json, which merge_authors.py fills as merges are made.
+
+    Only the rules that don't need a human eye are trusted here. An import is
+    not the place to decide that two people are one, so anything less certain
+    keeps the name it came with and waits for the next review.
+    """
     raw = (raw or '').strip()
     if not raw:
         return raw
     merges = merge_lookup() if merges is None else merges
-    hit = merges.get(' '.join(tokens(raw)))
-    if hit:
-        return hit
-    if raw in known:
-        return raw
+    settled = merges.get(' '.join(tokens(raw)))
+    if settled:
+        return settled
+    if known is None:
+        from catalog import search_authors
+        known = search_authors(raw)
     mine = Name(raw)
     safe = {'punctuation', 'truncated', 'initials'}
     matches = {k: v for k, v in known.items() if relation(mine, Name(k)) in safe}
     if not matches:
-        return raw
+        return raw                      # nobody in the catalogue is certainly this person
     return canonical({**matches, raw: known.get(raw, 0)})

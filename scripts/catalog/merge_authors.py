@@ -18,7 +18,9 @@ spreadsheet: the first column says whether each merge will be made. It arrives
 truncation, an initial against the name it stands for) and 'no' for the rules
 that can - two people really do share a first and last name, so "John Green"
 and "John Patrick Green" are offered, not assumed. Change the cells, save as
-CSV, then --apply, which reads the file back and does only what it says.
+CSV, then --apply, which reads the file back and does only what it says. The
+canonical column is yours to edit too: type the spelling you want if neither
+of ours is the one on the cover.
 
 --apply writes books.author, books.author_last and books.authors, moves any
 follows in author_follows onto the canonical spelling, and records each merge
@@ -69,7 +71,7 @@ def candidate_pairs(names):
 
 def _restore_accents(best, endorsed, group):
     """Open Library's spelling, when it is the one we picked with the accents or
-    punctuation the POS ate - "Emily Bront\u00eb" where every spelling we hold says
+    punctuation the POS ate - "Emily Brontë" where every spelling we hold says
     "Bronte". Same name, letter for letter once unaccented, so this stays a
     merge and not a guess at a different author."""
     for name in sorted(endorsed):

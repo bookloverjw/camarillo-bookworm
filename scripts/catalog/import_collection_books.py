@@ -11,10 +11,16 @@ pages, subjects for the category). New records are marked with the tag
 apart from stock; the price is left at 0 (the site hides it) until the
 ISBNdb price job fills in the list price. Existing records are never
 overwritten.
+
+Authors are filed under the spelling the catalogue already uses, so an
+import can't undo merge_authors.py's work by adding a second "Sarah J Maas"
+next to "Sarah J. Maas".
 """
 import argparse, csv, json, re, urllib.parse
+from collections import Counter
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from author_names import canonical_author, merge_lookup
 from catalog import CACHE, ROOT, SUPABASE_URL, all_books, http, isbn_of, secret_key, write_headers
 
 COLLECTIONS = ROOT / 'public' / 'collections'
@@ -131,8 +137,11 @@ def main():
         return
 
     want = wanted()
-    have = {(r.get('isbn') or '').lstrip(':') for r in all_books('id,isbn')}
+    catalogue = all_books('id,isbn,author')
+    have = {(r.get('isbn') or '').lstrip(':') for r in catalogue}
     want = {i: w for i, w in want.items() if i not in have}
+    known = Counter(r['author'].strip() for r in catalogue if (r.get('author') or '').strip())
+    merges = merge_lookup()
     print(f'{len(want)} collection books to add; looking them up on Open Library')
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = dict(pool.map(open_library, want.items()))
@@ -147,8 +156,11 @@ def main():
         title = w['title']
         if ':' not in title and d.get('subtitle') and len(d['subtitle']) < 80 and d['subtitle'][:1].isupper():
             title = f"{title}: {d['subtitle']}"
+        # The spelling the catalogue already files this author under, so the
+        # book joins their page instead of starting a second one.
+        author = canonical_author(w['author'], known, merges)
         row = {
-            'id': best, 'isbn': best, 'title': title, 'author': w['author'],
+            'id': best, 'isbn': best, 'title': title, 'author': author,
             'description': (d.get('description') or None) and d['description'].strip()[:4000],
             'price': 0, 'cover_url': w.get('cover') if best == isbn else None,
             'category': CATEGORY_OVERRIDES.get(w['title']) or category(d.get('subject'), w['hint']), 'publisher': d.get('publisher'),
@@ -163,7 +175,6 @@ def main():
         wr = csv.writer(f)
         wr.writerow(['isbn', 'replaces collection isbn', 'title', 'author', 'category', 'publisher', 'has description', 'collections'])
         wr.writerows(review)
-    from collections import Counter
     print(f"{len(rows)} ready; {sum(1 for r in rows if r['description'])} with descriptions; categories {Counter(r['category'] for r in rows).most_common()}")
     print(f'review: {CACHE / "import-review.csv"}')
 

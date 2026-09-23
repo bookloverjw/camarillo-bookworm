@@ -51,6 +51,18 @@ def all_books(fields, key=None):
             return rows
 
 
+def search_authors(q, key=None, max_rows=8):
+    """The catalogue's fuzzy author search (supabase/author-search.sql), as
+    {spelling: book count}. Accents and small misspellings are ignored, so this
+    finds "Gabriel García Márquez" for "marquez". Use it to check one name
+    against the catalogue without reading the whole table."""
+    key = key or PUBLIC_KEY
+    rows = http(f'{SUPABASE_URL}/rest/v1/rpc/search_authors',
+                data=json.dumps({'q': q, 'max_rows': max_rows}).encode(),
+                headers={'apikey': key, 'Authorization': f'Bearer {key}', 'Content-Type': 'application/json'})
+    return {r['author']: r['book_count'] for r in rows or []}
+
+
 def _env_local(name):
     """A value from the project's .env.local (gitignored), if it's there."""
     path = ROOT / '.env.local'
