@@ -340,22 +340,28 @@ def book_changes(merges):
     pinned = pinned_books()
     changes = []
     for r in books:
-        canon = merges.get((r.get('author') or '').strip())
-        if not canon or r['id'] in pinned or (isbn_of(r) or '') in pinned:
+        if r['id'] in pinned or (isbn_of(r) or '') in pinned:
             continue
-        new = {'author': canon}
-        want_last = surname(canon)
-        if want_last and r.get('author_last') != want_last:
-            new['author_last'] = want_last
+        author = (r.get('author') or '').strip()
+        canon = merges.get(author)
+        new = {}
+        if canon:
+            new['author'] = canon
+            want_last = surname(canon)
+            if want_last and r.get('author_last') != want_last:
+                new['author_last'] = want_last
         if r.get('authors'):
-            # The POS's unpunctuated copy of the same credit line. A second name
-            # in it gets its own canonical spelling, not this book's.
-            swapped = [merges.get((a or '').strip(), canon if fold(a) == fold(r['author']) else a)
+            # The POS's unpunctuated copy of the same credit line, which can
+            # still name a merged spelling on a book whose author column is
+            # already the right one. A second name in it gets its own canonical
+            # spelling, not this book's.
+            swapped = [merges.get((a or '').strip(),
+                                  canon if canon and fold(a) == fold(author) else a)
                        for a in r['authors']]
             if swapped != r['authors']:
                 new['authors'] = swapped
-        old = {k: r.get(k) for k in new}
-        changes.append({'id': r['id'], 'new': new, 'old': old})
+        if new:
+            changes.append({'id': r['id'], 'new': new, 'old': {k: r.get(k) for k in new}})
     return changes
 
 
