@@ -61,11 +61,18 @@ const queue = [...authors].slice(0, maxAuthors);
 const { left } = await callsLeftToday();
 console.log(`${authors.size} authors; looking up ${Math.min(queue.length, left)} (${left} ISBNdb calls left today)${dryRun ? ' - dry run' : ''}`);
 
-// What we already stock, so a new paperback of a book we carry isn't "coming soon".
+// What we already stock, so a new paperback of a book we carry isn't "coming
+// soon". Rows tagged 'web-catalogue' don't count: those are the books the site
+// shows and the nightly import adds, this list among them (see
+// scripts/catalog/import_collection_books.py). Counting them would have Coming
+// Soon suppress its own books a day after showing them.
 const carried = new Set();
 for (let offset = 0; ; offset += 1000) {
-  const page = await supabase(`books?select=title,author&order=id.asc&offset=${offset}&limit=1000`);
-  for (const b of page) carried.add(`${fold(b.title)}|${fold(b.author).split(' ').pop()}`);
+  const page = await supabase(`books?select=title,author,tags&order=id.asc&offset=${offset}&limit=1000`);
+  for (const b of page) {
+    if ((b.tags ?? []).includes('web-catalogue')) continue;
+    carried.add(`${fold(b.title)}|${fold(b.author).split(' ').pop()}`);
+  }
   if (page.length < 1000) break;
 }
 
