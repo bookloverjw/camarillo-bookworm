@@ -53,7 +53,7 @@ BEGIN
       -- identity
       'id', 'isbn', 'isbn10',
       -- bibliographic
-      'title', 'subtitle', 'author', 'author_last', 'authors', 'illustrator',
+      'title', 'subtitle', 'author', 'author_last', 'authors', 'illustrator', 'contributors',
       'edition', 'description', 'cover_url', 'category', 'genre', 'book_type',
       'publisher', 'publication_date', 'page_count', 'tags',
       -- what the customer pays
