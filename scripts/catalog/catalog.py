@@ -63,10 +63,30 @@ def search_authors(q, key=None, max_rows=8):
     return {r['author']: r['book_count'] for r in rows or []}
 
 
+def _checkouts():
+    """This working copy, and the main one when this is a git worktree.
+
+    A worktree's .git is a file pointing into the real repository, and
+    .env.local is gitignored, so it only ever exists in the main checkout -
+    which is where a script run from a worktree has to look for the keys."""
+    yield ROOT
+    link = ROOT / '.git'
+    try:
+        if link.is_file():
+            gitdir = Path(link.read_text().partition('gitdir:')[2].strip())
+            if 'worktrees' in gitdir.parts:
+                main = gitdir.parents[len(gitdir.parts) - 1 - gitdir.parts.index('worktrees')]
+                yield main.parent      # .../<repo>/.git -> .../<repo>
+    except OSError:
+        return
+
+
 def _env_local(name):
     """A value from the project's .env.local (gitignored), if it's there."""
-    path = ROOT / '.env.local'
-    if path.exists():
+    for root in _checkouts():
+        path = root / '.env.local'
+        if not path.exists():
+            continue
         for line in path.read_text().splitlines():
             k, _, v = line.partition('=')
             if k.strip() == name and v.strip():
