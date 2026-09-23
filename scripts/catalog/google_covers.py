@@ -107,7 +107,17 @@ def main():
         req = urllib.request.Request(f'{SUPABASE_URL}/storage/v1/object/book-covers/{isbn}.jpg', data=image, method='POST',
                                      headers={'apikey': skey, 'Authorization': f'Bearer {skey}', 'Content-Type': content_type(image),
                                               'x-upsert': 'true', 'User-Agent': UA})
-        urllib.request.urlopen(req, timeout=30, context=CTX).read()
+        # Storage rate-limits a long run of uploads (429 after a few hundred);
+        # wait it out rather than lose the night's work.
+        for attempt in range(4):
+            try:
+                urllib.request.urlopen(req, timeout=30, context=CTX).read()
+                break
+            except urllib.error.HTTPError as e:
+                if e.code != 429 or attempt == 3:
+                    raise
+                print(f'  storage rate limit; pausing {30 * (attempt + 1)}s')
+                time.sleep(30 * (attempt + 1))
         url = f'{SUPABASE_URL}/storage/v1/object/public/book-covers/{isbn}.jpg'
         http(f"{SUPABASE_URL}/rest/v1/books?id=eq.{urllib.parse.quote(r['id'])}", data=json.dumps({'cover_url': url}).encode(),
              headers=write_headers(skey), method='PATCH')
