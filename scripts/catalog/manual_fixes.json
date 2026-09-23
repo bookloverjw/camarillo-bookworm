@@ -1,7 +1,5 @@
 {
-  "_about": "Hand-checked fixes for best sellers Open Library doesn't have (web search, Sept 2026). Merged over propose_fixes.py's output.",
-  "_authors_about": "Author spellings to use, whatever the source or search_authors says, when the nightly web catalogue import adds a book (import_collection_books.py, via authors.py). Keys are matched loosely: case, accents and punctuation are ignored, so one entry covers a name's variants.",
-  "_authors": {},
+  "_about": "Hand-checked fixes for best sellers Open Library doesn't have (web search, Sept 2026). Merged over propose_fixes.py's output. Author spellings are settled under \"_author_merges\" (author_names.py), which merge_authors.py writes and the nightly web catalogue import reads before inserting a book.",
   "9781335534637": {"category": "Romance", "title": "Heated Rivalry"},
   "9780578645780": {"category": "Biography", "title": "Soul Companion: A Memoir"},
   "9798332853050": {"category": "Religion", "title": "Scribble and Scripture: The Bible Made Simple"},
