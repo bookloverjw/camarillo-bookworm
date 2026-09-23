@@ -54,8 +54,13 @@ ORGANISATION = CORPORATE | PLACEHOLDER | {
     'academy', 'school', 'university', 'college', 'council', 'committee', 'board', 'trust',
     'fund', 'project', 'crew', 'collective', 'designs', 'digital', 'syndicate', 'partners',
     'associates', 'ventures', 'brands', 'company', 'creative', 'illustrations',
-    'readers', 'reader', 'edited', 'games', 'learners', 'disney'}
+    'readers', 'reader', 'edited', 'games', 'learners', 'disney',
+    'author', 'identified', 'unidentified', 'department', 'bureau', 'agency', 'ministry',
+    'commission', 'administration', 'office', 'united', 'states', 'library', 'archives'}
 # Not 'art': Art Spiegelman and Art Garfunkel are people.
+
+
+BRACKETS = __import__('re').compile(r'[\[\]()!]')
 
 
 def companyish(name, publishers):
@@ -77,13 +82,13 @@ def person(name, filed, publishers):
         return False
     if set(tokens(name)) & ORGANISATION:
         return False
-    if name in publishers or '(' in name:
-        return False
+    if name in publishers or BRACKETS.search(name):
+        return False                      # "[author not identified]", "America's Test Kitchen (Firm)"
     mine, theirs = tokens(name), set(tokens(filed))
     if set(mine) <= theirs:
         return False                      # "American Profile" for "American Profile Staff"
-    if any(a == b for a, b in zip(mine, mine[1:])):
-        return False                      # "Thomas Thomas Nelson": a name doubled by bad data
+    if len(set(mine)) < len(mine):
+        return False                      # "Ripley's Believe Ripley's Believe It Or Not!": doubled
     return relation(Name(name), Name(filed)) is None
 
 
