@@ -18,9 +18,10 @@ Anything one of those already links to the catalogue is skipped.
 Details come from the source that knows best: the NYT's own one-line
 description, ISBNdb's release date for a forthcoming book, our collections'
 curated titles - and Open Library for publisher, page count and the subjects
-behind the category. Author names are resolved to the catalogue's existing
-spelling (authors.py) so an import never creates a second Gabriel García
-Márquez.
+behind the category. Author names are filed under the spelling the catalogue already uses
+(author_names.canonical_author, the same rules merge_authors.py normalises the
+catalogue with), so an import can't put back a variant that was just merged
+away - no second Gabriel García Márquez.
 
 New records are marked with the tag 'web-catalogue' and zero inventory, so
 staff and the POS sync can tell them apart from stock; the price is left at 0
@@ -30,10 +31,11 @@ the site offers it as a preorder; everything else is 'out_of_stock', which the
 site shows as "Available to Order". Existing records are never overwritten.
 """
 import argparse, csv, json, re, urllib.parse
+from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import date
 from pathlib import Path
-from authors import Authors, key
+from author_names import canonical_author, merge_lookup, tokens
 from catalog import CACHE, ROOT, SUPABASE_URL, all_books, fold, http, secret_key, write_headers
 
 COLLECTIONS = ROOT / 'public' / 'collections'
@@ -259,15 +261,14 @@ def details(item):
 NONFICTION = {'Nonfiction', 'Biography', 'History', 'Science', 'Self-Help', 'Religion', 'Cooking'}
 
 
-def author_shelf():
+def author_shelf(catalogue):
     """Where the catalogue shelves each author, for a forthcoming book that
     neither Open Library nor the NYT has anything to say about yet: an author
     whose books we file under Romance is, on the whole, writing Romance."""
-    from collections import Counter, defaultdict
     per = defaultdict(Counter)
-    for r in all_books('author,category'):
+    for r in catalogue:
         if r.get('author') and r.get('category'):
-            per[key(r['author'])][r['category']] += 1
+            per[' '.join(tokens(r['author']))][r['category']] += 1
     out = {}
     for author, shelves in per.items():
         (shelf, n), = shelves.most_common(1)
@@ -300,15 +301,18 @@ def category(subjects, hint, nyt=None, usual=None):
 
 def build(args):
     want = wanted()
-    have = {(r.get('isbn') or '').lstrip(':') for r in all_books('id,isbn')} | {r['id'] for r in all_books('id')}
+    catalogue = all_books('id,isbn,author,category')
+    have = {r['id'] for r in catalogue} | {(r.get('isbn') or '').lstrip(':') for r in catalogue}
     want = {i: w for i, w in want.items() if i not in have}
     print(f'{len(want)} books to add; looking them up on Open Library')
     with ThreadPoolExecutor(max_workers=4) as pool:
         found = dict(pool.map(details, want.items()))
 
-    print('resolving author names against the catalogue')
-    people = Authors(offline=args.no_author_lookup)
-    usual = author_shelf()
+    print('filing the books under the catalogue\'s own author spellings')
+    known = Counter(r['author'].strip() for r in catalogue if (r.get('author') or '').strip())
+    merges = merge_lookup()
+    resolved = {}
+    usual = author_shelf(catalogue)
     today = date.today().isoformat()
     rows, review, seen = [], [], set(have)
     for isbn, w in sorted(want.items(), key=lambda kv: (kv[1]['publication_date'] or '', kv[0]), reverse=True):
@@ -323,14 +327,16 @@ def build(args):
             title = f"{title}: {d['subtitle']}"
         if NOT_A_BOOK.search(title):
             continue   # Open Library knows the ISBN as a boxed set
-        author = people.canonical(w['author'])
+        author = canonical_author(w['author'], known, merges)
+        if author != w['author']:
+            resolved[w['author']] = author
         published = w['publication_date']
         row = {
             'id': best, 'isbn': best, 'title': title, 'author': author,
             'description': (w['description'] or d.get('description') or '').strip()[:4000] or None,
             'price': 0, 'cover_url': w['cover'] if best == isbn else None,
             'category': CATEGORY_OVERRIDES.get(w['title']) or category(d.get('subject'), w['hint'], w['nyt'],
-                                                                       usual.get(key(author))),
+                                                                       usual.get(' '.join(tokens(author)))),
             'publisher': d.get('publisher'), 'page_count': d.get('pages'), 'publication_date': published,
             'inventory_count': 0, 'reserved_count': 0,
             'status': 'preorder' if published and published > today else 'out_of_stock', 'tags': [TAG],
@@ -340,7 +346,7 @@ def build(args):
             break
         rows.append(row)
         review.append([best, isbn if best != isbn else '', row['title'], row['author'],
-                       'manual' if w['author'] in people.manual else 'catalogue' if w['author'] != author else '',
+                       'catalogue' if author != w['author'] else '',
                        row['category'], row['publisher'] or '', bool(row['description']), row['status'],
                        published or '', ' + '.join(sorted(w['sources'])), '; '.join(sorted(w['collections']))])
     (CACHE / 'import.json').write_text(json.dumps(rows, ensure_ascii=False, indent=0))
@@ -350,7 +356,6 @@ def build(args):
                      'has description', 'status', 'publication date', 'sources', 'collections'])
         wr.writerows(review)
 
-    from collections import Counter
     counts = Counter(s for r in review for s in r[10].split(' + '))
     lines = [f'**{len(rows)} books ready to import.**', '',
              f"- where they show: {', '.join(f'{n} {s}' for s, n in counts.most_common())}",
@@ -358,8 +363,8 @@ def build(args):
              f"{sum(1 for r in rows if r['description'])} with a description, "
              f"{sum(1 for r in rows if r['cover_url'])} with a cover",
              f"- categories: {', '.join(f'{c} {n}' for c, n in Counter(r['category'] for r in rows).most_common())}",
-             f'- author names resolved to the catalogue\'s spelling: {len(people.resolved)}'
-             + (f" ({', '.join(f'{k} -> {v}' for k, v in list(people.resolved.items())[:8])})" if people.resolved else '')]
+             f"- author names filed under the catalogue's spelling: {len(resolved)}"
+             + (f" ({', '.join(f'{k} -> {v}' for k, v in list(resolved.items())[:8])})" if resolved else '')]
     print('\n'.join(lines))
     print(f'review: {CACHE / "import-review.csv"}')
     return lines
@@ -383,7 +388,6 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument('--apply', action='store_true', help='insert what the last build prepared')
     ap.add_argument('--max', type=int, default=0, help='import at most this many books')
-    ap.add_argument('--no-author-lookup', action='store_true', help='skip search_authors; keep names as given')
     ap.add_argument('--summary', help='append a Markdown summary here (for the GitHub Actions job summary)')
     args = ap.parse_args()
     lines = apply(args) if args.apply else build(args)
