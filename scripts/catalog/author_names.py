@@ -23,6 +23,17 @@ MULTI = re.compile(r'\s(and|with)\s|&|;|/|\bed(itor)?s\b|,\s*\w+\s+\w', re.I)
 # A trailing honorific, with or without the comma: "Bill Martin, Jr.", "Andrew
 # Weil, M.D.". Dropped before comparing, kept in the name we settle on.
 SUFFIX = re.compile(r'[\s,]+(jr|sr|ii|iii|iv|m\.?\s?d|ph\.?\s?d|d\.?\s?d\.?s|ed\.?\s?d|r\.?n|dvm|m\.?s\.?w|m\.?p\.?h|esq)\.?\s*$', re.I)
+# Words a company's name ends with. The POS rotates a name's last word to the
+# front - "Inc Peter Pauper Press", "Books Golden", "House Random" - so one of
+# these at the front, when another spelling has it further along, is the shuffle
+# and not the name.
+CORPORATE = {'inc', 'incorporated', 'ltd', 'limited', 'llc', 'co', 'corp', 'corporation', 'company',
+             'press', 'books', 'book', 'publishing', 'publishers', 'publisher', 'publications',
+             'editions', 'editors', 'group', 'media', 'house', 'studio', 'studios'}
+# Honorifics and religious titles, which come first in English: "Mother
+# Teresa", "Pope Francis", "Dalai Lama". Last means the POS rotated the name.
+TITLES = {'mother', 'father', 'pope', 'sir', 'dame', 'saint', 'dr', 'rev', 'reverend',
+          'dalai', 'lama', 'sister', 'brother', 'rabbi', 'imam', 'swami'}
 # Words that belong to the surname after them: "Van Pelt", "Le Guin", "de la Cruz".
 PARTICLES = {'van', 'von', 'le', 'la', 'de', 'du', 'del', 'der', 'di', 'da', 'st', 'ten', 'ter', 'den', 'bin', 'ibn'}
 
@@ -116,6 +127,33 @@ def _truncation_rule(a, b):
     return 'shortened'
 
 
+def _prefix_bag(a, b):
+    """The same words in a different order, some of them cut short: "Pauper Pr
+    Peter" for Peter Pauper Press. Each word has to pair off with a distinct
+    word of the other name that it starts, or is started by."""
+    if len(a) != len(b) or all(_prefix_pair(x, y) for x, y in zip(a, b)):
+        return False              # same order: that is a truncation, not a shuffle
+    free = list(b)
+    for w in a:
+        hit = next((t for t in free if t == w), None) or next((t for t in free if _prefix_pair(t, w)), None)
+        if not hit:
+            return False
+        free.remove(hit)
+    return True
+
+
+def _corporate_tail(a, b):
+    """One name is the other plus what a company's name ends with: "Scholastic"
+    and "Scholastic Inc.", "Peter Pauper Press" and "Peter Pauper Press Inc".
+    Not "Random House" and "Random House Disney", which are two imprints."""
+    x, y = tokens(SUFFIX.sub('', a.raw)), tokens(SUFFIX.sub('', b.raw))
+    if len(x) > len(y):
+        x, y = y, x
+    if not x or len(x) == len(y) or y[:len(x)] != x:
+        return False
+    return all(w in CORPORATE for w in y[len(x):])
+
+
 def _shuffled_subset(a, b):
     """All of the shorter name's words are in the longer one, out of order: the
     POS keeping the surname and dropping the given name, "Marquez Garcia" for
@@ -138,7 +176,7 @@ SIMILAR_THRESHOLD = 0.80
 CONFIDENCE = {'punctuation': 'high', 'truncated': 'high', 'initials': 'high',
               'suffix': 'medium', 'shortened': 'medium', 'middle-name': 'medium',
               'reordered': 'medium', 'first-initial': 'medium', 'linked': 'medium',
-              'surname-first': 'low', 'similar': 'low'}
+              'corporate-suffix': 'medium', 'surname-first': 'low', 'similar': 'low'}
 
 
 def relation(a, b):
@@ -157,6 +195,7 @@ def relation(a, b):
       middle-name   one carries a middle name the other doesn't - which is also
                     what two different people with one name look like
       reordered     the POS's surname shuffle: "Bukowski Charles"
+      corporate-suffix  a company name with and without its Inc./Press/Books
       surname-first the same, with a given name missing: "Marquez Garcia"
       similar       near-identical spellings, nothing above explains it
       linked        (merge_authors.py) reached through a third spelling, not
@@ -168,6 +207,8 @@ def relation(a, b):
         return 'punctuation'
     if a.bare == b.bare:
         return 'suffix'                                              # only a Jr./M.D. between them
+    if _corporate_tail(a, b):
+        return 'corporate-suffix'
     pa, pb = a.parts, b.parts
     if pa and pb:
         if pa[0] == pb[0] and pa[2] == pb[2]:                       # same given name and surname
@@ -181,7 +222,7 @@ def relation(a, b):
             return 'first-initial'                                   # "S Moreno-Garcia" for Silvia
         if (rule := _truncation_rule((pa[0],) + pa[1] + pa[2], (pb[0],) + pb[1] + pb[2])):
             return rule
-        if a.bag == b.bag:
+        if a.bag == b.bag or _prefix_bag(tokens(SUFFIX.sub('', a.raw)), tokens(SUFFIX.sub('', b.raw))):
             return 'reordered'
     if (rule := _truncation_rule(tokens(a.raw), tokens(b.raw))):
         return rule
@@ -234,13 +275,32 @@ def canonical(counts, endorsed=()):
         return any(_cut(mine, tokens(other)) and len(''.join(mine)) < len(''.join(tokens(other)))
                    for other in counts if other != raw)
 
+    def order_agrees(raw):
+        """The words this spelling shares with Open Library's name run the same
+        way round in both. "Mark Sullivan" agrees with "Mark T. Sullivan";
+        "Sullivan Mark" does not."""
+        for name in endorsed:
+            theirs = tokens(name)
+            shared = [w for w in tokens(raw) if w in set(theirs)]
+            at = [theirs.index(w) for w in shared]
+            if len(shared) >= 2 and at == sorted(at):
+                return True
+        return False
+
+    def rotated(raw):
+        """Starts with a word another spelling keeps further along, and it is a
+        word company names end with: the POS's rotation, not the name."""
+        t = tokens(raw)
+        return bool(t) and t[0] in CORPORATE and any(t[0] in tokens(o)[1:] for o in counts if o != raw)
+
     def style(raw):
         letters = re.sub('[^A-Za-z]', '', raw)
         t = tokens(raw)
+        body = SUFFIX.sub('', raw)                           # the M.D. is a credential, not initials
         s = 0
         if fold(raw) != raw.lower():
             s += 4                                           # the accents the POS drops
-        s += sum(3 for w in t if len(w) == 1 and re.search(r'\b' + re.escape(w) + r'\.', raw, re.I))
+        s += sum(3 for w in tokens(body) if len(w) == 1 and re.search(r'\b' + re.escape(w) + r'\.', body, re.I))
         s += 2 * any(c in raw for c in APOSTROPHES)          # O'Dell
         if letters and letters != letters.upper():
             s += len(re.findall(r'\b[A-Z]{2,3}\b', raw))    # "TJ Klune", not "Tj Klune"
@@ -253,8 +313,17 @@ def canonical(counts, endorsed=()):
             s += 12
         elif Name(raw).bare in backed:
             s += 10                                          # the same name, spelled our way
-        elif cut_down(raw):
-            s -= 12                                          # never file under a cut-off copy of another spelling
+        else:
+            if order_agrees(raw):
+                s += 6                                       # at least the words run the right way
+            if cut_down(raw):
+                s -= 12                                      # never file under a cut-off copy of another
+        if rotated(raw):
+            s -= 10                                          # "Inc Peter Pauper Press", "House Random"
+        if t and t[0] in TITLES:
+            s += 6                                           # "Mother Teresa", not "Teresa Mother"
+        if len(t) > 1 and t[-1] in TITLES:
+            s -= 6
         name = Name(raw)
         if name.parts:
             s += 3                                           # a name we can parse beats a scrambled one

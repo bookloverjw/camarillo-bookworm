@@ -32,7 +32,7 @@ import argparse, csv, json, time, urllib.parse
 from collections import Counter, defaultdict
 from concurrent.futures import ThreadPoolExecutor
 
-from author_names import (CONFIDENCE, MANUAL_FIXES, Name, canonical, fold, merge_lookup,
+from author_names import (CONFIDENCE, MANUAL_FIXES, SUFFIX, Name, canonical, fold, merge_lookup,
                           record_merges, relation, surname, tokens)
 from catalog import CACHE, SUPABASE_URL, all_books, http, isbn_of, secret_key, write_headers
 
@@ -164,38 +164,64 @@ def open_library_names(books_by_author):
         print(f'note: no {path.name} - run fetch_openlibrary.py first and Open Library will vet these merges')
         return {}
     ol = json.loads(path.read_text())
+
+    def tidy(name):
+        """Open Library catalogues some authors the library way round,
+        "Peterson, Eugene H." Put the name back the way a cover prints it, so
+        it can be compared with ours - but leave "Martin, Jr." alone."""
+        head, sep, tail = name.partition(',')
+        if not sep or not tail.strip() or SUFFIX.search(name):
+            return name
+        return f'{tail.strip()} {head.strip()}'
+
     out = {}
     for name, rows in books_by_author.items():
         seen = Counter()
         for r in rows:
             for doc in ol.get(isbn_of(r) or '', []):
                 for n in doc.get('author_name') or []:
-                    seen[n] += 1
+                    seen[tidy(n)] += 1
         if seen:
             out[name] = seen.most_common(1)[0][0]      # the name most of this spelling's books carry
     return out
 
 
-def evidence(canon, variant, ol):
-    """Open Library's word on one merge: (note for the CSV, whether it objects).
+def _same_name(a, b):
+    """Two of Open Library's names that are one name written two ways."""
+    return Name(a).key == Name(b).key or relation(Name(a), Name(b)) == 'punctuation'
 
-    It objects when the two spellings' books are filed under names that are
-    themselves different - "Marc Brown" and "Marcia Brown" are two authors, and
-    no rule about cut-off words can tell that from the inside."""
+
+def _inside(a, b):
+    """One name sits whole inside the other: "Scholastic" in "Scholastic Inc."
+    Not evidence either way, and not a disagreement."""
+    x, y = tokens(a), tokens(b)
+    if len(x) > len(y):
+        x, y = y, x
+    return any(y[i:i + len(x)] == x for i in range(len(y) - len(x) + 1))
+
+
+def evidence(canon, variant, ol):
+    """Open Library's word on one merge: (note for the CSV, 'agrees'/'objects'/'').
+
+    It agrees when both spellings' books are filed under one name, and objects
+    when they are filed under two - "Marc Brown" and "Marcia Brown" are two
+    authors, and no rule about cut-off words can tell that from the inside.
+    """
     mine, theirs = ol.get(canon), ol.get(variant)
     if not theirs and not mine:
-        return '', False
+        return '', ''
     if not theirs or not mine:
         known, name = (canon, mine) if mine else (variant, theirs)
         other = variant if known == canon else canon
-        if Name(name).bare in (Name(canon).bare, Name(variant).bare):
-            return f'{known} is {name} there; nothing on {other}', False
-        return f'{known} is {name} there', relation(Name(name), Name(other)) is None
-    if Name(mine).bare == Name(theirs).bare or relation(Name(mine), Name(theirs)) == 'punctuation':
-        return f'both are {mine} there', False
-    # Two spellings whose books are filed under two names: whatever the shape of
-    # the words says, this is the evidence that they are two people.
-    return f'{canon} is {mine} there, {variant} is {theirs}', True
+        if _same_name(name, other) or _same_name(name, known) and _inside(name, other):
+            return f'{known} is {name} there; nothing on {other}', ''
+        verdict = '' if relation(Name(name), Name(other)) or _inside(name, other) else 'objects'
+        return f'{known} is {name} there; nothing on {other}', verdict
+    if _same_name(mine, theirs):
+        return f'both are {mine} there', 'agrees'
+    if _inside(mine, theirs):
+        return f'{canon} is {mine} there, {variant} is {theirs}', ''
+    return f'{canon} is {mine} there, {variant} is {theirs}', 'objects'
 
 
 # ------------------------------------------------------------------ propose
@@ -213,13 +239,21 @@ def propose():
     ol = open_library_names(by_author)
     groups = cluster(counts, merge_lookup(), ol)
 
-    rows, objected = [], 0
+    rows, objected, agreed = [], 0, 0
     for canon, variant, rule, moves in groups:
         conf = CONFIDENCE.get(rule, 'low')
-        note, objects = evidence(canon, variant, ol)
-        if objects and conf == 'high':
-            conf = 'medium'              # the rules are sure, Open Library isn't: let a human look
-            objected += 1
+        note, verdict = evidence(canon, variant, ol)
+        if verdict == 'objects' and rule != 'punctuation':
+            # Open Library files the two spellings under two authors. That
+            # outweighs any rule about how the words look - except the one rule
+            # it cannot be right about: two spellings that are the same letters
+            # apart from accents, case and punctuation are the same name, and a
+            # stray record on one of their books doesn't change that.
+            objected += conf != 'low'
+            conf = 'low'
+        elif verdict == 'agrees':
+            agreed += conf != 'high'
+            conf = {'low': 'medium', 'medium': 'high', 'high': 'high'}[conf]
         titles = [r['title'] for n in moves for r in by_author[n] if r.get('title')][:3]
         rows.append({'merge': 'yes' if conf in AUTO else 'no', 'confidence': conf, 'rule': rule,
                      'canonical': canon, 'variant': variant,
@@ -240,9 +274,11 @@ def propose():
           f'{len(rows)} variants to fold in:')
     for rule, (n, b) in sorted(tally.items(), key=lambda kv: -kv[1][1]):
         print(f'  {CONFIDENCE.get(rule, "low"):6} {rule:16} {n:4} spellings  {b:5} books')
+    if agreed:
+        print(f'{agreed} were raised a level because Open Library files both spellings\' books '
+              f'under one author')
     if objected:
-        print(f'{objected} of them look certain by name but Open Library files the two spellings '
-              f'under different authors, so they wait for review too')
+        print(f'{objected} were dropped to the bottom because it files them under two')
     ticked = sum(1 for r in rows if r['merge'] == 'yes')
     print(f'\nreview: {CSV_PATH}')
     print(f'{ticked} are ticked to merge; the other {len(rows) - ticked} wait for you to change "no" to "yes".')
@@ -259,15 +295,38 @@ def reviewed():
     with open(CSV_PATH, newline='') as f:
         rows = list(csv.DictReader(f))
     keep = [r for r in rows if (r.get('merge') or '').strip().lower() in ('yes', 'y', 'true', '1', 'x')]
-    merges = {}
-    for r in keep:
-        variant, canon = r['variant'], r['canonical']
-        if variant and canon and variant != canon:
-            merges[variant] = canon
-    # A canonical that is itself merged away elsewhere: follow the chain.
-    for _ in range(3):
-        merges = {v: merges.get(c, c) for v, c in merges.items()}
-    return {v: c for v, c in merges.items() if v != c}, len(rows)
+    edges = [(r['variant'], r['canonical']) for r in keep
+             if r['variant'] and r['canonical'] and r['variant'] != r['canonical']]
+
+    # Every ticked row says two spellings are one author, so follow them all the
+    # way through: "Jr Bill Martin" -> "Bill Jr Martin" -> "Bill Martin Jr." is
+    # one author in three steps, and the last name is where the books go.
+    group = {}
+    for a, b in edges:
+        ga, gb = group.setdefault(a, {a}), group.setdefault(b, {b})
+        if ga is not gb:
+            ga |= gb
+            for name in gb:
+                group[name] = ga
+    variants = {a for a, _ in edges}
+    merges, clashes = {}, {}
+    for names in {id(g): g for g in group.values()}.values():
+        # The spellings nothing points away from. One is the answer; two means
+        # the same books are ticked for two different authors, which only the
+        # reviewer can settle - "Margaret Brown" fits Margaret Wise Brown and
+        # Margaret Brownley, and the rules cannot choose.
+        ends = sorted(names - variants)
+        if len(ends) != 1:
+            clashes[min(names)] = ends or sorted(names)
+            continue
+        merges.update({n: ends[0] for n in names if n != ends[0]})
+    if clashes:
+        for start, ends in sorted(clashes.items()):
+            print(f'  {start!r} and the spellings ticked with it lead to ' +
+                  (' and '.join(repr(e) for e in ends) if len(ends) > 1 else 'no single author'))
+        raise SystemExit(f'{len(clashes)} groups in {CSV_PATH.name} are ticked for more than one '
+                         f'author; leave one merge ticked in each and try again.')
+    return merges, len(rows)
 
 
 def pinned_books():
