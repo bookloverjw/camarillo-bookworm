@@ -14,7 +14,7 @@ import { buysThroughBookshop } from '@/lib/features';
 import { displayGenre } from '@/lib/genres';
 import { stripHtmlTags } from '@/lib/stripHtml';
 import { getBookshopSearchUrl, getGoodreadsUrl, getLibroFmUrl } from '@/lib/bookshopWidgets';
-import { getBookById, getRecommendations } from '@/lib/bookService';
+import { getBookById, getBookByIsbn, getRecommendations } from '@/lib/bookService';
 import type { Book } from '@/app/utils/data';
 
 /**
@@ -31,6 +31,21 @@ export const BookQuickView: React.FC = () => {
   const [state, setState] = useState<'idle' | 'loading' | 'ready' | 'missing'>('idle');
 
   const catalogId = view?.catalogId;
+
+  // Every book on the site should be in the catalogue - the nightly import
+  // sees to that (scripts/catalog/import_collection_books.py). What arrives
+  // here without a catalogue id is a card whose link hasn't caught up: a
+  // collection file relinked monthly, a cached best seller list. Look the ISBN
+  // up, and if the book is ours now, show our own page instead of Bookshop.org.
+  const unlinkedIsbn = view?.book?.isbn;
+  useEffect(() => {
+    if (!unlinkedIsbn) return;
+    let cancelled = false;
+    getBookByIsbn(unlinkedIsbn)
+      .then(ours => { if (ours && !cancelled) openModal(ours.id); })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [unlinkedIsbn, openModal]);
   // A description for books that arrived without one (forthcoming titles,
   // some award winners), from Open Library by ISBN. Best-effort.
   const [fetchedDescription, setFetchedDescription] = useState<string | null>(null);
