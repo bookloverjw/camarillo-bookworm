@@ -179,26 +179,57 @@ def propose():
 # ------------------------------------------------------------------ apply
 
 
+REAL_ISBN = __import__('re').compile(r'97[89]\d{10}')
+
+
 def reviewed():
     if not CSV_PATH.exists():
         raise SystemExit(f'{CSV_PATH} is not there - run without --apply first, then review it.')
     with open(CSV_PATH, newline='') as f:
         rows = list(csv.DictReader(f))
-    keep = [r for r in rows if (r.get('recover') or '').strip().lower() in ('yes', 'y', 'true', '1', 'x')]
-    return {r['isbn']: r for r in keep if r['isbn'] and r['proposed author']}, len(rows)
+    keep = [r for r in rows if (r.get('recover') or '').strip().lower() in ('yes', 'y', 'true', '1', 'x')
+            and r.get('proposed author')]
+    mangled = sum(1 for r in keep if not REAL_ISBN.fullmatch((r.get('isbn') or '').strip()))
+    if mangled:
+        # A spreadsheet reads a 13-digit ISBN as a number and saves it back as
+        # 9.78031E+12, which no longer names any book. The title and the name it
+        # is filed under come through untouched, so match on those instead.
+        print(f'{mangled} of {len(keep)} ticked rows have an ISBN a spreadsheet rounded off '
+              f'(9.78031E+12 and the like); matching those on title and publisher instead.')
+    return keep, len(rows)
 
 
 def book_changes(picks):
     books = all_books('id,isbn,author,author_last,authors,title,publisher')
     pinned = pinned_books()
-    changes = []
+    by_isbn = {isbn_of(r): r for r in books if isbn_of(r)}
+    by_title = defaultdict(list)
     for r in books:
-        pick = picks.get(isbn_of(r) or '')
-        filed = (r.get('author') or '').strip()
-        if not pick or r['id'] in pinned or (isbn_of(r) or '') in pinned:
+        by_title[(fold(r.get('author')), fold(r.get('title')))].append(r)
+
+    # Several books can share a title and a publisher - two "Baby Touch and
+    # Feel" from DK, three "No Fear" from SparkNotes. Without the ISBN they can
+    # only be told apart when every ticked row for that title wants the same
+    # author, which for a series it usually does.
+    agreed = defaultdict(set)
+    for pick in picks:
+        agreed[(fold(pick['filed under']), fold(pick['title']))].add(pick['proposed author'])
+    taken = set()
+
+    changes, missed = [], []
+    for pick in picks:
+        r = by_isbn.get((pick.get('isbn') or '').strip())
+        if r is None:
+            key = (fold(pick['filed under']), fold(pick['title']))
+            fits = [x for x in by_title.get(key, []) if x['id'] not in taken]
+            r = fits[0] if fits and (len(by_title[key]) == 1 or len(agreed[key]) == 1) else None
+            if r is not None:
+                taken.add(r['id'])
+        filed = (r.get('author') or '').strip() if r else ''
+        if r is None or filed != pick['filed under']:
+            missed.append(pick)
             continue
-        if filed != pick['filed under']:
-            print(f"  skipping {r['id']}: filed under {filed!r} now, not {pick['filed under']!r}")
+        if r['id'] in pinned or (isbn_of(r) or '') in pinned:
             continue
         author = pick['proposed author']
         new = {'author': author}
@@ -212,6 +243,10 @@ def book_changes(picks):
         if not (r.get('publisher') or '').strip():
             new['publisher'] = filed          # don't lose who printed it
         changes.append({'id': r['id'], 'new': new, 'old': {k: r.get(k) for k in new}})
+    for pick in missed:
+        print(f"  no book matches {pick['title'][:40]!r} filed under {pick['filed under']!r}")
+    if missed:
+        print(f'{len(missed)} ticked rows matched no book and were left alone')
     return changes
 
 
@@ -222,6 +257,11 @@ def apply(dry_run):
         raise SystemExit(f'{CSV_PATH} has {total} rows and none ticked - set "recover" to yes on the '
                          f'ones you want.')
     changes = book_changes(picks)
+    if not changes:
+        raise SystemExit(f'{len(picks)} rows are ticked but none of them name a book that is still '
+                         f'filed the way the CSV says. Re-run without --apply to rebuild '
+                         f'{CSV_PATH.name}, tick it again, and save it as CSV without letting a '
+                         f'spreadsheet reformat the isbn column.')
     print(f'{len(picks)} books ticked of {total} proposed')
     print(f"{'would update' if dry_run else 'updating'} {len(changes)} books")
     if dry_run:
