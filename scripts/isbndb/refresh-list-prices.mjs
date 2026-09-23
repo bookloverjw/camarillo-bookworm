@@ -40,15 +40,16 @@ if (budget < 1) {
 }
 
 // Books with a real ISBN-13 (sidelines carry UPCs and internal SKUs, which
-// ISBNdb doesn't know): first any with no price at all - books added from
-// the collections come in without one - then the stalest.
+// ISBNdb doesn't know): first any with no price at all - the books the site
+// shows and the nightly web catalogue import adds come in without one - then
+// the stalest.
 const ISBN13 = `isbn=match.${encodeURIComponent('^97[89][0-9]{10}$')}`;
 const books = [];
 const seen = new Set();
 for (const filter of ['price=eq.0&list_price=is.null&list_price_checked_at=is.null', '']) {
   for (let offset = 0; books.length < budget; offset += 1000) {
     const page = await supabase(
-      `books?select=id,isbn,title,price,list_price&${ISBN13}${filter ? `&${filter}` : ''}` +
+      `books?select=id,isbn,title,price,list_price,publication_date&${ISBN13}${filter ? `&${filter}` : ''}` +
         `&order=list_price_checked_at.asc.nullsfirst,id.asc&offset=${offset}&limit=1000`,
     );
     for (const b of page) {
@@ -86,6 +87,7 @@ async function bookshopListing(isbn) {
   }
 }
 let checked = 0, priced = 0, stopped = null;
+const today = new Date().toISOString().slice(0, 10);
 
 for (let i = 0; i < books.length; i += batchSize) {
   const batch = books.slice(i, i + batchSize);
@@ -116,6 +118,11 @@ for (let i = 0; i < books.length; i += batchSize) {
     const now = msrp.get(b.isbn);
     const before = Number(b.list_price ?? b.price) || 0;
     if (now == null || Math.abs(now - before) < 0.01) continue;
+    // A book that isn't out yet can't be in stock anywhere, so Bookshop.org
+    // has nothing to say about it and "out of stock" wouldn't mean out of
+    // print. Take the publisher's price as ISBNdb gives it. (Preorders reach
+    // the catalogue through the nightly web catalogue import.)
+    if ((b.publication_date ?? '') > today) continue;
     if (bookshopChecks >= MAX_BOOKSHOP_CHECKS) { deferred.add(b.id); msrp.delete(b.isbn); continue; }
     bookshopChecks++;
     const shop = await bookshopListing(b.isbn);

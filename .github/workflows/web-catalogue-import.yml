@@ -1,0 +1,74 @@
+# Every book the website shows becomes a row in the catalogue.
+#
+# The site shows more books than we stock: the NYT best seller lists, New
+# Releases, Coming Soon, and the award and collection titles. Without a
+# catalogue row a book has no page of its own, no search entry, no sitemap
+# URL, and no way to match a wishlist or a followed author. This runs the
+# import nightly so a book is ours within a day of appearing.
+#
+# Rows go in tagged 'web-catalogue' with zero inventory and no price, so the
+# POS sync can tell them from stock; the ISBNdb list-price job (isbndb-refresh)
+# prices them on its next run, which takes books with no price first.
+#
+# Needs one repository secret (Settings > Secrets and variables > Actions):
+#   SUPABASE_SECRET_KEY  Supabase dashboard > Project Settings > API keys
+# and supabase/author-search.sql applied, for canonical author spellings.
+#
+# Runs on a schedule and never on pull requests, so the secret is never
+# exposed to code from outside the repository. Run it by hand from the Actions
+# tab ("Run workflow"), as a dry run to see what it would add.
+name: Web catalogue import
+
+on:
+  schedule:
+    - cron: '52 11 * * *'   # daily, ~4:52am Pacific: after the night's price and cover jobs
+  workflow_dispatch:
+    inputs:
+      dry_run:
+        description: Look without adding anything
+        type: boolean
+        default: false
+      max_books:
+        description: Most books to add in this run (0 for no limit)
+        type: string
+        default: '0'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: web-catalogue-import
+  cancel-in-progress: false
+
+jobs:
+  import:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60   # Open Library lookups for a few hundred books
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+
+      - name: Work out what the site shows and we don't carry
+        working-directory: scripts/catalog
+        run: >-
+          python3 -u import_collection_books.py
+          --max ${{ inputs.max_books || 0 }}
+          --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Add them to the catalogue
+        if: ${{ !inputs.dry_run }}
+        working-directory: scripts/catalog
+        env:
+          SUPABASE_SECRET_KEY: ${{ secrets.SUPABASE_SECRET_KEY }}
+        run: python3 -u import_collection_books.py --apply --summary "$GITHUB_STEP_SUMMARY"
+
+      - name: Keep the review list
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: web-catalogue-import-${{ github.run_id }}
+          path: scripts/catalog/.cache/import-review.csv
+          if-no-files-found: ignore
+          retention-days: 90

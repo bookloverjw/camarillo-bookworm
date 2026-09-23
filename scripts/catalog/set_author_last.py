@@ -5,24 +5,10 @@ whose old surname no longer fits the name.
 
   python3 scripts/catalog/set_author_last.py [--dry-run]
 """
-import json, re, sys, urllib.parse
+import json, sys, urllib.parse
 from concurrent.futures import ThreadPoolExecutor
+from author_names import surname
 from catalog import CACHE, SUPABASE_URL, all_books, fold, http, secret_key, write_headers
-
-PARTICLES = {'van', 'von', 'le', 'la', 'de', 'du', 'del', 'der', 'di', 'da'}
-SUFFIXES = {'jr', 'jr.', 'sr', 'sr.', 'ii', 'iii', 'iv', 'md', 'phd'}
-
-
-def surname(author):
-    first = re.split(r',| and | & | with ', author or '')[0].strip()
-    parts = [p for p in first.split() if p.lower().strip(',') not in SUFFIXES]
-    if not parts:
-        return None
-    last = [parts[-1]]
-    while len(parts) - len(last) > 1 and parts[-len(last) - 1].lower() in PARTICLES:  # "Van Pelt", "van der Wouden"
-        last.insert(0, parts[-len(last) - 1])
-    return ' '.join(last)
-
 
 rows = all_books('id,author,author_last,tags')
 fixed = {f['id'] for f in json.loads((CACHE / 'fixes.json').read_text()) if 'author' in f['new']}
