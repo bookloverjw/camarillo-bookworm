@@ -22,26 +22,31 @@ ALTER TABLE public.books
   ADD COLUMN IF NOT EXISTS contributors jsonb NOT NULL DEFAULT '[]'::jsonb;
 
 -- Refuse anything that isn't a list of {name, role}, so a bad import can't
--- put a string where the site expects an object.
-ALTER TABLE public.books DROP CONSTRAINT IF EXISTS books_contributors_shape;
-ALTER TABLE public.books ADD CONSTRAINT books_contributors_shape CHECK (
-  jsonb_typeof(contributors) = 'array'
-  AND NOT EXISTS (
-    SELECT 1 FROM jsonb_array_elements(contributors) AS c
+-- put a string where the site expects an object. A CHECK cannot contain a
+-- subquery, so the per-entry test lives in a function it can call.
+CREATE OR REPLACE FUNCTION public.contributors_ok(v jsonb)
+RETURNS boolean LANGUAGE sql IMMUTABLE PARALLEL SAFE
+SET search_path = public
+AS $$
+  SELECT jsonb_typeof(v) = 'array' AND NOT EXISTS (
+    SELECT 1 FROM jsonb_array_elements(v) AS c
     WHERE jsonb_typeof(c) <> 'object'
        OR jsonb_typeof(c -> 'name') <> 'string'
        OR c ->> 'role' NOT IN ('illustrator', 'translator', 'editor', 'photographer', 'colorist')
   )
-) NOT VALID;
+$$;
+
+ALTER TABLE public.books DROP CONSTRAINT IF EXISTS books_contributors_shape;
+ALTER TABLE public.books ADD CONSTRAINT books_contributors_shape
+  CHECK (public.contributors_ok(contributors)) NOT VALID;
 ALTER TABLE public.books VALIDATE CONSTRAINT books_contributors_shape;
 
 -- Filtering "show me everything Oliver Jeffers drew".
 CREATE INDEX IF NOT EXISTS idx_books_contributors ON public.books USING gin (contributors jsonb_path_ops);
 
--- Searching by an approximate name, the way search_authors already does.
--- Needs supabase/author-search.sql for f_unaccent and pg_trgm.
-CREATE INDEX IF NOT EXISTS idx_books_contributor_names_trgm
-  ON public.books USING gin (public.f_unaccent(contributors::text) gin_trgm_ops);
+-- No trigram index here: search_contributors unnests the array first, so an
+-- index over the whole jsonb text could not answer it. It scans the 650-odd
+-- books that have contributors, which is nothing.
 
 -- The publishable key may read it: it is on the cover.
 -- (books-public-columns-2-lockdown.sql grants an allow-list; add
@@ -65,8 +70,8 @@ AS $$
     WHERE b.contributors <> '[]'::jsonb
   )
   SELECT
-    people.name,
-    people.role,
+    people.name::text,
+    people.role::text,
     count(*) AS book_count,
     greatest(
       similarity(public.f_unaccent(people.name), needle.n),
@@ -94,7 +99,9 @@ RETURNS TABLE (id text, title text, author text, cover_url text, role text)
 LANGUAGE sql STABLE SECURITY DEFINER
 SET search_path = public
 AS $$
-  SELECT b.id, b.title, b.author, b.cover_url, c ->> 'role'
+  -- Cast every column: this database has varchar where the migrations say
+  -- text in places, and a SQL function's RETURNS TABLE will not tolerate it.
+  SELECT b.id::text, b.title::text, b.author::text, b.cover_url::text, (c ->> 'role')::text
   FROM public.books b, jsonb_array_elements(b.contributors) AS c
   WHERE public.f_unaccent(c ->> 'name') = public.f_unaccent(btrim(who))
   ORDER BY b.title
