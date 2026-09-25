@@ -40,14 +40,17 @@ def http(url, data=None, headers=None, method=None, tries=5, timeout=60):
             time.sleep(5 * (attempt + 1))
 
 
-def all_books(fields, key=None):
+def all_books(fields, key=None, limit=None):
+    """Every book, or just the first `limit` of them - enough to check that a
+    column exists without reading 23,000 rows."""
     key = key or PUBLIC_KEY
     rows = []
-    for offset in range(0, 500000, 1000):
-        q = urllib.parse.urlencode({'select': fields, 'order': 'id.asc', 'offset': offset, 'limit': 1000})
+    for offset in range(0, limit or 500000, 1000):
+        page_size = min(1000, limit - offset) if limit else 1000
+        q = urllib.parse.urlencode({'select': fields, 'order': 'id.asc', 'offset': offset, 'limit': page_size})
         page = http(f'{SUPABASE_URL}/rest/v1/books?{q}', headers={'apikey': key, 'Authorization': f'Bearer {key}'})
         rows += page
-        if len(page) < 1000:
+        if len(page) < page_size or (limit and len(rows) >= limit):
             return rows
 
 

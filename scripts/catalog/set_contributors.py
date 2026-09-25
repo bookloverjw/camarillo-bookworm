@@ -229,7 +229,22 @@ def reviewed():
     return by_book, len(rows)
 
 
+SQL_FILE = 'supabase/book-contributors.sql'
+
+
+def require_column():
+    """books.contributors has to exist before anything can be written to it.
+    Without this the run dies on a bare HTTP 400 that says nothing."""
+    try:
+        all_books('id,contributors', limit=1)
+    except Exception:
+        raise SystemExit(f'books.contributors is not there yet. Run {SQL_FILE} in the Supabase SQL '
+                         f'editor (or with psql) first; it adds the column, the two search functions '
+                         f'and the grant, and is safe to re-run.')
+
+
 def book_changes(by_book):
+    require_column()
     books = all_books('id,isbn,author,title,contributors')
     wanted = {}
     for (isbn, author, title), people in by_book.items():
