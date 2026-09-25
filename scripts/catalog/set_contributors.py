@@ -47,7 +47,11 @@ ROLES = [
 ]
 # What Open Library wraps a name in: "Shepard, Ernest H. 1879-1976, ill.",
 # "Rieu, E. V. (Emile Victor), 1887-1972", "illustrated by Stephen Marchesi".
-LIFESPAN = re.compile(r',?\s*\d{4}\s*-\s*(\d{4})?\.?$')
+LIFESPAN = re.compile(r',?\s*\d{4}(?:\s+\w+\s+\d{1,2})?\s*-\s*(\d{4})?\.?$')
+# "Lay, Carol, author" - the role sits after the name, and swapping the comma
+# without taking it off first gives "Carol, author Lay".
+TRAILING_ROLE = re.compile(r',\s*(?:author|creator|writer|editor|compiler|adapter|narrator|'
+                           r'contributor|colorist|letterer|inker|penciller)\b\.?\s*$', re.I)
 PARENS = re.compile(r'\([^)]*\)')
 CREDIT = re.compile(r'\((?:translator|illustrator|introduction|contributor|editor|foreword|'
                     r'afterword|photographer)\)', re.I)
@@ -57,7 +61,8 @@ LEAD = re.compile(r'^(?:and\s+|with\s+|by\s+|from\s+the\s+\w+\s+|original\s+|new
 
 
 def tidy(name):
-    name = CREDIT.sub(' ', name or '')
+    name = TRAILING_ROLE.sub('', (name or '').strip())
+    name = CREDIT.sub(' ', name)
     for _ in range(4):                                  # each pass can expose the next wrapper
         before = name
         for _, rx in ROLES:
@@ -65,33 +70,70 @@ def tidy(name):
         name = PARENS.sub(' ', name)
         name = ' '.join(name.split()).strip(' .,;:')
         name = LIFESPAN.sub('', name).strip(' .,;:')
+        name = TRAILING_ROLE.sub('', name).strip(' .,;:')
         name = LEAD.sub('', name).strip(' .,;:')
         if name == before:
             break
     head, sep, tail = name.partition(',')                # "Shepard, Ernest H." -> "Ernest H. Shepard"
-    if sep and tail.strip() and len(tokens(tail)) <= 2:
+    if sep and tail.strip() and len(tokens(head)) == 1 and 1 <= len(tokens(tail)) <= 3:
         name = f'{tail.strip()} {head.strip()}'
     return ' '.join(name.split()).strip(' .,;:')
+
+
+# Take the name that FOLLOWS the credit, rather than deleting the credit and
+# keeping whatever is left: "a new translation, edited by Luci Berkowitz" says
+# translation and names an editor, and the difference is the whole point.
+# Only the words that actually join a credit to a name may sit between them.
+# Anything else means a second credit has started: "a new translation, edited
+# by Luci Berkowitz" names an editor, not a translator.
+JOIN = r'(?:\s+from\s+the\s+[\w-]+)?(?:\s+and\s+annotated)?(?:\s+into\s+[\w-]+(?:\s+verse)?)?\s+by\s+'
+SAYS = [
+    ('translator', re.compile(r'\btranslat(?:ed|ion|or)\b' + JOIN + r'(.+)', re.I)),
+    ('illustrator', re.compile(r'\b(?:illustrat(?:ed|ions?|or)|pictures|drawings|decorations|'
+                               r'photographs|engraved)\b' + JOIN + r'(.+)', re.I)),
+]
+# A contribution line's trailing role. Anything else - an introduction, an
+# edition, notes - is somebody we are not crediting.
+TAGGED = [
+    ('translator', re.compile(r'[,(\s](?:tr|trans|translator)\b\.?\)?\s*$', re.I)),
+    ('illustrator', re.compile(r'[,(\s](?:ill|illus|illustrator|photographer)\b\.?\)?\s*$', re.I)),
+]
+SPLIT = re.compile(r'\s+and\s+|\s*&\s*|\s*;\s*', re.I)
+
+
+def each_name(blob):
+    """The people in one credit.
+
+    A comma means two different things: "Shepard, Ernest H." is one name the
+    library way round, and "Coleman Barks, with John Moyne" is two. What comes
+    before the comma tells them apart - a lone surname, or a whole name."""
+    for chunk in SPLIT.split(BRACKETED.sub(' ', blob or '')):
+        head = chunk.split(',')[0]
+        parts = chunk.split(',') if ',' in chunk and len(tokens(head)) > 1 else [chunk]
+        for part in parts:
+            who = tidy(part)
+            if who and 2 <= len(tokens(who)) <= 5 and not DROP.search(who):
+                yield who
+
+
+BRACKETED = re.compile(r'[\[\]]')
+DROP = re.compile(r'\b(?:introduction|introd|foreword|afterword|notes?|edited|editor|preface|'
+                  r'commentary|creator|verse|style)\b', re.I)
 
 
 def roles_from(ed):
     """(role, name) pairs an Open Library edition names outright."""
     out = []
     for line in re.split(r'\s*;\s*', ed.get('by_statement') or ''):
-        for role, rx in ROLES:
-            if rx.search(line):
-                who = tidy(rx.sub('', line))
-                if who and len(tokens(who)) >= 2:
-                    for one in re.split(r'\s+and\s+|\s*&\s*', who):
-                        if len(tokens(one)) >= 2:
-                            out.append((role, tidy(one)))
+        for role, rx in SAYS:
+            hit = rx.search(line)
+            if hit:
+                out += [(role, who) for who in each_name(hit.group(1))]
                 break
     for entry in ed.get('contributions') or []:
-        for role, rx in ROLES:
-            if rx.search(entry) or re.search(rf'\({role}\)', entry, re.I):
-                who = tidy(entry)
-                if who and len(tokens(who)) >= 2:
-                    out.append((role, who))
+        for role, rx in TAGGED:
+            if rx.search(entry):
+                out += [(role, who) for who in each_name(rx.sub('', entry))]
                 break
     seen, uniq = set(), []
     for role, name in out:
