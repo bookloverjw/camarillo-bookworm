@@ -4,6 +4,7 @@
   "version": "0.0.1",
   "type": "module",
   "scripts": {
+    "dev": "vite",
     "build": "node scripts/snapshot-coming-soon.mjs && vite build && node scripts/prerender-head.mjs",
     "preview": "vite preview",
     "test": "npx playwright test",

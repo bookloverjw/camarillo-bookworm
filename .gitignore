@@ -62,3 +62,9 @@ playwright-report/
 
 # Python bytecode
 __pycache__/
+
+# Claude Code: agent worktrees are whole checkouts and must never be committed;
+# settings.local.json is this machine's permissions. launch.json is shared,
+# it is how the dev server starts.
+.claude/worktrees/
+.claude/settings.local.json

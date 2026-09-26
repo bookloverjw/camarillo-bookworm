@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Run one of supabase/*.sql against the database.
+#
+#   scripts/db supabase/book-contributors.sql
+#   scripts/db -c 'select count(*) from books'
+#
+# Reads DATABASE_URL from .env.local, which is gitignored and lives in the
+# main checkout - a git worktree does not have its own copy, so look there
+# too. Get the string from the Supabase dashboard: Project Settings >
+# Database > Connection string > URI, and put the database password in it.
+set -euo pipefail
+
+here=$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)
+roots=("$here")
+if [ -f "$here/.git" ]; then                       # a worktree: .git is a file pointing home
+  gitdir=$(sed -n 's/^gitdir: //p' "$here/.git")
+  roots+=("${gitdir%%/.git/worktrees/*}")
+fi
+
+for root in "${roots[@]}"; do
+  if [ -f "$root/.env.local" ]; then
+    # shellcheck disable=SC1090
+    set -a; . "$root/.env.local"; set +a
+    break
+  fi
+done
+
+if [ -z "${DATABASE_URL:-}" ]; then
+  echo "DATABASE_URL is not set." >&2
+  echo "Add it to .env.local in the main checkout:" >&2
+  echo "  DATABASE_URL=postgresql://postgres.<ref>:<password>@<host>:5432/postgres" >&2
+  echo "Supabase dashboard > Project Settings > Database > Connection string > URI." >&2
+  exit 1
+fi
+
+if ! command -v psql >/dev/null; then
+  echo "psql is not installed. brew install libpq && brew link --force libpq" >&2
+  exit 1
+fi
+
+case "${1:-}" in
+  *.sql) exec psql "$DATABASE_URL" -v ON_ERROR_STOP=1 -f "$@" ;;
+  *)     exec psql "$DATABASE_URL" -v ON_ERROR_STOP=1 "$@" ;;
+esac
